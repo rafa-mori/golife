@@ -1,4 +1,4 @@
-package golife
+package internal
 
 import (
 	"context"
@@ -12,6 +12,12 @@ type ManagedProcessEvents struct {
 	EventFns map[string]func(interface{})
 	// Triggers
 	TriggerCh chan interface{}
+	// Internals
+	mu    sync.Mutex
+	Data  interface{}
+	Ev    string
+	Fn    func(interface{}) error
+	Stage string
 }
 type ManagedMonitProperties struct {
 	// Monitoramento

@@ -1,4 +1,4 @@
-package golife
+package internal
 
 import (
 	"bufio"
@@ -7,7 +7,9 @@ import (
 	"strings"
 )
 
-func (lm *GWebLifeCycle) StartIPCServer() {
+var authToken = "secreto-token-123" // Token de autenticação para controle de acesso
+
+func (lm *gWebLifeCycle) StartIPCServer() {
 	ln, err := net.Listen("tcp", ":8081")
 	if err != nil {
 		fmt.Println("Erro ao iniciar servidor IPC:", err)
@@ -26,12 +28,26 @@ func (lm *GWebLifeCycle) StartIPCServer() {
 	}
 }
 
-func (lm *GWebLifeCycle) handleIPCConnection(conn net.Conn) {
+func (lm *gWebLifeCycle) handleIPCConnection(conn net.Conn) {
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
+
+	// Primeira mensagem deve ser um token válido
+	token, _ := reader.ReadString('\n')
+	token = strings.TrimSpace(token)
+
+	if token != authToken {
+		conn.Write([]byte("Erro: Acesso negado! Token inválido.\n"))
+		fmt.Println("Conexão recusada: Token inválido.")
+		return
+	}
+
+	fmt.Println("Conexão autenticada com sucesso.")
+
 	for {
 		message, _ := reader.ReadString('\n')
 		message = strings.TrimSpace(message)
+
 		switch message {
 		case "START":
 			lm.Start()

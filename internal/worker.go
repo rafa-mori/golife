@@ -1,11 +1,17 @@
-package golife
+package internal
 
 import (
 	"sync"
 )
 
+type IWorkerPool interface {
+	Submit(task func())
+	Wait()
+	worker()
+}
+
 type WorkerPool struct {
-	tasks chan func()
+	Tasks chan func()
 	wg    sync.WaitGroup
 }
 
@@ -23,10 +29,10 @@ func (wp *WorkerPool) Wait() {
 	wp.wg.Wait()
 }
 
-func NewWorkerPool(size int) *WorkerPool {
-	pool := &WorkerPool{tasks: make(chan func(), size)}
+func NewWorkerPool(size int) IWorkerPool {
+	pool := WorkerPool{tasks: make(chan func(), size)}
 	for i := 0; i < size; i++ {
 		go pool.worker()
 	}
-	return pool
+	return &pool
 }

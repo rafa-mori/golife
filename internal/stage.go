@@ -1,4 +1,12 @@
-package golife
+package internal
+
+type IStage interface {
+	OnEnter(fn func()) *Stage
+	OnExit(fn func()) *Stage
+	OnEvent(event string, fn func(interface{})) *Stage
+	AutoScale(size int) *Stage
+	Dispatch(task func())
+}
 
 type Stage struct {
 	// Stage identifiers
@@ -39,11 +47,11 @@ func (s *Stage) OnEvent(event string, fn func(interface{})) *Stage {
 	return s
 }
 func (s *Stage) AutoScale(size int) *Stage {
-	s.WorkerPool = NewWorkerPool(size)
+	s.WorkerPool = NewWorkerPool(size).(*WorkerPool)
 	return s
 }
 func (s *Stage) Dispatch(task func()) {
 	if s.WorkerPool != nil {
-		s.WorkerPool.tasks <- task
+		s.WorkerPool.Tasks <- task
 	}
 }

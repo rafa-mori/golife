@@ -23,9 +23,5 @@ go.work.sum
 
 # env file
 .env
-/.idea/.gitignore
-/.idea/golife.iml
-/.idea/misc.xml
-/.idea/modules.xml
-/.idea/vcs.xml
-/.idea/workspace.xml
+
+/.idea

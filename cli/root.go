@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 	lcmd "github.com/faelmori/golife/cli/cmd"
 	"github.com/spf13/cobra"
 )
@@ -30,14 +29,11 @@ Hope you enjoy using it as much as I enjoyed creating it. For more information, 
 Happy coding! Happy Life!`,
 }
 
-func init() {
+func RootCmd() *cobra.Command {
 	setUsageDefinition(rootCmd)
 
 	rootCmd.AddCommand(lcmd.ServiceCmdList()...)
 	rootCmd.AddCommand(lcmd.EventsCmdList()...)
 
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		return
-	}
+	return rootCmd
 }
