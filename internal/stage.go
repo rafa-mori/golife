@@ -48,6 +48,7 @@ func (s *Stage) OnEvent(event string, fn func(interface{})) *Stage {
 }
 func (s *Stage) AutoScale(size int) *Stage {
 	s.WorkerPool = NewWorkerPool(size).(*WorkerPool)
+	s.WorkerPool.Wg.Add(size)
 	return s
 }
 func (s *Stage) Dispatch(task func()) {

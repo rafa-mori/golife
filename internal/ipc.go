@@ -15,7 +15,9 @@ func (lm *gWebLifeCycle) StartIPCServer() {
 		fmt.Println("Erro ao iniciar servidor IPC:", err)
 		return
 	}
-	defer ln.Close()
+	defer func(ln net.Listener) {
+		_ = ln.Close()
+	}(ln)
 	fmt.Println("Servidor IPC escutando na porta 8081")
 
 	for {
@@ -27,9 +29,10 @@ func (lm *gWebLifeCycle) StartIPCServer() {
 		go lm.handleIPCConnection(conn)
 	}
 }
-
 func (lm *gWebLifeCycle) handleIPCConnection(conn net.Conn) {
-	defer conn.Close()
+	defer func(conn net.Conn) {
+		_ = conn.Close()
+	}(conn)
 	reader := bufio.NewReader(conn)
 
 	// Primeira mensagem deve ser um token válido
@@ -37,7 +40,10 @@ func (lm *gWebLifeCycle) handleIPCConnection(conn net.Conn) {
 	token = strings.TrimSpace(token)
 
 	if token != authToken {
-		conn.Write([]byte("Erro: Acesso negado! Token inválido.\n"))
+		_, wrtErr := conn.Write([]byte("Erro: Acesso negado! Token inválido.\n"))
+		if wrtErr != nil {
+			return
+		}
 		fmt.Println("Conexão recusada: Token inválido.")
 		return
 	}
@@ -50,19 +56,43 @@ func (lm *gWebLifeCycle) handleIPCConnection(conn net.Conn) {
 
 		switch message {
 		case "START":
-			lm.Start()
-			conn.Write([]byte("Processos iniciados\n"))
+			startErr := lm.Start()
+			if startErr != nil {
+				return
+			}
+			_, wrtErr := conn.Write([]byte("Processos iniciados\n"))
+			if wrtErr != nil {
+				return
+			}
 		case "STOP":
-			lm.Stop()
-			conn.Write([]byte("Processos parados\n"))
+			stopErr := lm.Stop()
+			if stopErr != nil {
+				return
+			}
+			_, wrtErr := conn.Write([]byte("Processos parados\n"))
+			if wrtErr != nil {
+				return
+			}
 		case "RESTART":
-			lm.Restart()
-			conn.Write([]byte("Processos reiniciados\n"))
+			restartErr := lm.Restart()
+			if restartErr != nil {
+				return
+			}
+			_, wrtErr := conn.Write([]byte("Processos reiniciados\n"))
+			if wrtErr != nil {
+				return
+			}
 		case "STATUS":
 			status := lm.Status()
-			conn.Write([]byte(fmt.Sprintf("Status: %s\n", status)))
+			_, wrtErr := conn.Write([]byte(fmt.Sprintf("Status: %s\n", status)))
+			if wrtErr != nil {
+				return
+			}
 		default:
-			conn.Write([]byte("Comando desconhecido\n"))
+			_, wrtErr := conn.Write([]byte("Comando desconhecido\n"))
+			if wrtErr != nil {
+				return
+			}
 		}
 	}
 }

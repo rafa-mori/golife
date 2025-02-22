@@ -12,25 +12,23 @@ type IWorkerPool interface {
 
 type WorkerPool struct {
 	Tasks chan func()
-	wg    sync.WaitGroup
+	Wg    sync.WaitGroup
 }
 
 func (wp *WorkerPool) worker() {
-	for task := range wp.tasks {
+	for task := range wp.Tasks {
 		task()
 	}
 }
-
 func (wp *WorkerPool) Submit(task func()) {
-	wp.tasks <- task
+	wp.Tasks <- task
 }
-
 func (wp *WorkerPool) Wait() {
-	wp.wg.Wait()
+	wp.Wg.Wait()
 }
 
 func NewWorkerPool(size int) IWorkerPool {
-	pool := WorkerPool{tasks: make(chan func(), size)}
+	pool := WorkerPool{Tasks: make(chan func(), size)}
 	for i := 0; i < size; i++ {
 		go pool.worker()
 	}
