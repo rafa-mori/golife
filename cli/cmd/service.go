@@ -5,6 +5,7 @@ import (
 	"github.com/faelmori/golife/internal"
 	"github.com/spf13/cobra"
 	"os"
+	"os/exec"
 	"syscall"
 )
 
@@ -29,17 +30,28 @@ func startCmd() *cobra.Command {
 	var startCmd = &cobra.Command{
 		Use:  "start",
 		Long: Banner + `Start the application`,
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			iManager := internal.NewLifecycleManager()
-			iManager.RegisterProcess(processName, processCmd, processArgs, processWait)
-
-			for ev, stage := range processEvents {
-				iManager.RegisterEvent(ev, stage)
+			regProcErr := iManager.RegisterProcess(processName, processCmd, processArgs, processWait)
+			if regProcErr != nil {
+				return regProcErr
 			}
 
-			iManager.StartAll()
+			for ev, stage := range processEvents {
+				regEvErr := iManager.RegisterEvent(ev, stage)
+				if regEvErr != nil {
+					return regEvErr
+				}
+			}
+
+			startAllErr := iManager.StartAll()
+			if startAllErr != nil {
+				return startAllErr
+			}
 
 			manager = &iManager
+
+			return nil
 		},
 	}
 
@@ -55,13 +67,17 @@ func stopCmd() *cobra.Command {
 	var stopCmd = &cobra.Command{
 		Use:  "stop",
 		Long: Banner + `Stop the application`,
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if manager == nil {
-				return
+				return fmt.Errorf("no manager found")
 			} else {
 				mgr := *manager
-				mgr.StopAll()
+				stopErr := mgr.StopAll()
+				if stopErr != nil {
+					return stopErr
+				}
 			}
+			return nil
 		},
 	}
 
@@ -71,12 +87,13 @@ func statusCmd() *cobra.Command {
 	var statusCmd = &cobra.Command{
 		Use:  "status",
 		Long: Banner + `Check the status of the application`,
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if manager == nil {
-				return
+				return fmt.Errorf("no manager found")
 			} else {
 				mgr := *manager
 				fmt.Println(mgr.Status())
+				return nil
 			}
 		},
 	}
@@ -89,7 +106,7 @@ func restartCmd() *cobra.Command {
 		Long: Banner + `Restart the application`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if manager == nil {
-				return fmt.Errorf("No manager found")
+				return fmt.Errorf("no manager found")
 			} else {
 				mgr := *manager
 				return mgr.Restart()
@@ -109,7 +126,14 @@ func serviceCmd() *cobra.Command {
 		Use:  "service",
 		Long: Banner + `Manage the application as a service`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmdStartSpawner := fmt.Sprintf("golife service start -n %s -c %s -a %s -w %t -e %s", processName, processCmd, processArgs, processWait, processEvents)
+			usrEnvs := os.Environ()
+			envPath := os.Getenv("PATH")
+			usrEnvs = append(usrEnvs, fmt.Sprintf("PATH=%s", envPath))
+			appBinPath, appBinPathErr := exec.LookPath(AppName)
+			if appBinPathErr != nil {
+				return appBinPathErr
+			}
+			cmdStartSpawner := fmt.Sprintf("%s service start -n %s -c %s -a %s -w %t -e %s", appBinPath, processName, processCmd, processArgs, processWait, processEvents)
 			cmdStartErr := syscall.Exec("/bin/sh", []string{"-c", cmdStartSpawner}, os.Environ())
 			if cmdStartErr != nil {
 				return cmdStartErr

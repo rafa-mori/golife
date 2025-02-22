@@ -14,16 +14,16 @@ type GWebLifeCycleManager interface {
 	Stop() error
 	Restart() error
 	Status() string
-	RegisterProcess(name string, command string, args []string, restart bool)
-	RegisterEvent(event, stage string)
+	RegisterProcess(name string, command string, args []string, restart bool) error
+	RegisterEvent(event, stage string) error
 	StartProcess(proc *ManagedProcess) error
-	StartAll()
-	StopAll()
+	StartAll() error
+	StopAll() error
 	Trigger(stage, event string, data interface{})
 	DefineStage(name string) *Stage
 	Send(stage string, msg interface{})
 	Receive(stage string) interface{}
-	ListenForSignals()
+	ListenForSignals() error
 }
 
 type gWebLifeCycle struct {
@@ -82,16 +82,28 @@ func (lm *gWebLifeCycle) Receive(stage string) interface{} {
 	}
 }
 func (lm *gWebLifeCycle) Start() error {
-	lm.StartAll()
+	err := lm.StartAll()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 func (lm *gWebLifeCycle) Stop() error {
-	lm.StopAll()
+	err := lm.StopAll()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 func (lm *gWebLifeCycle) Restart() error {
-	lm.StopAll()
-	lm.StartAll()
+	stopAllErr := lm.StopAll()
+	if stopAllErr != nil {
+		return stopAllErr
+	}
+	startAllErr := lm.StartAll()
+	if startAllErr != nil {
+		return startAllErr
+	}
 	return nil
 }
 func (lm *gWebLifeCycle) Status() string {
@@ -104,7 +116,7 @@ func (lm *gWebLifeCycle) Status() string {
 	}
 	return status
 }
-func (lm *gWebLifeCycle) RegisterProcess(name string, command string, args []string, restart bool) {
+func (lm *gWebLifeCycle) RegisterProcess(name string, command string, args []string, restart bool) error {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 
@@ -112,8 +124,10 @@ func (lm *gWebLifeCycle) RegisterProcess(name string, command string, args []str
 		Cmd:  exec.Command(command, args...),
 		Name: name,
 	}
+
+	return nil
 }
-func (lm *gWebLifeCycle) RegisterEvent(event, stage string) {
+func (lm *gWebLifeCycle) RegisterEvent(event, stage string) error {
 	lm.eventsMu.Lock()
 	defer lm.eventsMu.Unlock()
 
@@ -122,8 +136,10 @@ func (lm *gWebLifeCycle) RegisterEvent(event, stage string) {
 		Stage: stage,
 		Data:  nil,
 	}
+
+	return nil
 }
-func (lm *gWebLifeCycle) StartAll() {
+func (lm *gWebLifeCycle) StartAll() error {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 	for name, proc := range lm.processes {
@@ -131,6 +147,7 @@ func (lm *gWebLifeCycle) StartAll() {
 			fmt.Printf("Erro ao iniciar %s: %v\n", name, err)
 		}
 	}
+	return nil
 }
 func (lm *gWebLifeCycle) StartProcess(proc *ManagedProcess) error {
 	if err := proc.Start(); err != nil {
@@ -138,17 +155,20 @@ func (lm *gWebLifeCycle) StartProcess(proc *ManagedProcess) error {
 	}
 	return nil
 }
-func (lm *gWebLifeCycle) StopAll() {
+func (lm *gWebLifeCycle) StopAll() error {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 
 	for name, proc := range lm.processes {
 		if err := proc.Stop(); err != nil {
-			fmt.Printf("Erro ao encerrar %s: %v\n", name, err)
+			return err
+		} else {
+			delete(lm.processes, name)
 		}
 	}
+	return nil
 }
-func (lm *gWebLifeCycle) ListenForSignals() {
+func (lm *gWebLifeCycle) ListenForSignals() error {
 	select {
 	case ev := <-lm.eventsCh:
 		lm.eventsMu.Lock()
@@ -156,12 +176,20 @@ func (lm *gWebLifeCycle) ListenForSignals() {
 		lm.Trigger(ev.Stage, ev.Ev, ev.Data)
 	case <-lm.doneChan:
 		if len(lm.processes) > 0 {
-			lm.StartAll()
+			startAllErr := lm.StartAll()
+			if startAllErr != nil {
+				return startAllErr
+			}
 		}
 	case <-lm.sigChan:
-		lm.StopAll()
+		stopAllErr := lm.StopAll()
+		if stopAllErr != nil {
+			return stopAllErr
+		}
 		close(lm.doneChan)
 	}
+
+	return nil
 }
 
 func NewLifecycleManager() GWebLifeCycleManager {
@@ -172,7 +200,12 @@ func NewLifecycleManager() GWebLifeCycleManager {
 	}
 
 	signal.Notify(mgr.sigChan, syscall.SIGINT, syscall.SIGTERM)
-	go mgr.ListenForSignals()
+	go func() {
+		err := mgr.ListenForSignals()
+		if err != nil {
+			fmt.Println("Erro ao ouvir sinais:", err)
+		}
+	}()
 
 	return mgr
 }
