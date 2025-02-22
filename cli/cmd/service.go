@@ -2,54 +2,84 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/faelmori/golife/internal"
+	. "github.com/faelmori/golife/internal"
 	"github.com/spf13/cobra"
 	"os"
 	"os/exec"
 	"syscall"
 )
 
-var manager *internal.GWebLifeCycleManager
+var manager GWebLifeCycleManager
+
+const availableStages = "all,prestart,poststart,prestop,poststop"
 
 func ServiceCmdList() []*cobra.Command {
 	return []*cobra.Command{
-		startCmd(),
-		stopCmd(),
-		statusCmd(),
-		restartCmd(),
-		serviceCmd(),
+		startCommand(),
+		stopCommand(),
+		statusCommand(),
+		restartCommand(),
+		serviceCommand(),
 	}
 }
 
-func startCmd() *cobra.Command {
+func startCommand() *cobra.Command {
 	var processName, processCmd string
 	var processArgs []string
-	var processWait bool
+	var processWait, restart bool
+	var stages []string
 	var processEvents map[string]string
 
 	var startCmd = &cobra.Command{
 		Use:  "start",
 		Long: Banner + `Start the application`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			iManager := internal.NewLifecycleManager()
-			regProcErr := iManager.RegisterProcess(processName, processCmd, processArgs, processWait)
+			manager = NewLifecycleManager()
+			//if len(stages) > 0 {
+			//	processEvents = make(map[string]string)
+			//	for _, stage := range stages {
+			//		if stage == "all" {
+			//			for _, stg := range strings.Split(availableStages, ",") {
+			//				processEvents[stg] = stg
+			//			}
+			//			break
+			//		} else {
+			//			if strings.Contains(availableStages, stage) {
+			//				processEvents[stage] = stage
+			//			} else {
+			//				return fmt.Errorf("invalid stage: %s", stage)
+			//			}
+			//		}
+			//		processEvents[stage] = stage
+			//	}
+			//}
+			//if processName == "" {
+			//	return fmt.Errorf("process name is required")
+			//}
+			//if processCmd == "" {
+			//	return fmt.Errorf("process command is required")
+			//}
+			//if len(processEvents) == 0 {
+			//	processEvents["all"] = "all"
+			//} else {
+			//	for ev, _ := range processEvents {
+			//		if !strings.Contains(availableStages, ev) {
+			//			return fmt.Errorf("invalid event: %s", ev)
+			//		} else {
+			//			processEvents[ev] = ev
+			//		}
+			//	}
+			//}
+
+			regProcErr := manager.RegisterProcess(processName, processCmd, processArgs, restart, processWait)
 			if regProcErr != nil {
 				return regProcErr
 			}
 
-			for ev, stage := range processEvents {
-				regEvErr := iManager.RegisterEvent(ev, stage)
-				if regEvErr != nil {
-					return regEvErr
-				}
-			}
-
-			startAllErr := iManager.StartAll()
+			startAllErr := manager.Start()
 			if startAllErr != nil {
 				return startAllErr
 			}
-
-			manager = &iManager
 
 			return nil
 		},
@@ -59,11 +89,14 @@ func startCmd() *cobra.Command {
 	startCmd.Flags().StringVarP(&processCmd, "cmd", "c", "", "Command to execute")
 	startCmd.Flags().StringSliceVarP(&processArgs, "args", "a", []string{}, "Arguments to pass to the command")
 	startCmd.Flags().BoolVarP(&processWait, "wait", "w", false, "Wait for the process to finish before returning")
+	startCmd.Flags().BoolVarP(&restart, "restart", "r", false, "Restart the process if it is already running")
+	startCmd.Flags().StringSliceVarP(&stages, "stages", "s", []string{}, "Stages to listen for and trigger")
 	startCmd.Flags().StringToStringVarP(&processEvents, "events", "e", map[string]string{}, "Events to listen for and trigger")
 
 	return startCmd
 }
-func stopCmd() *cobra.Command {
+func stopCommand() *cobra.Command {
+	var processName string
 	var stopCmd = &cobra.Command{
 		Use:  "stop",
 		Long: Banner + `Stop the application`,
@@ -71,8 +104,7 @@ func stopCmd() *cobra.Command {
 			if manager == nil {
 				return fmt.Errorf("no manager found")
 			} else {
-				mgr := *manager
-				stopErr := mgr.StopAll()
+				stopErr := manager.Stop()
 				if stopErr != nil {
 					return stopErr
 				}
@@ -81,9 +113,11 @@ func stopCmd() *cobra.Command {
 		},
 	}
 
+	stopCmd.Flags().StringVarP(&processName, "name", "n", "", "Name of the process")
+
 	return stopCmd
 }
-func statusCmd() *cobra.Command {
+func statusCommand() *cobra.Command {
 	var statusCmd = &cobra.Command{
 		Use:  "status",
 		Long: Banner + `Check the status of the application`,
@@ -91,8 +125,7 @@ func statusCmd() *cobra.Command {
 			if manager == nil {
 				return fmt.Errorf("no manager found")
 			} else {
-				mgr := *manager
-				fmt.Println(mgr.Status())
+				fmt.Println(manager.Status())
 				return nil
 			}
 		},
@@ -100,7 +133,7 @@ func statusCmd() *cobra.Command {
 
 	return statusCmd
 }
-func restartCmd() *cobra.Command {
+func restartCommand() *cobra.Command {
 	var restartCmd = &cobra.Command{
 		Use:  "restart",
 		Long: Banner + `Restart the application`,
@@ -108,15 +141,14 @@ func restartCmd() *cobra.Command {
 			if manager == nil {
 				return fmt.Errorf("no manager found")
 			} else {
-				mgr := *manager
-				return mgr.Restart()
+				return manager.Restart()
 			}
 		},
 	}
 
 	return restartCmd
 }
-func serviceCmd() *cobra.Command {
+func serviceCommand() *cobra.Command {
 	var processName, processCmd string
 	var processArgs []string
 	var processWait bool
