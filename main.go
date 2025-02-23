@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	cli2 "github.com/faelmori/golife/cli"
+	cli2 "github.com/faelmori/golife/cmd"
 	"os"
 )
 

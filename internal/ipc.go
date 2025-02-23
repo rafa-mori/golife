@@ -4,10 +4,11 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"os"
 	"strings"
 )
 
-var authToken = "secreto-token-123" // Token de autenticação para controle de acesso
+var authToken = os.Getenv("GOLIFE_AUTH_TOKEN")
 
 func (lm *gWebLifeCycle) StartIPCServer() {
 	ln, err := net.Listen("tcp", ":8081")
