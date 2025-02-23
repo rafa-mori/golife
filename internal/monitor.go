@@ -33,7 +33,6 @@ type IManagedMonit interface {
 	Status() string
 	String() string
 }
-
 type ManagedMonit struct {
 	// Monitoramento
 	Monitoring bool
@@ -68,7 +67,6 @@ func (m *ManagedMonit) SetTimeouts(timeouts []time.Duration) {
 func (m *ManagedMonit) SetDelays(delays []time.Duration) {
 	m.Delays = delays
 }
-
 func (m *ManagedMonit) SetRunning(running bool) {
 	m.Running = running
 }
@@ -81,7 +79,6 @@ func (m *ManagedMonit) SetFailed(failed bool) {
 func (m *ManagedMonit) SetSuccess(success bool) {
 	m.Success = success
 }
-
 func (m *ManagedMonit) Start() error {
 	return nil
 }

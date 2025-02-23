@@ -25,7 +25,6 @@ type GWebLifeCycleManager interface {
 	Receive(stage string) interface{}
 	ListenForSignals() error
 }
-
 type gWebLifeCycle struct {
 	processes map[string]IManagedProcess
 	stages    map[string]IStage

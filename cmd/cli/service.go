@@ -11,10 +11,9 @@ import (
 
 var manager GWebLifeCycleManager
 
-const availableStages = "all,prestart,poststart,prestop,poststop"
-
 func ServiceCmdList() []*cobra.Command {
 	return []*cobra.Command{
+		lifeCycleManagerCmd(),
 		startCommand(),
 		stopCommand(),
 		statusCommand(),
@@ -23,6 +22,38 @@ func ServiceCmdList() []*cobra.Command {
 	}
 }
 
+func lifeCycleManagerCmd() *cobra.Command {
+	var processName, processCmd string
+	var processArgs []string
+	var processWait, restart bool
+	var stages []string
+	var triggers []string
+	var processEvents map[string]func(interface{})
+
+	var lCMCmd = &cobra.Command{
+		Use:    "lfm",
+		Hidden: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, mgrErr := createManager(processName, processCmd, stages, processEvents, triggers, processArgs, processWait, restart)
+			if mgrErr != nil {
+				return mgrErr
+			} else {
+				manager = mgr
+				return nil
+			}
+		},
+	}
+
+	lCMCmd.Flags().StringVarP(&processName, "name", "n", "", "Name of the process")
+	lCMCmd.Flags().StringVarP(&processCmd, "cmd", "c", "", "Command to execute")
+	lCMCmd.Flags().StringSliceVarP(&processArgs, "args", "a", []string{}, "Arguments to pass to the command")
+	lCMCmd.Flags().BoolVarP(&processWait, "wait", "w", false, "Wait for the process to finish before returning")
+	lCMCmd.Flags().BoolVarP(&restart, "restart", "r", false, "Restart the process if it is already running")
+	lCMCmd.Flags().StringSliceVarP(&stages, "stages", "s", []string{}, "Stages to listen for and trigger")
+	lCMCmd.Flags().StringSliceVarP(&triggers, "triggers", "t", []string{}, "Triggers to listen for and trigger")
+
+	return lCMCmd
+}
 func startCommand() *cobra.Command {
 	var processName, processCmd string
 	var processArgs []string
@@ -35,12 +66,35 @@ func startCommand() *cobra.Command {
 		Use:  "start",
 		Long: Banner + `Start the application`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, mgrErr := createManager(processName, processCmd, stages, processEvents, triggers, processArgs, processWait, restart)
-			if mgrErr != nil {
-				return mgrErr
+			if processWait {
+				mgr, mgrErr := createManager(processName, processCmd, stages, processEvents, triggers, processArgs, processWait, restart)
+				if mgrErr != nil {
+					return mgrErr
+				} else {
+					manager = mgr
+					return nil
+				}
 			} else {
-				manager = mgr
-				return nil
+				appFullPath, appFullPathErr := exec.LookPath(AppName)
+				if appFullPathErr != nil {
+					return appFullPathErr
+				}
+				argsStr, waitFlag, restartFlag, stagesStr, triggersStr := getFlagsAsSliceStr(processWait, restart, processArgs, stages, triggers)
+				mgrCmdStr := fmt.Sprintf("%s lfm -n %s -c %s %s %s %s -s %s -t %s", appFullPath, processName, processCmd, argsStr, waitFlag, restartFlag, stagesStr, triggersStr)
+				mgrCmd := exec.Command("/bin/sh", "-c", mgrCmdStr)
+				mgrCmd.Stdout = os.Stdout
+				mgrCmd.Stderr = os.Stderr
+				mgrCmd.Stdin = os.Stdin
+				mgrCmdErr := mgrCmd.Start()
+				if mgrCmdErr != nil {
+					return mgrCmdErr
+				} else {
+					releaseErr := mgrCmd.Process.Release()
+					if releaseErr != nil {
+						return releaseErr
+					}
+					return nil
+				}
 			}
 		},
 	}
@@ -216,44 +270,46 @@ func createManager(processName, processCmd string, stages []string, processEvent
 		manager.DefineStage(stage.Name())
 	}
 
-	go func() {
-		startAllErr := manager.Start()
-		if startAllErr != nil {
-			fmt.Println("Erro ao iniciar processos:", startAllErr)
-			return
-		}
-
-		listenErr := manager.ListenForSignals()
-		if listenErr != nil {
-			fmt.Println("Erro ao ouvir sinais:", listenErr)
-			return
-		}
-		<-doneChan
-	}()
-
-	select {
-	case ev := <-eventsChan:
-		if ev != nil {
-			for _, event := range events {
-				event.RegisterEvent(event.Event(), func(data interface{}) {
-					event.Trigger(data.(string), event.Event(), data)
-				})
-			}
-		}
-	case <-doneChan:
-		if len(processes) > 0 {
-			startAllErr := manager.StartAll()
-			if startAllErr != nil {
-				return nil, startAllErr
-			}
-		}
-	case <-sigChan:
-		sigChan <- syscall.SIGTERM
-		stopAllErr := manager.StopAll()
-		if stopAllErr != nil {
-			return nil, stopAllErr
-		}
+	startAllErr := manager.Start()
+	if startAllErr != nil {
+		fmt.Println("Erro ao iniciar processos:", startAllErr)
+		return nil, startAllErr
 	}
 
-	return manager, nil
+	return manager, manager.ListenForSignals()
+}
+func getFlagsAsSliceStr(processWait, restart bool, processArgs, stages, triggers []string) (string, string, string, string, string) {
+	waitFlag := ""
+	if processWait {
+		waitFlag = "-w"
+	}
+	restartFlag := ""
+	if restart {
+		restartFlag = "-r"
+	}
+	argsFlags := []string{}
+	for _, arg := range processArgs {
+		argsFlags = append(argsFlags, fmt.Sprintf("-a %s", arg))
+	}
+	argsStr := ""
+	if len(argsFlags) > 0 {
+		argsStr = fmt.Sprintf("%s", argsFlags)
+	}
+	stagesFlag := []string{}
+	for _, stage := range stages {
+		stagesFlag = append(stagesFlag, fmt.Sprintf("-s %s", stage))
+	}
+	stagesStr := ""
+	if len(stagesFlag) > 0 {
+		stagesStr = fmt.Sprintf("%s", stagesFlag)
+	}
+	triggersFlag := []string{}
+	for _, trigger := range triggers {
+		triggersFlag = append(triggersFlag, fmt.Sprintf("-t %s", trigger))
+	}
+	triggersStr := ""
+	if len(triggersFlag) > 0 {
+		triggersStr = fmt.Sprintf("%s", triggersFlag)
+	}
+	return waitFlag, restartFlag, argsStr, stagesStr, triggersStr
 }

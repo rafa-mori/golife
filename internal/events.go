@@ -60,6 +60,8 @@ type ManagedProcessEvents struct {
 	Auth  bool
 }
 
+// <editor-fold defaultstate="collapsed" desc="ManagedProcessEvents">
+
 func (m *ManagedProcessEvents) Event() string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -251,6 +253,8 @@ func (m *ManagedProcessEvents) SetAuth(auth bool) {
 
 	m.Auth = auth
 }
+
+// </editor-fold>
 
 func NewManagedProcessEvents(eventFns map[string]func(interface{}), triggerCh chan interface{}) IManagedProcessEvents {
 	events := ManagedProcessEvents{

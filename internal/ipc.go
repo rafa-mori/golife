@@ -2,19 +2,57 @@ package internal
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
-var authToken = os.Getenv("GOLIFE_AUTH_TOKEN")
+type IPCSettings struct {
+	AuthToken string `json:"auth_token"`
+}
 
-func (lm *gWebLifeCycle) StartIPCServer() {
+var authToken string
+
+func (lm *gWebLifeCycle) StartIPCServer() error {
+	homeDir, homeDirErr := os.UserHomeDir()
+	if homeDirErr != nil {
+		fmt.Println("Erro ao obter diretório home:", homeDirErr)
+		return homeDirErr
+	}
+
+	cfgDir := filepath.Join(homeDir, ".kubex", ".golife")
+	cfgPath := filepath.Join(cfgDir, "golife.conf")
+
+	ipcSettings := IPCSettings{}
+	if _, statErr := os.Stat(cfgPath); statErr != nil {
+		if os.IsNotExist(statErr) && os.IsPermission(statErr) && os.IsExist(statErr) {
+			return statErr
+		} else {
+			fmt.Println("Erro ao verificar existência do arquivo de configuração:", statErr)
+			return statErr
+		}
+	} else {
+		readToken, readTokenErr := os.ReadFile("config.json")
+		if readTokenErr != nil {
+			fmt.Println("Erro ao ler token de configuração:", readTokenErr)
+			return readTokenErr
+		}
+		ipcSettingsErr := json.Unmarshal(readToken, &ipcSettings)
+		if ipcSettingsErr != nil {
+			fmt.Println("Erro ao decodificar token de configuração:", ipcSettingsErr)
+			return ipcSettingsErr
+		}
+	}
+
+	authToken = ipcSettings.AuthToken
+
 	ln, err := net.Listen("tcp", ":8081")
 	if err != nil {
 		fmt.Println("Erro ao iniciar servidor IPC:", err)
-		return
+		return err
 	}
 	defer func(ln net.Listener) {
 		_ = ln.Close()
@@ -22,9 +60,9 @@ func (lm *gWebLifeCycle) StartIPCServer() {
 	fmt.Println("Servidor IPC escutando na porta 8081")
 
 	for {
-		conn, err := ln.Accept()
-		if err != nil {
-			fmt.Println("Erro ao aceitar conexão:", err)
+		conn, connErr := ln.Accept()
+		if connErr != nil {
+			fmt.Println("Erro ao aceitar conexão:", connErr)
 			continue
 		}
 		go lm.handleIPCConnection(conn)

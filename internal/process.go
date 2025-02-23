@@ -23,7 +23,6 @@ type IManagedProcess interface {
 	SetProcHandle(handle uintptr)
 	SetCmd(cmd *exec.Cmd)
 }
-
 type ManagedProcess struct {
 	Args       []string
 	Command    string
@@ -66,25 +65,7 @@ func (p *ManagedProcess) Start() error {
 				return fmt.Errorf("processo %s não está rodando", p.Name)
 			}
 		}
-
-		//p.ProcPid, p.ProcHandle, procErr = syscall.StartProcess(p.Command, p.Args, &syscall.ProcAttr{
-		//	Dir:   p.Cmd.Dir,
-		//	Env:   p.Cmd.Env,
-		//	Files: []uintptr{os.Stdin.Fd(), os.Stdout.Fd(), os.Stderr.Fd()},
-		//})
-		//if procErr != nil {
-		//	return procErr
-		//}
-		//releaseProcErr := p.Cmd.Process.Release()
-		//if releaseProcErr != nil {
-		//	return releaseProcErr
-		//}
 	}
-
-	if err := p.Cmd.Start(); err != nil {
-		return err
-	}
-	return nil
 }
 func (p *ManagedProcess) Stop() error {
 	if p == nil {
