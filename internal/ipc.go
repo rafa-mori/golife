@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type IPCSettings struct {
@@ -68,6 +69,7 @@ func (lm *gWebLifeCycle) StartIPCServer() error {
 		go lm.handleIPCConnection(conn)
 	}
 }
+
 func (lm *gWebLifeCycle) handleIPCConnection(conn net.Conn) {
 	defer func(conn net.Conn) {
 		_ = conn.Close()
@@ -133,5 +135,19 @@ func (lm *gWebLifeCycle) handleIPCConnection(conn net.Conn) {
 				return
 			}
 		}
+	}
+}
+
+func (lm *gWebLifeCycle) logActivity(activity string) {
+	logFile, err := os.OpenFile("ipc_server.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Println("Erro ao abrir arquivo de log:", err)
+		return
+	}
+	defer logFile.Close()
+
+	logEntry := fmt.Sprintf("%s: %s\n", time.Now().Format(time.RFC3339), activity)
+	if _, err := logFile.WriteString(logEntry); err != nil {
+		fmt.Println("Erro ao escrever no arquivo de log:", err)
 	}
 }
