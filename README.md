@@ -21,6 +21,35 @@
 
 ## Usage Example
 
+### Lifecycle Management
+
+```go
+package main
+
+import (
+	"fmt"
+	"lifecycle"
+)
+
+func main() {
+	manager := lifecycle.NewLifecycleManager()
+
+	manager.DefineStage("start").
+		OnEnter(func() { fmt.Println("Server started") }).
+		OnExit(func() { fmt.Println("Server stopped") })
+
+	manager.DefineStage("processing").
+		OnEvent("request", func(data interface{}) {
+			fmt.Println("Processing:", data)
+		})
+
+	manager.Trigger("processing", "request", "Request 1")
+	manager.Trigger("processing", "request", "Request 2")
+}
+```
+
+### Smart Concurrency
+
 ```go
 package main
 
@@ -28,6 +57,32 @@ import (
 	"fmt"
 	"lifecycle"
 	"time"
+)
+
+func main() {
+	manager := lifecycle.NewLifecycleManager()
+
+	manager.DefineStage("processing").
+		AutoScale(5).
+		OnEvent("task", func(data interface{}) {
+			fmt.Println("Processing task:", data)
+		})
+
+	manager.Trigger("processing", "task", "Task 1")
+	manager.Trigger("processing", "task", "Task 2")
+
+	time.Sleep(1 * time.Second) // Wait for workers to process
+}
+```
+
+### Declarative API
+
+```go
+package main
+
+import (
+	"fmt"
+	"lifecycle"
 )
 
 func main() {
@@ -45,8 +100,72 @@ func main() {
 
 	manager.Trigger("processing", "request", "Request 1")
 	manager.Trigger("processing", "request", "Request 2")
+}
+```
 
-	time.Sleep(1 * time.Second) // Wait for workers to process
+### Flexible Integration
+
+#### Using the CLI
+
+```sh
+# Start the application
+golife start --name myApp --cmd "myAppCommand"
+
+# Trigger an event
+golife trigger --stage processing --event request --data "Request 1"
+
+# Check the status of the application
+golife status
+```
+
+#### Using as an Embedded Module
+
+```go
+package main
+
+import (
+	"fmt"
+	"lifecycle"
+)
+
+func main() {
+	manager := lifecycle.NewLifecycleManager()
+
+	manager.DefineStage("start").
+		OnEnter(func() { fmt.Println("Server started") }).
+		OnExit(func() { fmt.Println("Server stopped") })
+
+	manager.DefineStage("processing").
+		OnEvent("request", func(data interface{}) {
+			fmt.Println("Processing:", data)
+		})
+
+	manager.Trigger("processing", "request", "Request 1")
+	manager.Trigger("processing", "request", "Request 2")
+}
+```
+
+### Event-Driven Hooks
+
+```go
+package main
+
+import (
+	"fmt"
+	"lifecycle"
+)
+
+func main() {
+	manager := lifecycle.NewLifecycleManager()
+
+	manager.RegisterEvent("dataReceived", "processing")
+
+	manager.DefineStage("processing").
+		OnEvent("dataReceived", func(data interface{}) {
+			fmt.Println("Data received:", data)
+		})
+
+	manager.Trigger("processing", "dataReceived", "Sample Data")
 }
 ```
 

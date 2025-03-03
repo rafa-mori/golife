@@ -18,9 +18,11 @@ type WorkerPool struct {
 func (wp *WorkerPool) worker() {
 	for task := range wp.Tasks {
 		task()
+		wp.Wg.Done()
 	}
 }
 func (wp *WorkerPool) Submit(task func()) {
+	wp.Wg.Add(1)
 	wp.Tasks <- task
 }
 func (wp *WorkerPool) Wait() {

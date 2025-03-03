@@ -1,39 +1,10 @@
 package internal
 
 import (
-	"context"
 	"os"
-	"sync"
 	"time"
 )
 
-type ManagedProcessEvents struct {
-	// Callbacks
-	EventFns map[string]func(interface{})
-	// Triggers
-	TriggerCh chan interface{}
-	// Internals
-	mu    sync.Mutex
-	Data  interface{}
-	Ev    string
-	Fn    func(interface{}) error
-	Stage string
-}
-type ManagedMonitProperties struct {
-	// Monitoramento
-	Monitoring bool
-	Interval   time.Duration
-	Timeout    time.Duration
-	Delay      time.Duration
-	Timeouts   []time.Duration
-	Delays     []time.Duration
-
-	// Status
-	Running bool
-	Stopped bool
-	Failed  bool
-	Success bool
-}
 type ManagedCommonProperties struct {
 	// Configurações
 	Args []string
@@ -230,24 +201,4 @@ type ManagedFunctionCA struct {
 	functionCert string
 	functionKey  string
 	functionCA   string
-}
-type ManagedGoroutine struct {
-	// Processo gerenciado (terceira opção - goroutine)
-	goroutineFn          func()
-	goroutineCh          chan struct{}
-	goroutineErr         error
-	goroutineDone        bool
-	goroutineWG          sync.WaitGroup
-	goroutineMu          sync.Mutex
-	goroutineOnce        sync.Once
-	goroutineCond        *sync.Cond
-	goroutineLock        sync.Mutex
-	goroutineDoneCh      chan struct{}
-	goroutineErrCh       chan error
-	goroutineCancel      func()
-	goroutineCtx         context.Context
-	goroutineCancelFn    context.CancelFunc
-	goroutineTimeout     time.Duration
-	goroutineDeadline    time.Time
-	goroutineDeadlineSet bool
 }
