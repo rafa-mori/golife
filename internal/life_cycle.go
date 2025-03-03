@@ -16,6 +16,8 @@ type GWebLifeCycleManager interface {
 	Status() string
 	RegisterProcess(name string, command string, args []string, restart bool) error
 	RegisterEvent(event, stage string) error
+	RemoveEvent(event, stage string) error
+	StopEvents() error
 	StartProcess(proc IManagedProcess) error
 	StartAll() error
 	StopAll() error
@@ -150,6 +152,26 @@ func (lm *gWebLifeCycle) RegisterEvent(event, stage string) error {
 		}}, lm.triggerCh)
 	}}, lm.triggerCh))
 	fmt.Printf("Evento %s registrado em %s com sucesso!\n", event, stage)
+	return nil
+}
+func (lm *gWebLifeCycle) RemoveEvent(event, stage string) error {
+	fmt.Printf("Removendo evento %s de %s...\n", event, stage)
+	for i, e := range lm.events {
+		if e.Event() == event {
+			lm.events = append(lm.events[:i], lm.events[i+1:]...)
+			fmt.Printf("Evento %s removido de %s com sucesso!\n", event, stage)
+			return nil
+		}
+	}
+	fmt.Printf("Evento %s não encontrado em %s!\n", event, stage)
+	return fmt.Errorf("evento %s não encontrado em %s", event, stage)
+}
+func (lm *gWebLifeCycle) StopEvents() error {
+	fmt.Println("Parando todos os eventos...")
+	for _, event := range lm.events {
+		event.StopAll()
+	}
+	fmt.Println("Todos os eventos parados com sucesso!")
 	return nil
 }
 func (lm *gWebLifeCycle) StartAll() error {

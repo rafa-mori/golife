@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+	"log"
 )
 
 type IManagedProcess interface {

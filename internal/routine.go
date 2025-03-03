@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"log"
 	"sync"
 	"time"
 )
@@ -98,6 +99,7 @@ func (m *ManagedGoroutine) Start() error {
 	go func() {
 		defer m.goroutineWG.Done()
 		m.goroutineFn()
+		logActivity("Goroutine started")
 	}()
 
 	return nil
@@ -115,6 +117,7 @@ func (m *ManagedGoroutine) Stop() error {
 
 	m.goroutineCancelFn()
 	m.goroutineWG.Wait()
+	logActivity("Goroutine stopped")
 
 	return nil
 }
@@ -130,6 +133,7 @@ func (m *ManagedGoroutine) Pause() error {
 	}
 
 	m.goroutineCancelFn()
+	logActivity("Goroutine paused")
 
 	return nil
 }
@@ -148,6 +152,7 @@ func (m *ManagedGoroutine) Resume() error {
 	go func() {
 		defer m.goroutineWG.Done()
 		m.goroutineFn()
+		logActivity("Goroutine resumed")
 	}()
 
 	return nil
@@ -563,5 +568,19 @@ func (m *ManagedGoroutine) Copy() IManagedGoroutine {
 func NewManagedGoroutine(fn func()) *ManagedGoroutine {
 	return &ManagedGoroutine{
 		goroutineFn: fn,
+	}
+}
+
+func logActivity(activity string) {
+	logFile, err := os.OpenFile("goroutine.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Println("Erro ao abrir arquivo de log:", err)
+		return
+	}
+	defer logFile.Close()
+
+	logEntry := time.Now().Format(time.RFC3339) + ": " + activity + "\n"
+	if _, err := logFile.WriteString(logEntry); err != nil {
+		log.Println("Erro ao escrever no arquivo de log:", err)
 	}
 }
