@@ -2,7 +2,6 @@ package cli
 
 import (
 	"github.com/spf13/cobra"
-	. "github.com/faelmori/golife/internal"
 )
 
 func EventsCmdList() []*cobra.Command {
@@ -20,7 +19,7 @@ func triggerCmd() *cobra.Command {
 	var cmdTrigger = &cobra.Command{
 		Use:  "trigger [stage] [event] [data]",
 		Long: Banner + `Trigger an event in a stage`,
-			Args: cobra.MinimumNArgs(3),
+		Args: cobra.MinimumNArgs(3),
 		Run: func(cmd *cobra.Command, args []string) {
 			stage = args[0]
 			event = args[1]

@@ -249,7 +249,14 @@ func (lm *gWebLifeCycle) ListenForSignals() error {
 	return nil
 }
 
-func NewLifecycleManager(processes map[string]IManagedProcess, stages map[string]IStage, sigChan chan os.Signal, doneChan chan struct{}, events []IManagedProcessEvents, eventsCh chan IManagedProcessEvents) GWebLifeCycleManager {
+func NewLifecycleManager(
+	processes map[string]IManagedProcess,
+	stages map[string]IStage,
+	sigChan chan os.Signal,
+	doneChan chan struct{},
+	events []IManagedProcessEvents,
+	eventsCh chan IManagedProcessEvents,
+) GWebLifeCycleManager {
 	mgr := gWebLifeCycle{
 		processes: processes,
 		stages:    stages,
@@ -270,4 +277,37 @@ func NewLifecycleManager(processes map[string]IManagedProcess, stages map[string
 	}()
 
 	return &mgr
+}
+
+func NewLifecycleMgrSig() (GWebLifeCycleManager, error) {
+	processes := make(map[string]IManagedProcess)
+	stages := make(map[string]IStage)
+	sigChan := make(chan os.Signal, 1)
+	doneChan := make(chan struct{}, 1)
+	events := []IManagedProcessEvents{}
+	eventsCh := make(chan IManagedProcessEvents, 1)
+
+	return NewLifecycleManager(processes, stages, sigChan, doneChan, events, eventsCh), nil
+}
+
+func NewLifecycleMgrManual(
+	processes map[string]IManagedProcess,
+	stages map[string]IStage,
+	sigChan chan os.Signal,
+	doneChan chan struct{},
+	events []IManagedProcessEvents,
+	eventsCh chan IManagedProcessEvents,
+) (GWebLifeCycleManager, error) {
+	return NewLifecycleManager(processes, stages, sigChan, doneChan, events, eventsCh), nil
+}
+
+func NewLifecycleMgrDec() (GWebLifeCycleManager, error) {
+	processes := make(map[string]IManagedProcess)
+	stages := make(map[string]IStage)
+	sigChan := make(chan os.Signal, 1)
+	doneChan := make(chan struct{}, 1)
+	events := []IManagedProcessEvents{}
+	eventsCh := make(chan IManagedProcessEvents, 1)
+
+	return NewLifecycleManager(processes, stages, sigChan, doneChan, events, eventsCh), nil
 }
