@@ -2,6 +2,8 @@ package internal
 
 import (
 	"fmt"
+	"github.com/faelmori/golife/internal/log"
+	l "github.com/faelmori/logz"
 	"github.com/google/uuid"
 	"os"
 	"os/signal"
@@ -14,7 +16,7 @@ type GWebLifeCycleManager interface {
 	Stop() error
 	Restart() error
 	Status() string
-	RegisterProcess(name string, command string, args []string, restart bool) error
+	RegisterProcess(name string, command string, args []string, restart bool, customFn func() error) error
 	RegisterEvent(event, stage string) error
 	RemoveEvent(event, stage string) error
 	StopEvents() error
@@ -23,7 +25,7 @@ type GWebLifeCycleManager interface {
 	StopAll() error
 	Trigger(stage, event string, data interface{})
 	DefineStage(name string) IStage
-	Send(stage string, msg interface{})
+	Send(stage string, msg string)
 	Receive(stage string) interface{}
 	ListenForSignals() error
 }
@@ -54,7 +56,7 @@ func (lm *gWebLifeCycle) DefineStage(name string) IStage {
 	fmt.Printf("Definindo estágio %s...\n", name)
 	return NewStage(uuid.New().String(), name, name, "stage")
 }
-func (lm *gWebLifeCycle) Send(stage string, msg interface{}) {
+func (lm *gWebLifeCycle) Send(stage string, msg string) {
 	if s, ok := lm.stages[stage]; ok {
 		s.Dispatch(func() {
 			sB := s.(*Stage)
@@ -64,6 +66,17 @@ func (lm *gWebLifeCycle) Send(stage string, msg interface{}) {
 			if sB.OnExitFn != nil {
 				s.OnExit(sB.OnExitFn)
 			}
+			if sB.EventFns != nil {
+				for event, fn := range sB.EventFns {
+					s.OnEvent(event, fn)
+				}
+			}
+		})
+
+		log.Info(msg, map[string]interface{}{
+			"context": "GoLife",
+			"stage":   stage,
+			"message": msg,
 		})
 	}
 }
@@ -79,35 +92,57 @@ func (lm *gWebLifeCycle) Receive(stage string) interface{} {
 	}
 }
 func (lm *gWebLifeCycle) Start() error {
-	fmt.Println("Iniciando processos...")
+	l.Info("Iniciando processos...", map[string]interface{}{
+		"context":  "GoLife",
+		"showData": false,
+	})
 	for _, proc := range lm.processes {
-		fmt.Printf("Iniciando %s...\n", proc.String())
+		l.Info(fmt.Sprintf("Iniciando processo %s...", proc.String()), map[string]interface{}{
+			"context":  "GoLife",
+			"process":  proc.String(),
+			"showData": false,
+		})
 		if err := proc.Start(); err != nil {
-			fmt.Printf("Erro ao iniciar processo %s: %v\n", proc.String(), err)
+			l.Error(fmt.Sprintf("Erro ao iniciar processo %s: %v", proc.String(), err), map[string]interface{}{
+				"context":  "GoLife",
+				"process":  proc.String(),
+				"showData": true,
+			})
 			return err
 		}
 	}
-	if len(lm.processes) > 0 {
-		fmt.Println("Processos iniciados com sucesso!")
-	} else {
-		fmt.Println("Nenhum processo registrado para iniciar.")
-	}
+	l.Info(fmt.Sprintf("%b Processos iniciados com sucesso!", len(lm.processes)), map[string]interface{}{
+		"context":   "GoLife",
+		"processes": len(lm.processes),
+		"showData":  false,
+	})
 	return nil
 }
 func (lm *gWebLifeCycle) Stop() error {
-	fmt.Println("Parando processos...")
+	l.Info("Parando processos...", map[string]interface{}{
+		"context":  "GoLife",
+		"showData": false,
+	})
 	for _, proc := range lm.processes {
-		fmt.Printf("Parando %s...\n", proc.String())
+		l.Info(fmt.Sprintf("Parando processo %s...", proc.String()), map[string]interface{}{
+			"context":  "GoLife",
+			"process":  proc.String(),
+			"showData": false,
+		})
 		if err := proc.Stop(); err != nil {
-			fmt.Println("Erro ao parar processo:", err)
+			l.Error(fmt.Sprintf("Erro ao parar processo %s: %v", proc.String(), err), map[string]interface{}{
+				"context":  "GoLife",
+				"process":  proc.String(),
+				"showData": true,
+			})
 			return err
 		}
 	}
-	if len(lm.processes) > 0 {
-		fmt.Println("Processos parados com sucesso!")
-	} else {
-		fmt.Println("Nenhum processo registrado para parar.")
-	}
+	l.Info(fmt.Sprintf("%b Processos parados com sucesso!", len(lm.processes)), map[string]interface{}{
+		"context":   "GoLife",
+		"processes": len(lm.processes),
+		"showData":  false,
+	})
 	return nil
 }
 func (lm *gWebLifeCycle) Restart() error {
@@ -119,106 +154,102 @@ func (lm *gWebLifeCycle) Restart() error {
 	return nil
 }
 func (lm *gWebLifeCycle) Status() string {
-	//lm.mu.Lock()
-	//defer lm.mu.Unlock()
-	fmt.Printf("Verificando status dos processos...\n")
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
+	l.Info("Verificando status dos processos...", map[string]interface{}{"context": "GoLife", "showData": false})
 	var status string
 	for name, proc := range lm.processes {
-		fmt.Printf("Processo %s (PID %d) está rodando: %t\n", name, proc.Pid(), proc.IsRunning())
+		//fmt.Printf("Processo %s (PID %d) está rodando: %t\n", name, proc.Pid(), proc.IsRunning())
+		l.Info(fmt.Sprintf("Processo %s (PID %d) está rodando: %t", name, proc.Pid(), proc.IsRunning()), map[string]interface{}{
+			"context":  "GoLife",
+			"process":  name,
+			"pid":      proc.Pid(),
+			"running":  proc.IsRunning(),
+			"showData": false,
+		})
 		status += fmt.Sprintf("Processo %s (PID %d) está rodando: %t\n", name, proc.Pid(), proc.IsRunning())
 	}
-	fmt.Printf("Status dos processos verificado!\n")
+	l.Info("Status dos processos verificado com sucesso!", map[string]interface{}{"context": "GoLife", "showData": false})
 	return status
 }
-func (lm *gWebLifeCycle) RegisterProcess(name string, command string, args []string, restart bool) error {
-	//lm.mu.Lock()
-	//defer lm.mu.Unlock()
+func (lm *gWebLifeCycle) RegisterProcess(name string, command string, args []string, restart bool, customFn func() error) error {
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
 
-	fmt.Printf("Registrando processo %s...\n", name)
-	lm.processes[name] = NewManagedProcess(name, command, args, restart)
+	l.Info(fmt.Sprintf("Registrando processo %s...", name), map[string]interface{}{"context": "GoLife", "process": name, "showData": false})
+	lm.processes[name] = NewManagedProcess(name, command, args, restart, customFn)
 
-	fmt.Printf("Processo %s registrado com sucesso!\n", name)
+	l.Info(fmt.Sprintf("Processo %s registrado com sucesso!", name), map[string]interface{}{"context": "GoLife", "process": name, "showData": false})
 	return nil
 }
 func (lm *gWebLifeCycle) RegisterEvent(event, stage string) error {
-	//lm.eventsMu.Lock()
-	//defer lm.eventsMu.Unlock()
-	fmt.Printf("Registrando evento %s em %s...\n", event, stage)
+	lm.eventsMu.Lock()
+	defer lm.eventsMu.Unlock()
+	l.Info(fmt.Sprintf("Registrando evento %s em %s...", event, stage), map[string]interface{}{"context": "GoLife", "event": event, "stage": stage, "showData": false})
 	lm.events = append(lm.events, NewManagedProcessEvents(map[string]func(interface{}){event: func(data interface{}) {
-		fmt.Printf("Evento %s disparado em %s!\n", event, stage)
+		l.Info(fmt.Sprintf("Executando evento %s em %s...", event, stage), map[string]interface{}{"context": "GoLife", "event": event, "stage": stage, "showData": false})
 		lm.eventsCh <- NewManagedProcessEvents(map[string]func(interface{}){event: func(data interface{}) {
-			fmt.Printf("Executando evento %s em %s...\n", event, stage)
+			l.Info(fmt.Sprintf("Disparando evento %s em %s...", event, stage), map[string]interface{}{"context": "GoLife", "event": event, "stage": stage, "showData": false})
 			lm.Trigger(stage, event, data)
 		}}, lm.triggerCh)
 	}}, lm.triggerCh))
-	fmt.Printf("Evento %s registrado em %s com sucesso!\n", event, stage)
+	l.Info(fmt.Sprintf("Evento %s registrado em %s com sucesso!", event, stage), map[string]interface{}{"context": "GoLife", "event": event, "stage": stage, "showData": false})
 	return nil
 }
 func (lm *gWebLifeCycle) RemoveEvent(event, stage string) error {
-	fmt.Printf("Removendo evento %s de %s...\n", event, stage)
+	l.Info(fmt.Sprintf("Removendo evento %s de %s...", event, stage), map[string]interface{}{"context": "GoLife", "event": event, "stage": stage, "showData": false})
 	for i, e := range lm.events {
 		if e.Event() == event {
 			lm.events = append(lm.events[:i], lm.events[i+1:]...)
-			fmt.Printf("Evento %s removido de %s com sucesso!\n", event, stage)
+			l.Info(fmt.Sprintf("Evento %s removido de %s com sucesso!", event, stage), map[string]interface{}{"context": "GoLife", "event": event, "stage": stage, "showData": false})
 			return nil
 		}
 	}
-	fmt.Printf("Evento %s não encontrado em %s!\n", event, stage)
+	l.Error(fmt.Sprintf("Evento %s não encontrado em %s", event, stage), map[string]interface{}{"context": "GoLife", "event": event, "stage": stage, "showData": false})
 	return fmt.Errorf("evento %s não encontrado em %s", event, stage)
 }
 func (lm *gWebLifeCycle) StopEvents() error {
-	fmt.Println("Parando todos os eventos...")
+	l.Info("Parando eventos...", map[string]interface{}{"context": "GoLife", "showData": false})
 	for _, event := range lm.events {
 		event.StopAll()
 	}
-	fmt.Println("Todos os eventos parados com sucesso!")
+	l.Info("Eventos parados com sucesso!", map[string]interface{}{"context": "GoLife", "showData": false})
 	return nil
 }
 func (lm *gWebLifeCycle) StartAll() error {
-	//lm.mu.Lock()
-	//defer lm.mu.Unlock()
-	fmt.Println("Iniciando processos...")
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
 	for name, proc := range lm.processes {
-		fmt.Printf("Iniciando %s...\n", name)
+		l.Info(fmt.Sprintf("Iniciando %s...", name), map[string]interface{}{"context": "GoLife", "process": name, "showData": false})
 		if err := lm.StartProcess(proc); err != nil {
-			fmt.Printf("Erro ao iniciar %s: %v\n", name, err)
+			l.Error(fmt.Sprintf("Erro ao iniciar %s: %v", name, err), map[string]interface{}{"context": "GoLife", "process": name, "showData": true})
 			return err
 		}
 	}
-	if len(lm.processes) > 0 {
-		fmt.Println("Processos iniciados com sucesso!")
-	} else {
-		fmt.Println("Nenhum processo registrado para iniciar.")
-	}
+	l.Info(fmt.Sprintf("%b Processos iniciados com sucesso!", len(lm.processes)), map[string]interface{}{"context": "GoLife", "processes": len(lm.processes), "showData": false})
 	return nil
 }
 func (lm *gWebLifeCycle) StartProcess(proc IManagedProcess) error {
-	fmt.Printf(fmt.Sprintf("Iniciando processo %s...\n", proc.String()))
 	if err := proc.Start(); err != nil {
-		fmt.Printf("Erro ao iniciar processo %s: %v\n", proc.String(), err)
+		l.Error(fmt.Sprintf("Erro ao iniciar %s: %v", proc.String(), err), map[string]interface{}{"context": "GoLife", "process": proc.String(), "showData": true})
 		return err
 	}
-	fmt.Printf("Processo %s iniciado com sucesso!\n", proc.String())
+	l.Info(fmt.Sprintf("%s iniciado com sucesso!", proc.String()), map[string]interface{}{"context": "GoLife", "process": proc.String(), "showData": false})
 	return nil
 }
 func (lm *gWebLifeCycle) StopAll() error {
-	//lm.mu.Lock()
-	//defer lm.mu.Unlock()
-	fmt.Println("Parando processos...")
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
 	for name, proc := range lm.processes {
 		if err := proc.Stop(); err != nil {
-			fmt.Printf("Erro ao parar %s: %v\n", name, err)
+			l.Error(fmt.Sprintf("Erro ao parar %s: %v", name, err), map[string]interface{}{"context": "GoLife", "process": name, "showData": true})
 			return err
 		} else {
-			fmt.Printf("Processo %s parado com sucesso!\n", name)
+			l.Info(fmt.Sprintf("%s parado com sucesso!", name), map[string]interface{}{"context": "GoLife", "process": name, "showData": false})
 			delete(lm.processes, name)
 		}
 	}
-	if len(lm.processes) > 0 {
-		fmt.Println("Processos parados com sucesso!")
-	} else {
-		fmt.Println("Nenhum processo registrado para parar.")
-	}
+	l.Info(fmt.Sprintf("%b Processos parados com sucesso!", len(lm.processes)), map[string]interface{}{"context": "GoLife", "processes": len(lm.processes), "showData": false})
 	return nil
 }
 func (lm *gWebLifeCycle) ListenForSignals() error {
@@ -272,7 +303,7 @@ func NewLifecycleManager(
 	go func() {
 		err := mgr.ListenForSignals()
 		if err != nil {
-			fmt.Println("Erro ao ouvir sinais:", err)
+			l.Error(fmt.Sprintf("Erro ao ouvir sinais: %v", err), map[string]interface{}{"context": "GoLife", "showData": true})
 		}
 	}()
 
@@ -284,7 +315,7 @@ func NewLifecycleMgrSig() (GWebLifeCycleManager, error) {
 	stages := make(map[string]IStage)
 	sigChan := make(chan os.Signal, 1)
 	doneChan := make(chan struct{}, 1)
-	events := []IManagedProcessEvents{}
+	events := make([]IManagedProcessEvents, 0)
 	eventsCh := make(chan IManagedProcessEvents, 1)
 
 	return NewLifecycleManager(processes, stages, sigChan, doneChan, events, eventsCh), nil

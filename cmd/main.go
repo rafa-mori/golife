@@ -30,6 +30,7 @@ func startBroker() {
 		"../coreflux/gkbxsrv/gkbxsrv", // Caminho do binário do broker
 		[]string{"broker,start"},      // Parâmetros passados ao broker
 		true,                          // Reiniciar em caso de falha
+		nil,
 	)
 	if err != nil {
 		l.Printf("Erro ao registrar o broker: %v\n", err)
@@ -45,7 +46,7 @@ func startBroker() {
 	}
 	if err = lifecycle.Start(); err != nil {
 		l.Printf("Erro ao iniciar o lifecycle: %v\n", err)
-		lifecycle.Send("error", err)
+		lifecycle.Send("error", err.Error())
 		return
 	}
 

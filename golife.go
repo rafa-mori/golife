@@ -4,6 +4,7 @@ import (
 	"fmt"
 	svcs "github.com/faelmori/gkbxsrv/services"
 	l "github.com/faelmori/golife/internal"
+	lg "github.com/faelmori/golife/internal/log"
 	"os"
 )
 
@@ -12,29 +13,41 @@ var brk svcs.BrokerClient
 var dbChanData chan map[string]interface{}
 var lcErr error
 
-func NewLifecycleMgr(processName, processCmd string, processArgs []string, processWait, restart bool, stages []string, triggers []string, processEvents map[string]func(interface{})) (l.GWebLifeCycleManager, error) {
-	return createManager(processName, processCmd, processArgs, processEvents, stages, triggers, processWait, restart)
+type LifecycleManager = l.GWebLifeCycleManager
+type ManagedProcess = l.IManagedProcess
+type ManagedProcessEvents = l.IManagedProcessEvents
+type Stage = l.IStage
+type WorkerPool = l.IWorkerPool
+
+func NewManagedProcess(name, cmd string, args []string, wait bool, customFn func() error) ManagedProcess {
+	return l.NewManagedProcess(name, cmd, args, wait, customFn)
 }
 
-func NewLifecycleMgrDec(processName, processCmd string, processArgs []string, processWait, restart bool, stages []string, triggers []string, processEvents map[string]func(interface{})) (l.GWebLifeCycleManager, error) {
-	return createManager(processName, processCmd, processArgs, processEvents, stages, triggers, processWait, restart)
+func NewLifecycleMgr(processName, processCmd string, processArgs []string, processWait, restart bool, stages []string, triggers []string, processEvents map[string]func(interface{}), customFn func() error) (LifecycleManager, error) {
+	return createManager(processName, processCmd, processArgs, processEvents, stages, triggers, processWait, restart, customFn)
 }
 
-func NewLifecycleMgrSig() (l.GWebLifeCycleManager, error) {
-	return createManager("", "", nil, nil, nil, nil, false, false)
+func NewLifecycleMgrDec(processName, processCmd string, processArgs []string, processWait, restart bool, stages []string, triggers []string, processEvents map[string]func(interface{}), customFn func() error) (LifecycleManager, error) {
+	return createManager(processName, processCmd, processArgs, processEvents, stages, triggers, processWait, restart, customFn)
 }
 
-func NewLifecycleMgrManual(processName, processCmd string, processArgs []string, processWait, restart bool, stages []string, triggers []string, processEvents map[string]func(interface{})) (l.GWebLifeCycleManager, error) {
-	return createManager(processName, processCmd, processArgs, processEvents, stages, triggers, processWait, restart)
+func NewLifecycleMgrSig() (LifecycleManager, error) {
+	return createManager("", "", nil, nil, nil, nil, false, false, nil)
 }
 
-func createManager(processName, processCmd string, stages []string, processEvents map[string]func(interface{}), triggers []string, processArgs []string, processWait, restart bool) (l.GWebLifeCycleManager, error) {
+func NewLifecycleMgrManual(processName, processCmd string, processArgs []string, processWait, restart bool, stages []string, triggers []string, processEvents map[string]func(interface{}), customFn func() error) (LifecycleManager, error) {
+	return createManager(processName, processCmd, processArgs, processEvents, stages, triggers, processWait, restart, customFn)
+}
+
+func createManager(processName, processCmd string, stages []string, processEvents map[string]func(interface{}), triggers []string, processArgs []string, processWait, restart bool, customFn func() error) (LifecycleManager, error) {
 	if processName == "" {
+		lg.Error("No process name provided", nil)
 		return nil, fmt.Errorf("no process name provided")
 	}
-	if processCmd == "" {
-		return nil, fmt.Errorf("no command provided")
-	}
+	//if processCmd == "" {
+	//	lg.Error("No command provided", nil)
+	//	return nil, fmt.Errorf("no command provided")
+	//}
 	if len(stages) == 0 {
 		stages = []string{"all"}
 	}
@@ -76,7 +89,7 @@ func createManager(processName, processCmd string, stages []string, processEvent
 		}
 	}
 
-	processes[processName] = l.NewManagedProcess(processName, processCmd, processArgs, processWait)
+	processes[processName] = l.NewManagedProcess(processName, processCmd, processArgs, processWait, customFn)
 	if processEvents != nil {
 		iEvent := l.NewManagedProcessEvents(processEvents, eventsChan)
 		events = append(events, iEvent)
@@ -91,7 +104,7 @@ func createManager(processName, processCmd string, stages []string, processEvent
 		eventsCh,
 	)
 
-	regProcErr := manager.RegisterProcess(processName, processCmd, processArgs, restart)
+	regProcErr := manager.RegisterProcess(processName, processCmd, processArgs, restart, customFn)
 	if regProcErr != nil {
 		return nil, regProcErr
 	}

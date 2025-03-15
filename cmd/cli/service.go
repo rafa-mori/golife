@@ -246,7 +246,7 @@ func createManager(processName, processCmd string, stages []string, processEvent
 		}
 	}
 
-	processes[processName] = NewManagedProcess(processName, processCmd, processArgs, processWait)
+	processes[processName] = NewManagedProcess(processName, processCmd, processArgs, processWait, nil)
 	if processEvents != nil {
 		iEvent := NewManagedProcessEvents(processEvents, eventsChan)
 		events = append(events, iEvent)
@@ -261,7 +261,7 @@ func createManager(processName, processCmd string, stages []string, processEvent
 		eventsCh,
 	)
 
-	regProcErr := manager.RegisterProcess(processName, processCmd, processArgs, restart)
+	regProcErr := manager.RegisterProcess(processName, processCmd, processArgs, restart, nil)
 	if regProcErr != nil {
 		return nil, regProcErr
 	}
