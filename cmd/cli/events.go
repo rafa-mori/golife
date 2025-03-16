@@ -45,7 +45,10 @@ func registerEventCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			stage = args[0]
 			event = args[1]
-			manager.RegisterEvent(stage, event)
+			regEvErr := manager.RegisterEvent(stage, event)
+			if regEvErr != nil {
+				return
+			}
 		},
 	}
 

@@ -17,7 +17,7 @@ type IPCSettings struct {
 
 var authToken string
 
-func (lm *gWebLifeCycle) StartIPCServer() error {
+func (lm *LifeCycle) StartIPCServer() error {
 	homeDir, homeDirErr := os.UserHomeDir()
 	if homeDirErr != nil {
 		fmt.Println("Erro ao obter diretório home:", homeDirErr)
@@ -70,7 +70,7 @@ func (lm *gWebLifeCycle) StartIPCServer() error {
 	}
 }
 
-func (lm *gWebLifeCycle) handleIPCConnection(conn net.Conn) {
+func (lm *LifeCycle) handleIPCConnection(conn net.Conn) {
 	defer func(conn net.Conn) {
 		_ = conn.Close()
 	}(conn)
@@ -138,7 +138,7 @@ func (lm *gWebLifeCycle) handleIPCConnection(conn net.Conn) {
 	}
 }
 
-func (lm *gWebLifeCycle) logActivity(activity string) {
+func (lm *LifeCycle) logActivity(activity string) {
 	logFile, err := os.OpenFile("ipc_server.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Println("Erro ao abrir arquivo de log:", err)

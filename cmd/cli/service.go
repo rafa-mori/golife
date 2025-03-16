@@ -9,7 +9,7 @@ import (
 	"syscall"
 )
 
-var manager GWebLifeCycleManager
+var manager LifeCycleManager
 
 func ServiceCmdList() []*cobra.Command {
 	return []*cobra.Command{
@@ -198,7 +198,7 @@ func serviceCommand() *cobra.Command {
 	return serviceCmd
 }
 
-func createManager(processName, processCmd string, stages []string, processEvents map[string]func(interface{}), triggers []string, processArgs []string, processWait, restart bool) (GWebLifeCycleManager, error) {
+func createManager(processName, processCmd string, stages []string, processEvents map[string]func(interface{}), triggers []string, processArgs []string, processWait, restart bool) (LifeCycleManager, error) {
 	if processName == "" {
 		return nil, fmt.Errorf("no process name provided")
 	}
@@ -229,12 +229,12 @@ func createManager(processName, processCmd string, stages []string, processEvent
 	var eventsCh = make(chan IManagedProcessEvents, 1)
 
 	for _, stage := range stages {
-		iStage := NewStage(stage, stage, stage, "stage")
+		iStage := NewStage(stage, stage, "stage")
 		iStages[stage] = iStage
 	}
 
 	for _, trigger := range triggers {
-		iStage := NewStage(trigger, trigger, trigger, "trigger")
+		iStage := NewStage(trigger, trigger, "trigger")
 		iStages[trigger] = iStage
 	}
 
@@ -267,7 +267,10 @@ func createManager(processName, processCmd string, stages []string, processEvent
 	}
 
 	for _, stage := range iStages {
-		manager.DefineStage(stage.Name())
+		defStageErr := manager.DefineStage(stage.Name())
+		if defStageErr != nil {
+			return nil, defStageErr
+		}
 	}
 
 	startAllErr := manager.Start()

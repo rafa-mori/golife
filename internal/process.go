@@ -9,13 +9,25 @@ import (
 )
 
 type IManagedProcess interface {
+	GetArgs() []string
+	GetCommand() string
+	GetCustomFunc() func() error // Novo método para obter função customizada
+	GetName() string
+	GetWaitFor() bool
+	GetProcPid() int
+	GetProcHandle() uintptr
+	GetCmd() *exec.Cmd
+	WillRestart() bool
+
 	Start() error
 	Stop() error
 	Restart() error
 	IsRunning() bool
+
 	Pid() int
 	Wait() error
 	String() string
+
 	SetArgs(args []string)
 	SetCommand(command string)
 	SetCustomFunc(func() error) // Novo método para definir função customizada
@@ -38,6 +50,15 @@ type ManagedProcess struct {
 	mu         sync.Mutex
 }
 
+func (p *ManagedProcess) GetArgs() []string           { return p.Args }
+func (p *ManagedProcess) GetCommand() string          { return p.Command }
+func (p *ManagedProcess) GetCustomFunc() func() error { return p.CustomFunc }
+func (p *ManagedProcess) GetName() string             { return p.Name }
+func (p *ManagedProcess) GetWaitFor() bool            { return p.WaitFor }
+func (p *ManagedProcess) GetProcPid() int             { return p.ProcPid }
+func (p *ManagedProcess) GetProcHandle() uintptr      { return p.ProcHandle }
+func (p *ManagedProcess) GetCmd() *exec.Cmd           { return p.Cmd }
+func (p *ManagedProcess) WillRestart() bool           { return p.Cmd != nil }
 func (p *ManagedProcess) Start() error {
 	if p == nil {
 		return nil
@@ -169,6 +190,10 @@ func NewManagedProcess(name string, command string, args []string, wait bool, cu
 	envs := os.Environ()
 	envPath := os.Getenv("PATH")
 	envs = append(envs, fmt.Sprintf("PATH=%s", envPath))
+
+	if args == nil {
+		args = make([]string, 0)
+	}
 
 	var cmd *exec.Cmd
 	if command != "" {
