@@ -1,8 +1,6 @@
 package api
 
-import (
-	i "github.com/faelmori/golife/internal"
-)
+import i "github.com/faelmori/golife/internal"
 
 type Event = i.IManagedProcessEvents
 
