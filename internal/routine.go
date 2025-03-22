@@ -2,8 +2,10 @@ package internal
 
 import (
 	"context"
-	"log"
+	s "github.com/faelmori/gkbxsrv/services"
+	l "github.com/faelmori/logz"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -573,15 +575,25 @@ func NewManagedGoroutine(fn func()) *ManagedGoroutine {
 }
 
 func logActivity(activity string) {
-	logFile, err := os.OpenFile("goroutine.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Println("Erro ao abrir arquivo de log:", err)
+	f := s.NewFileSystemService("")
+	if f == nil {
 		return
 	}
-	defer logFile.Close()
+	fs := *f
+	cfgDir := filepath.Dir(fs.GetConfigFilePath())
+	logFilePath := filepath.Join(cfgDir, "goroutine.log")
+
+	logFile, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		l.GetLogger("GoLife").Println("Erro ao abrir arquivo de log:", err)
+		return
+	}
+	defer func(logFile *os.File) {
+		_ = logFile.Close()
+	}(logFile)
 
 	logEntry := time.Now().Format(time.RFC3339) + ": " + activity + "\n"
 	if _, err := logFile.WriteString(logEntry); err != nil {
-		log.Println("Erro ao escrever no arquivo de log:", err)
+		l.GetLogger("GoLife").Println("Erro ao escrever no arquivo de log:", err)
 	}
 }

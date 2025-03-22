@@ -2,7 +2,6 @@ package internal
 
 import (
 	"fmt"
-	"github.com/faelmori/golife/internal/log"
 	l "github.com/faelmori/logz"
 	"os"
 	"os/signal"
@@ -140,14 +139,14 @@ func (lm *LifeCycle) Send(stageName string, msg string) {
 				}
 			})
 
-			log.Info(msg, map[string]interface{}{
+			l.Info(msg, map[string]interface{}{
 				"context": "GoLife",
 				"stage":   stageName,
 				"message": msg,
 			})
 		}
 	} else {
-		log.Error(fmt.Sprintf("Estágio %s não encontrado", stageName), map[string]interface{}{
+		l.Error(fmt.Sprintf("Estágio %s não encontrado", stageName), map[string]interface{}{
 			"context": "GoLife",
 			"stage":   stageName,
 		})

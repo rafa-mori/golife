@@ -2,7 +2,7 @@ package internal
 
 import (
 	"fmt"
-	lg "github.com/faelmori/golife/internal/log"
+	lg "github.com/faelmori/logz"
 	"os"
 	"os/exec"
 	"sync"

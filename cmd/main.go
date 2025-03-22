@@ -2,13 +2,13 @@ package main
 
 import (
 	"github.com/faelmori/golife/internal"
-	l "github.com/faelmori/golife/internal/log"
+	l "github.com/faelmori/logz"
 	"os"
 )
 
 func main() {
 	if rootErr := RootCmd().Execute(); rootErr != nil {
-		l.Println(rootErr)
+		l.GetLogger("GoSpyder").Println(rootErr)
 		os.Exit(1)
 	}
 }
@@ -33,22 +33,24 @@ func startBroker() {
 		nil,
 	)
 	if err != nil {
-		l.Printf("Erro ao registrar o broker: %v\n", err)
+		l.GetLogger("GoSpyder").Printf("Erro ao registrar o broker: %v\n", err)
 		return
 	}
-	if regEvErr := lifecycle.RegisterEvent("error", "running"); regEvErr != nil {
-		l.Printf("Erro ao registrar o evento: %v\n", regEvErr)
+	if regEvErr := lifecycle.RegisterEvent("error", "running", func(dt interface{}) {
+		l.GetLogger("GoSpyder").Printf("Erro ao executar o broker: %v\n", dt)
+	}); regEvErr != nil {
+		l.GetLogger("GoSpyder").Printf("Erro ao registrar o evento: %v\n", regEvErr)
 		return
 	}
 	if regStErr := lifecycle.DefineStage("running"); regStErr != nil {
-		l.Printf("Erro ao definir o estágio: %v\n", regStErr)
+		l.GetLogger("GoSpyder").Printf("Erro ao definir o estágio: %v\n", regStErr)
 		return
 	}
 	if err = lifecycle.Start(); err != nil {
-		l.Printf("Erro ao iniciar o lifecycle: %v\n", err)
+		l.GetLogger("GoSpyder").Printf("Erro ao iniciar o lifecycle: %v\n", err)
 		lifecycle.Send("error", err.Error())
 		return
 	}
 
-	l.Println("Broker registrado e em execução pelo GoLife!")
+	l.GetLogger("GoSpyder").Println("Broker registrado e em execução pelo GoLife!")
 }
