@@ -2,31 +2,46 @@ package internal
 
 import (
 	"fmt"
+	lg "github.com/faelmori/logz"
 	"os"
 	"os/exec"
 	"sync"
-	"log"
 )
 
 type IManagedProcess interface {
+	GetArgs() []string
+	GetCommand() string
+	GetCustomFunc() func() error // Novo método para obter função customizada
+	GetName() string
+	GetWaitFor() bool
+	GetProcPid() int
+	GetProcHandle() uintptr
+	GetCmd() *exec.Cmd
+	WillRestart() bool
+
 	Start() error
 	Stop() error
 	Restart() error
 	IsRunning() bool
+
 	Pid() int
 	Wait() error
 	String() string
+
 	SetArgs(args []string)
 	SetCommand(command string)
+	SetCustomFunc(func() error) // Novo método para definir função customizada
 	SetName(name string)
 	SetWaitFor(wait bool)
 	SetProcPid(pid int)
 	SetProcHandle(handle uintptr)
 	SetCmd(cmd *exec.Cmd)
 }
+
 type ManagedProcess struct {
 	Args       []string
 	Command    string
+	CustomFunc func() error // Função customizada
 	Cmd        *exec.Cmd
 	Name       string
 	WaitFor    bool
@@ -35,6 +50,15 @@ type ManagedProcess struct {
 	mu         sync.Mutex
 }
 
+func (p *ManagedProcess) GetArgs() []string           { return p.Args }
+func (p *ManagedProcess) GetCommand() string          { return p.Command }
+func (p *ManagedProcess) GetCustomFunc() func() error { return p.CustomFunc }
+func (p *ManagedProcess) GetName() string             { return p.Name }
+func (p *ManagedProcess) GetWaitFor() bool            { return p.WaitFor }
+func (p *ManagedProcess) GetProcPid() int             { return p.ProcPid }
+func (p *ManagedProcess) GetProcHandle() uintptr      { return p.ProcHandle }
+func (p *ManagedProcess) GetCmd() *exec.Cmd           { return p.Cmd }
+func (p *ManagedProcess) WillRestart() bool           { return p.Cmd != nil }
 func (p *ManagedProcess) Start() error {
 	if p == nil {
 		return nil
@@ -46,26 +70,29 @@ func (p *ManagedProcess) Start() error {
 		return fmt.Errorf("processo %s já está rodando", p.Name)
 	}
 
-	p.Cmd = exec.Command(p.Command, p.Args...)
-	if p.WaitFor {
-		return p.Cmd.Run()
-	} else {
-
-		if procErr := p.Cmd.Start(); procErr != nil {
-			return procErr
-		} else {
-			switch p.Cmd.ProcessState {
-			case nil:
-				p.ProcPid = p.Cmd.Process.Pid
-				p.ProcHandle = uintptr(p.Cmd.Process.Pid)
-				if releaseErr := p.Cmd.Process.Release(); releaseErr != nil {
-					return releaseErr
-				}
-				return nil
-			default:
-				return fmt.Errorf("processo %s não está rodando", p.Name)
+	// Verifica se é uma função customizada
+	if p.CustomFunc != nil {
+		go func() {
+			if err := p.CustomFunc(); err != nil {
+				fmt.Printf("Erro na execução customizada do processo %s: %v\n", p.Name, err)
 			}
+		}()
+		return nil
+	} else if p.Command != "" {
+		p.Cmd = exec.Command(p.Command, p.Args...)
+		if p.WaitFor {
+			return p.Cmd.Run()
+		} else {
+			if err := p.Cmd.Start(); err != nil {
+				return err
+			}
+			p.ProcPid = p.Cmd.Process.Pid
+			p.ProcHandle = uintptr(p.Cmd.Process.Pid)
+			return p.Cmd.Process.Release()
 		}
+	} else {
+		lg.Warn(fmt.Sprintf("Nenhum comando definido para o processo %s", p.Name), nil)
+		return nil
 	}
 }
 func (p *ManagedProcess) Stop() error {
@@ -153,22 +180,37 @@ func (p *ManagedProcess) SetCmd(cmd *exec.Cmd) {
 
 	p.Cmd = cmd
 }
+func (p *ManagedProcess) SetCustomFunc(customFunc func() error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.CustomFunc = customFunc
+}
 
-func NewManagedProcess(name string, command string, args []string, wait bool) IManagedProcess {
+func NewManagedProcess(name string, command string, args []string, wait bool, customFunc func() error) IManagedProcess {
 	envs := os.Environ()
 	envPath := os.Getenv("PATH")
 	envs = append(envs, fmt.Sprintf("PATH=%s", envPath))
-	realCmd, realCmdErr := exec.LookPath(command)
-	if realCmdErr != nil {
-		return nil
+
+	if args == nil {
+		args = make([]string, 0)
 	}
+
+	var cmd *exec.Cmd
+	if command != "" {
+		realCmd, realCmdErr := exec.LookPath(command)
+		if realCmdErr == nil {
+			cmd = exec.Command(realCmd, args...)
+		}
+	}
+
 	mgrProc := ManagedProcess{
-		Args:    []string{},
-		Cmd:     exec.Command(realCmd, args...),
-		Command: command,
-		Name:    name,
-		WaitFor: wait,
-		mu:      sync.Mutex{},
+		Args:       args,
+		Cmd:        cmd,
+		Command:    command,
+		Name:       name,
+		WaitFor:    wait,
+		CustomFunc: customFunc,
+		mu:         sync.Mutex{},
 	}
 	return &mgrProc
 }

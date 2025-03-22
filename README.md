@@ -178,4 +178,3 @@ func main() {
 **GoLife** is designed for developers seeking a robust solution for lifecycle and concurrency management. Whether for distributed systems, application servers, or workflow automation, GoLife brings simplicity and scalability to your infrastructure.
 
 Try it today and streamline concurrent process management in your projects! 🚀
-

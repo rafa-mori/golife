@@ -257,6 +257,13 @@ func (m *ManagedProcessEvents) SetAuth(auth bool) {
 // </editor-fold>
 
 func NewManagedProcessEvents(eventFns map[string]func(interface{}), triggerCh chan interface{}) IManagedProcessEvents {
+	if eventFns == nil {
+		eventFns = make(map[string]func(interface{}))
+	}
+	if triggerCh == nil {
+		triggerCh = make(chan interface{}, 100)
+	}
+
 	events := ManagedProcessEvents{
 		EventFns:  eventFns,
 		TriggerCh: triggerCh,
