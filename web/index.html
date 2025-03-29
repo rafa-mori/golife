@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoLife Web Panel</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>GoLife Web Panel</h1>
+        </header>
+        <main>
+            <section id="status">
+                <h2>Status</h2>
+                <div id="stages">
+                    <h3>Stages</h3>
+                    <ul id="stages-list"></ul>
+                </div>
+                <div id="workers">
+                    <h3>Workers</h3>
+                    <ul id="workers-list"></ul>
+                </div>
+                <div id="event-queues">
+                    <h3>Event Queues</h3>
+                    <ul id="event-queues-list"></ul>
+                </div>
+                <div id="performance-metrics">
+                    <h3>Performance Metrics</h3>
+                    <ul id="performance-metrics-list"></ul>
+                </div>
+            </section>
+            <section id="controls">
+                <h2>Controls</h2>
+                <button id="pause-stages">Pause Stages</button>
+                <button id="restart-stages">Restart Stages</button>
+                <button id="view-logs">View Logs</button>
+                <button id="change-scaling">Change Scaling</button>
+            </section>
+            <section id="notifications">
+                <h2>Notifications</h2>
+                <div id="notification-center"></div>
+            </section>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
