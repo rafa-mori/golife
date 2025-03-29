@@ -3,6 +3,7 @@ package internal
 import (
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/faelmori/logz"
 )
 
 type IStage interface {
@@ -59,9 +60,11 @@ func (s *Stage) AutoScale(size int) IStage {
 }
 func (s *Stage) Dispatch(task func()) error {
 	if s.WorkerPool == nil {
+		logz.Error(fmt.Sprintf("WorkerPool não inicializado para o estágio %s", s.Name()), nil)
 		return fmt.Errorf("WorkerPool não inicializado para o estágio %s", s.Name())
 	}
 	s.WorkerPool.Tasks <- task
+	logz.Info(fmt.Sprintf("Tarefa despachada para o estágio %s", s.Name()), nil)
 	return nil
 }
 func (s *Stage) CanTransitionTo(stageID string) bool {
@@ -96,5 +99,6 @@ func NewStage(name, desc, stageType string) IStage {
 		EventFns:   make(map[string]func(interface{})),
 		WorkerPool: nil,
 	}
+	logz.Info(fmt.Sprintf("Novo estágio criado: %s", name), nil)
 	return &stg
 }

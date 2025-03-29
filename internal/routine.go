@@ -3,7 +3,7 @@ package internal
 import (
 	"context"
 	s "github.com/faelmori/gkbxsrv/services"
-	l "github.com/faelmori/logz"
+	"github.com/faelmori/logz"
 	"os"
 	"path/filepath"
 	"sync"
@@ -585,7 +585,7 @@ func logActivity(activity string) {
 
 	logFile, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		l.GetLogger("GoLife").Println("Erro ao abrir arquivo de log:", err)
+		logz.Error("Erro ao abrir arquivo de log", map[string]interface{}{"error": err})
 		return
 	}
 	defer func(logFile *os.File) {
@@ -594,6 +594,6 @@ func logActivity(activity string) {
 
 	logEntry := time.Now().Format(time.RFC3339) + ": " + activity + "\n"
 	if _, err := logFile.WriteString(logEntry); err != nil {
-		l.GetLogger("GoLife").Println("Erro ao escrever no arquivo de log:", err)
+		logz.Error("Erro ao escrever no arquivo de log", map[string]interface{}{"error": err})
 	}
 }

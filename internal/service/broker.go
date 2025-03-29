@@ -3,7 +3,7 @@ package service
 import (
 	"errors"
 	"fmt"
-	"github.com/faelmori/logz"
+	"github.com/faelmori/golife/api"
 	"github.com/goccy/go-json"
 	"github.com/pebbe/zmq4"
 	"time"
@@ -61,7 +61,7 @@ func (c *BrokerClient) handleIncomingReplies() {
 		select {
 		case <-c.quitCh:
 			lep, _ := c.client.GetLastEndpoint()
-			logz.Debug("Encerrando a goroutine de recepção de respostas...", map[string]interface{}{
+			api.GetLogger().Debug("Encerrando a goroutine de recepção de respostas...", map[string]interface{}{
 				"context":        "handleIncomingReplies",
 				"brokerEndpoint": lep,
 				"timeout":        c.timeout,
@@ -69,7 +69,7 @@ func (c *BrokerClient) handleIncomingReplies() {
 			return
 		case reply := <-c.receiveCh:
 			if len(reply) < 1 {
-				logz.Warn("Resposta recebida do broker (não desserializável)", map[string]interface{}{
+				api.GetLogger().Warn("Resposta recebida do broker (não desserializável)", map[string]interface{}{
 					"context": "handleIncomingReplies",
 					"reply":   reply,
 					"timeout": c.timeout,
@@ -80,7 +80,7 @@ func (c *BrokerClient) handleIncomingReplies() {
 
 			var payload interface{}
 			if err := json.Unmarshal([]byte(reply[0]), &payload); err != nil {
-				logz.Error("Erro ao decodificar payload", map[string]interface{}{
+				api.GetLogger().Error("Erro ao decodificar payload", map[string]interface{}{
 					"context": "handleIncomingReplies",
 					"reply":   reply,
 					"timeout": c.timeout,
@@ -93,7 +93,7 @@ func (c *BrokerClient) handleIncomingReplies() {
 			c.retries = 0
 			p := payload.(map[string]interface{})
 			if _, ok := p["type"]; !ok {
-				logz.Error("Tipo de payload não encontrado", map[string]interface{}{
+				api.GetLogger().Error("Tipo de payload não encontrado", map[string]interface{}{
 					"context": "handleIncomingReplies",
 					"payload": payload,
 					"timeout": c.timeout,
@@ -103,7 +103,7 @@ func (c *BrokerClient) handleIncomingReplies() {
 			}
 			tp := p["type"].(string)
 			if _, ok := p["data"]; !ok {
-				logz.Error("Dados de payload não encontrados", map[string]interface{}{
+				api.GetLogger().Error("Dados de payload não encontrados", map[string]interface{}{
 					"context": "handleIncomingReplies",
 					"payload": payload,
 					"timeout": c.timeout,
@@ -113,7 +113,7 @@ func (c *BrokerClient) handleIncomingReplies() {
 			}
 			dt := p["data"]
 
-			logz.Debug("Payload decodificado, enviando para o canal de dados...", map[string]interface{}{
+			api.GetLogger().Debug("Payload decodificado, enviando para o canal de dados...", map[string]interface{}{
 				"context": "handleIncomingReplies",
 				"type":    tp,
 				"data":    dt,
@@ -124,7 +124,7 @@ func (c *BrokerClient) handleIncomingReplies() {
 			return
 		case <-c.timeCh:
 			if c.retries == c.retryLimit {
-				logz.Warn("Número de tentativas excedido. Encerrando a goroutine de recepção de respostas...", map[string]interface{}{
+				api.GetLogger().Warn("Número de tentativas excedido. Encerrando a goroutine de recepção de respostas...", map[string]interface{}{
 					"context": "handleIncomingReplies",
 					"timeout": c.timeout,
 					"retries": c.retries,
@@ -132,7 +132,7 @@ func (c *BrokerClient) handleIncomingReplies() {
 				close(c.quitCh)
 				return
 			} else {
-				logz.Warn("Aguardando antes de reenviar mensagem...", map[string]interface{}{
+				api.GetLogger().Warn("Aguardando antes de reenviar mensagem...", map[string]interface{}{
 					"context": "handleIncomingReplies",
 					"timeout": c.timeout,
 					"retries": c.retries,
@@ -140,7 +140,7 @@ func (c *BrokerClient) handleIncomingReplies() {
 
 				time.Sleep(c.tryInterval)
 
-				logz.Warn("Reenviando mensagem...", map[string]interface{}{
+				api.GetLogger().Warn("Reenviando mensagem...", map[string]interface{}{
 					"context": "handleIncomingReplies",
 					"timeout": c.timeout,
 					"retries": c.retries,
@@ -150,7 +150,7 @@ func (c *BrokerClient) handleIncomingReplies() {
 			}
 			continue
 		case msg := <-c.sendCh:
-			logz.Debug("Mensagem recebida para envio...", map[string]interface{}{
+			api.GetLogger().Debug("Mensagem recebida para envio...", map[string]interface{}{
 				"context": "handleIncomingReplies",
 				"msg":     msg,
 				"timeout": c.timeout,
@@ -158,7 +158,7 @@ func (c *BrokerClient) handleIncomingReplies() {
 			})
 
 			if err := c.trySendReceive(msg); err != nil {
-				logz.Error("Erro ao enviar mensagem", map[string]interface{}{
+				api.GetLogger().Error("Erro ao enviar mensagem", map[string]interface{}{
 					"context": "handleIncomingReplies",
 					"msg":     msg,
 					"timeout": c.timeout,
@@ -167,7 +167,7 @@ func (c *BrokerClient) handleIncomingReplies() {
 				})
 				return
 			} else {
-				logz.Debug("Mensagem enviada com sucesso", map[string]interface{}{
+				api.GetLogger().Debug("Mensagem enviada com sucesso", map[string]interface{}{
 					"context": "handleIncomingReplies",
 					"msg":     msg,
 					"timeout": c.timeout,
@@ -183,7 +183,7 @@ func (c *BrokerClient) handleIncomingReplies() {
 func (c *BrokerClient) SendMessage(service string, requestPayload interface{}) error {
 	payload, err := json.Marshal(requestPayload)
 	if err != nil {
-		logz.Error("Erro ao serializar payload", map[string]interface{}{
+		api.GetLogger().Error("Erro ao serializar payload", map[string]interface{}{
 			"context":        "SendMessage",
 			"service":        service,
 			"requestPayload": requestPayload,
@@ -199,7 +199,7 @@ func (c *BrokerClient) SendMessage(service string, requestPayload interface{}) e
 
 	for i, frame := range req {
 		if frame == "" {
-			logz.Warn(fmt.Sprintf("Frame vazio detectado: posição %d", i), map[string]interface{}{
+			api.GetLogger().Warn(fmt.Sprintf("Frame vazio detectado: posição %d", i), map[string]interface{}{
 				"context":  "SendMessage",
 				"frame":    frame,
 				"position": i,
@@ -219,7 +219,7 @@ func (c *BrokerClient) SendMessage(service string, requestPayload interface{}) e
 
 func (c *BrokerClient) trySendReceive(req interface{}) error {
 	if _, sendErr := c.client.SendMessage(req); sendErr != nil {
-		logz.Error("Erro ao enviar mensagem", map[string]interface{}{
+		api.GetLogger().Error("Erro ao enviar mensagem", map[string]interface{}{
 			"context": "SendMessage",
 			"req":     req,
 			"timeout": c.timeout,
@@ -244,7 +244,7 @@ func (c *BrokerClient) trySendReceive(req interface{}) error {
 	if reply, recvErr := c.client.RecvMessage(0); recvErr != nil {
 		if errors.Is(recvErr, zmq4.EFSM) {
 			c.handleEFSMError()
-			logz.Warn("Reinicializando o socket devido a erro de máquina de estados (EFSM)...", map[string]interface{}{
+			api.GetLogger().Warn("Reinicializando o socket devido a erro de máquina de estados (EFSM)...", map[string]interface{}{
 				"context": "SendMessage",
 				"reply":   reply,
 				"req":     req,
@@ -253,7 +253,7 @@ func (c *BrokerClient) trySendReceive(req interface{}) error {
 			})
 			return recvErr
 		} else {
-			logz.Error("Erro ao receber resposta", map[string]interface{}{
+			api.GetLogger().Error("Erro ao receber resposta", map[string]interface{}{
 				"context": "SendMessage",
 				"reply":   reply,
 				"req":     req,
@@ -264,7 +264,7 @@ func (c *BrokerClient) trySendReceive(req interface{}) error {
 		}
 		return recvErr
 	} else {
-		logz.Debug("Resposta recebida do broker", map[string]interface{}{
+		api.GetLogger().Debug("Resposta recebida do broker", map[string]interface{}{
 			"context": "SendMessage",
 			"reply":   reply,
 			"req":     req,
@@ -278,10 +278,10 @@ func (c *BrokerClient) trySendReceive(req interface{}) error {
 }
 
 func (c *BrokerClient) handleEFSMError() {
-	logz.Warn("Reinicializando o socket devido a erro de máquina de estados (EFSM)...", nil)
+	api.GetLogger().Warn("Reinicializando o socket devido a erro de máquina de estados (EFSM)...", nil)
 	closeErr := c.client.Close()
 	if closeErr != nil {
-		logz.Error("Erro ao fechar o socket", map[string]interface{}{
+		api.GetLogger().Error("Erro ao fechar o socket", map[string]interface{}{
 			"context": "handleEFSMError",
 			"error":   closeErr,
 		})
@@ -289,7 +289,7 @@ func (c *BrokerClient) handleEFSMError() {
 	}
 	newSocket, err := zmq4.NewSocket(zmq4.REQ)
 	if err != nil {
-		logz.Error("Erro ao recriar socket", map[string]interface{}{
+		api.GetLogger().Error("Erro ao recriar socket", map[string]interface{}{
 			"context": "handleEFSMError",
 			"error":   err,
 		})
@@ -298,7 +298,7 @@ func (c *BrokerClient) handleEFSMError() {
 	c.client = newSocket
 	connectErr := c.client.Connect(defaultBrokerEndpoint)
 	if connectErr != nil {
-		logz.Error("Erro ao reconectar ao broker", map[string]interface{}{
+		api.GetLogger().Error("Erro ao reconectar ao broker", map[string]interface{}{
 			"context": "handleEFSMError",
 			"error":   connectErr,
 		})
@@ -311,7 +311,7 @@ func (c *BrokerClient) Start() error {
 		if c.poller != nil {
 			remPollerErr := c.poller.RemoveBySocket(c.client)
 			if remPollerErr != nil {
-				logz.Warn("Erro ao remover socket do poller (existentes).", map[string]interface{}{
+				api.GetLogger().Warn("Erro ao remover socket do poller (existentes).", map[string]interface{}{
 					"context": "Start",
 					"error":   remPollerErr,
 				})
@@ -341,7 +341,7 @@ func (c *BrokerClient) Start() error {
 	var err error
 	c.client, err = zmq4.NewSocket(zmq4.REQ)
 	if err != nil {
-		logz.Error(fmt.Sprintf("Erro ao criar socket: %v", err), nil)
+		api.GetLogger().Error(fmt.Sprintf("Erro ao criar socket: %v", err), nil)
 		return err
 	}
 	c.poller = zmq4.NewPoller()
@@ -354,7 +354,7 @@ func (c *BrokerClient) Start() error {
 		c.endpoint = defaultBrokerEndpoint
 	}
 	if err := c.client.Connect(c.endpoint); err != nil {
-		logz.Error(fmt.Sprintf("Erro ao conectar ao broker: %v", err), nil)
+		api.GetLogger().Error(fmt.Sprintf("Erro ao conectar ao broker: %v", err), nil)
 		return err
 	}
 
@@ -397,7 +397,7 @@ func (c *BrokerClient) Status() map[string]interface{} {
 		"retries":     c.retries,
 		"status":      sktStatus,
 	}
-	logz.Debug("Status do cliente", status)
+	api.GetLogger().Debug("Status do cliente", status)
 	return status
 }
 
@@ -407,7 +407,7 @@ func (c *BrokerClient) Stop() {
 }
 
 func (c *BrokerClient) Reset() {
-	logz.Warn("Reinicializando canais...", map[string]interface{}{
+	api.GetLogger().Warn("Reinicializando canais...", map[string]interface{}{
 		"context": "handleIncomingReplies",
 		"timeout": c.timeout,
 		"retries": c.retries,
@@ -419,7 +419,7 @@ func (c *BrokerClient) Reset() {
 	c.timeCh = make(chan time.Time, 1)
 	c.quitCh = make(chan bool, 1)
 
-	logz.Warn("Canais reinicializados", map[string]interface{}{
+	api.GetLogger().Warn("Canais reinicializados", map[string]interface{}{
 		"context": "handleIncomingReplies",
 		"timeout": c.timeout,
 		"retries": c.retries,
@@ -431,7 +431,7 @@ func (c *BrokerClient) Restart() {
 	c.Reset()
 	startErr := c.Start()
 	if startErr != nil {
-		logz.Error("Erro ao reiniciar o cliente", map[string]interface{}{
+		api.GetLogger().Error("Erro ao reiniciar o cliente", map[string]interface{}{
 			"context": "Restart",
 			"error":   startErr,
 		})

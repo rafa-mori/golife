@@ -74,7 +74,7 @@ func (p *ManagedProcess) Start() error {
 	if p.CustomFunc != nil {
 		go func() {
 			if err := p.CustomFunc(); err != nil {
-				fmt.Printf("Erro na execução customizada do processo %s: %v\n", p.Name, err)
+				lg.Error(fmt.Sprintf("Erro na execução customizada do processo %s: %v", p.Name, err), nil)
 			}
 		}()
 		return nil
