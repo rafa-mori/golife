@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"fmt"
+	l "github.com/faelmori/logz"
 	"github.com/spf13/cobra"
 )
 
@@ -18,13 +20,17 @@ func triggerCmd() *cobra.Command {
 
 	var cmdTrigger = &cobra.Command{
 		Use:  "trigger [stage] [event] [data]",
-		Long: Banner + `Trigger an event in a stage`,
 		Args: cobra.MinimumNArgs(3),
+		Annotations: GetDescriptions([]string{
+			"Trigger an event in a stage",
+			"Dispatch an event in a stage",
+		}, false),
 		Run: func(cmd *cobra.Command, args []string) {
 			stage = args[0]
 			event = args[1]
 			data = args[2]
 			manager.Trigger(stage, event, data)
+			l.Info(fmt.Sprintf("Event %s triggered in stage %s with data: %s", event, stage, data), map[string]interface{}{})
 		},
 	}
 
@@ -40,8 +46,11 @@ func registerEventCmd() *cobra.Command {
 
 	var cmdRegisterEvent = &cobra.Command{
 		Use:  "regEvent [stage] [event]",
-		Long: Banner + `Register an event in a stage`,
 		Args: cobra.MinimumNArgs(2),
+		Annotations: GetDescriptions([]string{
+			"Register an event",
+			"Register an event in a stage",
+		}, false),
 		Run: func(cmd *cobra.Command, args []string) {
 			stage = args[0]
 			event = args[1]
@@ -49,8 +58,10 @@ func registerEventCmd() *cobra.Command {
 				manager.Trigger(stage, event, data)
 			})
 			if regEvErr != nil {
+				l.Error(fmt.Sprintf("Error registering event: %s", regEvErr.Error()), map[string]interface{}{})
 				return
 			}
+			l.Info("Event registered successfully", map[string]interface{}{})
 		},
 	}
 
@@ -64,13 +75,21 @@ func removeEventCmd() *cobra.Command {
 	var stage, event string
 
 	var cmdRemoveEvent = &cobra.Command{
-		Use:  "removeEvent [stage] [event]",
-		Long: Banner + `Remove an event from a stage`,
+		Use: "removeEvent [stage] [event]",
+		Annotations: GetDescriptions([]string{
+			"Remove an event",
+			"Remove an event from a stage",
+		}, false),
 		Args: cobra.MinimumNArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			stage = args[0]
 			event = args[1]
-			manager.RemoveEvent(stage, event)
+			err := manager.RemoveEvent(stage, event)
+			if err != nil {
+				l.Error(fmt.Sprintf("Error removing event: %s", err.Error()), map[string]interface{}{})
+				return
+			}
+			l.Info("Event removed successfully", map[string]interface{}{})
 		},
 	}
 
@@ -83,10 +102,18 @@ func removeEventCmd() *cobra.Command {
 func stopEventsCmd() *cobra.Command {
 	var cmdStopEvents = &cobra.Command{
 		Use:  "stopEvents",
-		Long: Banner + `Stop all events`,
 		Args: cobra.NoArgs,
+		Annotations: GetDescriptions([]string{
+			"Stop events",
+			"Stop all events",
+		}, false),
 		Run: func(cmd *cobra.Command, args []string) {
-			manager.StopEvents()
+			err := manager.StopEvents()
+			if err != nil {
+				l.Error(fmt.Sprintf("Error stopping events: %s", err.Error()), map[string]interface{}{})
+				return
+			}
+			l.Info("Events stopped successfully", map[string]interface{}{})
 		},
 	}
 

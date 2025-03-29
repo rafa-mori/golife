@@ -1,6 +1,12 @@
 package cli
 
-const Banner = ` #####                #                          
+import (
+	"os"
+	"strings"
+)
+
+const Banner = `
+  #####                #                          
  #     #   ####        #        #  ######  ###### 
  #        #    #       #        #  #       #      
  #  ####  #    #       #        #  #####   #####  
@@ -11,4 +17,13 @@ const Banner = ` #####                #
 
 const Version = "1.0.0"
 
-const AppName = "golife"
+func GetDescriptions(descriptionArg []string, _ bool) map[string]string {
+	var description string
+	if strings.Contains(strings.Join(os.Args[0:], ""), "-h") {
+		description = descriptionArg[0]
+	} else {
+		description = descriptionArg[1]
+	}
+
+	return map[string]string{"banner": Banner, "description": description}
+}

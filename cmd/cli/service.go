@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	. "github.com/faelmori/golife/internal"
+	l "github.com/faelmori/logz"
 	"github.com/spf13/cobra"
 	"os"
 	"os/exec"
@@ -33,13 +34,16 @@ func lifeCycleManagerCmd() *cobra.Command {
 	var lCMCmd = &cobra.Command{
 		Use:    "lfm",
 		Hidden: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Annotations: GetDescriptions([]string{
+			"Create a life cycle manager",
+			"Create a life cycle manager for the application/process",
+		}, false),
+		Run: func(cmd *cobra.Command, args []string) {
 			mgr, mgrErr := createManager(processName, processCmd, stages, processEvents, triggers, processArgs, processWait, restart)
 			if mgrErr != nil {
-				return mgrErr
+				l.Error(fmt.Sprintf("Fail to create manager: %s", mgrErr), map[string]interface{}{})
 			} else {
 				manager = mgr
-				return nil
 			}
 		},
 	}
@@ -63,21 +67,26 @@ func startCommand() *cobra.Command {
 	var processEvents map[string]func(interface{})
 
 	var startCmd = &cobra.Command{
-		Use:  "start",
-		Long: Banner + `Start the application`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Use: "start",
+		Annotations: GetDescriptions([]string{
+			"Start a process with a life cycle manager",
+			"Start a process with a life cycle manager, optionally waiting for it to finish",
+		}, false),
+		Run: func(cmd *cobra.Command, args []string) {
 			if processWait {
 				mgr, mgrErr := createManager(processName, processCmd, stages, processEvents, triggers, processArgs, processWait, restart)
 				if mgrErr != nil {
-					return mgrErr
+					l.Error(fmt.Sprintf("Fail to create manager: %s", mgrErr), map[string]interface{}{})
+					return
 				} else {
 					manager = mgr
-					return nil
+					return
 				}
 			} else {
-				appFullPath, appFullPathErr := exec.LookPath(AppName)
+				appFullPath, appFullPathErr := exec.LookPath("golife")
 				if appFullPathErr != nil {
-					return appFullPathErr
+					l.Error(fmt.Sprintf("Fail to find golife binary: %s", appFullPathErr), map[string]interface{}{})
+					return
 				}
 				argsStr, waitFlag, restartFlag, stagesStr, triggersStr := getFlagsAsSliceStr(processWait, restart, processArgs, stages, triggers)
 				mgrCmdStr := fmt.Sprintf("%s lfm -n %s -c %s %s %s %s -s %s -t %s", appFullPath, processName, processCmd, argsStr, waitFlag, restartFlag, stagesStr, triggersStr)
@@ -87,13 +96,15 @@ func startCommand() *cobra.Command {
 				mgrCmd.Stdin = os.Stdin
 				mgrCmdErr := mgrCmd.Start()
 				if mgrCmdErr != nil {
-					return mgrCmdErr
+					l.Error(fmt.Sprintf("Fail to start manager command: %s", mgrCmdErr), map[string]interface{}{})
+					return
 				} else {
 					releaseErr := mgrCmd.Process.Release()
 					if releaseErr != nil {
-						return releaseErr
+						l.Error(fmt.Sprintf("Fail to release process: %s", releaseErr), map[string]interface{}{})
+						return
 					}
-					return nil
+					return
 				}
 			}
 		},
@@ -112,18 +123,20 @@ func startCommand() *cobra.Command {
 func stopCommand() *cobra.Command {
 	var processName string
 	var stopCmd = &cobra.Command{
-		Use:  "stop",
-		Long: Banner + `Stop the application`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Use: "stop",
+		Annotations: GetDescriptions([]string{
+			"Stop a process with a life cycle manager",
+			"Stop a process with a life cycle manager",
+		}, false),
+		Run: func(cmd *cobra.Command, args []string) {
 			if manager == nil {
-				return fmt.Errorf("no manager found")
+				l.Error("no manager found", map[string]interface{}{})
 			} else {
 				stopErr := manager.Stop()
 				if stopErr != nil {
-					return stopErr
+					l.Error(fmt.Sprintf("Fail to stop process: %s", stopErr), map[string]interface{}{})
 				}
 			}
-			return nil
 		},
 	}
 
@@ -133,14 +146,16 @@ func stopCommand() *cobra.Command {
 }
 func statusCommand() *cobra.Command {
 	var statusCmd = &cobra.Command{
-		Use:  "status",
-		Long: Banner + `Check the status of the application`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Use: "status",
+		Annotations: GetDescriptions([]string{
+			"Get the status of a process with a life cycle manager",
+			"Get the status of a process with a life cycle manager. Shows PID, status, and other information.",
+		}, false),
+		Run: func(cmd *cobra.Command, args []string) {
 			if manager == nil {
-				return fmt.Errorf("no manager found")
+				l.Error("no manager found", map[string]interface{}{})
 			} else {
-				fmt.Println(manager.Status())
-				return nil
+				l.Info(manager.Status(), map[string]interface{}{})
 			}
 		},
 	}
@@ -149,13 +164,20 @@ func statusCommand() *cobra.Command {
 }
 func restartCommand() *cobra.Command {
 	var restartCmd = &cobra.Command{
-		Use:  "restart",
-		Long: Banner + `Restart the application`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Use: "restart",
+		Annotations: GetDescriptions([]string{
+			"Restart a process with a life cycle manager",
+			"Restart a process with a life cycle manager",
+		}, false),
+		Run: func(cmd *cobra.Command, args []string) {
 			if manager == nil {
-				return fmt.Errorf("no manager found")
+				l.Error("no manager found", map[string]interface{}{})
 			} else {
-				return manager.Restart()
+				if err := manager.Restart(); err != nil {
+					l.Error(fmt.Sprintf("Fail to restart process: %s", err), map[string]interface{}{})
+				} else {
+					l.Info("Process restarted successfully", map[string]interface{}{})
+				}
 			}
 		},
 	}
@@ -169,22 +191,24 @@ func serviceCommand() *cobra.Command {
 	var processEvents map[string]string
 
 	var serviceCmd = &cobra.Command{
-		Use:  "service",
-		Long: Banner + `Manage the application as a service`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Use: "service",
+		Annotations: GetDescriptions([]string{
+			"Start a process with a life cycle manager (in background)",
+			"Start a process with a life cycle manager (in background). This command is used to start a process in the background and detach it from the terminal.",
+		}, false),
+		Run: func(cmd *cobra.Command, args []string) {
 			usrEnvs := os.Environ()
 			envPath := os.Getenv("PATH")
 			usrEnvs = append(usrEnvs, fmt.Sprintf("PATH=%s", envPath))
-			appBinPath, appBinPathErr := exec.LookPath(AppName)
+			appBinPath, appBinPathErr := exec.LookPath("golife")
 			if appBinPathErr != nil {
-				return appBinPathErr
+				l.Error(fmt.Sprintf("Fail to find golife binary: %s", appBinPathErr), map[string]interface{}{})
+				return
 			}
 			cmdStartSpawner := fmt.Sprintf("%s service start -n %s -c %s -a %s -w %t -e %s", appBinPath, processName, processCmd, processArgs, processWait, processEvents)
 			cmdStartErr := syscall.Exec("/bin/sh", []string{"-c", cmdStartSpawner}, os.Environ())
 			if cmdStartErr != nil {
-				return cmdStartErr
-			} else {
-				return nil
+				l.Error(fmt.Sprintf("Fail to start service: %s", cmdStartErr), map[string]interface{}{})
 			}
 		},
 	}
@@ -275,7 +299,6 @@ func createManager(processName, processCmd string, stages []string, processEvent
 
 	startAllErr := manager.Start()
 	if startAllErr != nil {
-		fmt.Println("Erro ao iniciar processos:", startAllErr)
 		return nil, startAllErr
 	}
 
@@ -290,7 +313,7 @@ func getFlagsAsSliceStr(processWait, restart bool, processArgs, stages, triggers
 	if restart {
 		restartFlag = "-r"
 	}
-	argsFlags := []string{}
+	argsFlags := make([]string, 0)
 	for _, arg := range processArgs {
 		argsFlags = append(argsFlags, fmt.Sprintf("-a %s", arg))
 	}
@@ -298,7 +321,7 @@ func getFlagsAsSliceStr(processWait, restart bool, processArgs, stages, triggers
 	if len(argsFlags) > 0 {
 		argsStr = fmt.Sprintf("%s", argsFlags)
 	}
-	stagesFlag := []string{}
+	stagesFlag := make([]string, 0)
 	for _, stage := range stages {
 		stagesFlag = append(stagesFlag, fmt.Sprintf("-s %s", stage))
 	}
@@ -306,7 +329,7 @@ func getFlagsAsSliceStr(processWait, restart bool, processArgs, stages, triggers
 	if len(stagesFlag) > 0 {
 		stagesStr = fmt.Sprintf("%s", stagesFlag)
 	}
-	triggersFlag := []string{}
+	triggersFlag := make([]string, 0)
 	for _, trigger := range triggers {
 		triggersFlag = append(triggersFlag, fmt.Sprintf("-t %s", trigger))
 	}
