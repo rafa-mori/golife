@@ -20,9 +20,9 @@ func SSEHandler(w http.ResponseWriter, r *http.Request) {
 	internal.RegisterEventChannel(events)
 
 	// Handle client disconnection
-	notify := w.(http.CloseNotifier).CloseNotify()
+	ctx := r.Context()
 	go func() {
-		<-notify
+		<-ctx.Done()
 		close(events)
 		logz.Info("Client disconnected", nil)
 	}()
