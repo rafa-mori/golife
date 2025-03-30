@@ -30,6 +30,7 @@ type LifeCycleManager interface {
 	DefineStage(name string) error
 	GetCurrentStage() IStage
 	GetStage(name string) IStage
+	GetStages() []IStage
 	UpdateStage(stage IStage) error
 
 	IsStageAllowed(stage string) bool
@@ -110,6 +111,13 @@ func (lm *LifeCycle) GetStage(name string) IStage {
 		}
 	}
 	return nil
+}
+func (lm *LifeCycle) GetStages() []IStage {
+	stages := make([]IStage, 0, len(lm.stages))
+	for _, stage := range lm.stages {
+		stages = append(stages, stage)
+	}
+	return stages
 }
 func (lm *LifeCycle) UpdateStage(stage IStage) error {
 	if id := lm.getStageIDByName(stage.Name()); id != "" {
