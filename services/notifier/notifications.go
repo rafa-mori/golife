@@ -1,13 +1,13 @@
-package api
+package notifier
 
 import (
-	"fmt"
-	"net/smtp"
-	"net/http"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"github.com/faelmori/golife/internal"
 	"github.com/faelmori/logz"
+	"net/http"
+	"net/smtp"
 )
 
 type NotificationManager struct {

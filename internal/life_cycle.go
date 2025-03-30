@@ -64,31 +64,31 @@ type LifeCycle struct {
 func (lm *LifeCycle) Trigger(stageName, eventName string, data interface{}) {
 	stage := lm.GetStage(stageName)
 	if stage == nil {
-		l.Error(fmt.Sprintf("Estágio %s não encontrado ao disparar evento %s", stageName, eventName), nil)
+		l.Error(fmt.Sprintf("Stage %s not found when triggering event %s", stageName, eventName), nil)
 		return
 	}
 
-	// Executar o callback do evento
+	// Execute the event callback
 	callback := stage.GetEvent(eventName)
 	if callback == nil {
-		l.Error(fmt.Sprintf("Evento %s não encontrado no estágio %s", eventName, stageName), nil)
+		l.Error(fmt.Sprintf("Event %s not found in stage %s", eventName, stageName), nil)
 		return
 	}
 
-	// Log de disparo
-	l.Info(fmt.Sprintf("Disparando evento %s em %s...", eventName, stageName), nil)
+	// Log the trigger
+	l.Info(fmt.Sprintf("Triggering event %s in %s...", eventName, stageName), nil)
 
-	// Executar o callback
+	// Execute the callback
 	callback(data)
 
-	// Enviar para o canal, se necessário
+	// Send to the channel, if necessary
 	if lm.eventsCh != nil {
 		lm.eventsCh <- NewManagedProcessEvents(map[string]func(interface{}){eventName: callback}, lm.triggerCh)
 	}
 }
 func (lm *LifeCycle) DefineStage(name string) error {
 	if id := lm.getStageIDByName(name); id == "" {
-		return fmt.Errorf("estágio %s não encontrado", name)
+		return fmt.Errorf("stage %s not found", name)
 	} else {
 		lm.currentStage = id
 	}
@@ -118,7 +118,7 @@ func (lm *LifeCycle) UpdateStage(stage IStage) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("estágio %s não encontrado", stage.Name())
+	return fmt.Errorf("stage %s not found", stage.Name())
 }
 
 func (lm *LifeCycle) Send(stageName string, msg string) {
@@ -146,36 +146,36 @@ func (lm *LifeCycle) Send(stageName string, msg string) {
 			})
 		}
 	} else {
-		l.Error(fmt.Sprintf("Estágio %s não encontrado", stageName), map[string]interface{}{
+		l.Error(fmt.Sprintf("Stage %s not found", stageName), map[string]interface{}{
 			"context": "GoLife",
 			"stage":   stageName,
 		})
 	}
 }
 func (lm *LifeCycle) Receive(stageName string) interface{} {
-	fmt.Printf("Recebendo mensagem de %s...\n", stageName)
+	fmt.Printf("Receiving message from %s...\n", stageName)
 	if id := lm.getStageIDByName(stageName); id != "" {
 		if s, ok := lm.stages[id]; ok {
-			fmt.Printf("Mensagem recebida de %s!\n", stageName)
+			fmt.Printf("Message received from %s!\n", stageName)
 			sB := s.(*Stage)
 			return sB.Data
 		} else {
-			fmt.Printf("Nenhuma mensagem recebida de %s!\n", stageName)
+			fmt.Printf("No message received from %s!\n", stageName)
 			return nil
 		}
 	} else {
-		fmt.Printf("Estágio %s não encontrado!\n", stageName)
+		fmt.Printf("Stage %s not found!\n", stageName)
 		return nil
 	}
 }
 func (lm *LifeCycle) Start() error {
-	l.Info("Iniciando processos...", map[string]interface{}{
+	l.Info("Starting processes...", map[string]interface{}{
 		"context":  "GoLife",
 		"showData": false,
 	})
 	for _, proc := range lm.processes {
 		if err := proc.Start(); err != nil {
-			l.Error(fmt.Sprintf("Erro ao iniciar processo %s: %v", proc.String(), err), map[string]interface{}{
+			l.Error(fmt.Sprintf("Error starting process %s: %v", proc.String(), err), map[string]interface{}{
 				"context":  "GoLife",
 				"process":  proc.String(),
 				"showData": true,
@@ -183,7 +183,7 @@ func (lm *LifeCycle) Start() error {
 			return err
 		}
 	}
-	l.Info(fmt.Sprintf("Processos iniciados com sucesso!"), map[string]interface{}{
+	l.Info(fmt.Sprintf("Processes started successfully!"), map[string]interface{}{
 		"context":   "GoLife",
 		"processes": len(lm.processes),
 		"showData":  false,
@@ -191,18 +191,18 @@ func (lm *LifeCycle) Start() error {
 	return nil
 }
 func (lm *LifeCycle) Stop() error {
-	l.Info("Parando processos...", map[string]interface{}{
+	l.Info("Stopping processes...", map[string]interface{}{
 		"context":  "GoLife",
 		"showData": false,
 	})
 	for _, proc := range lm.processes {
-		l.Info(fmt.Sprintf("Parando processo %s...", proc.String()), map[string]interface{}{
+		l.Info(fmt.Sprintf("Stopping process %s...", proc.String()), map[string]interface{}{
 			"context":  "GoLife",
 			"process":  proc.String(),
 			"showData": false,
 		})
 		if err := proc.Stop(); err != nil {
-			l.Error(fmt.Sprintf("Erro ao parar processo %s: %v", proc.String(), err), map[string]interface{}{
+			l.Error(fmt.Sprintf("Error stopping process %s: %v", proc.String(), err), map[string]interface{}{
 				"context":  "GoLife",
 				"process":  proc.String(),
 				"showData": true,
@@ -210,7 +210,7 @@ func (lm *LifeCycle) Stop() error {
 			return err
 		}
 	}
-	l.Info(fmt.Sprintf("Processos parados com sucesso!"), map[string]interface{}{
+	l.Info(fmt.Sprintf("Processes stopped successfully!"), map[string]interface{}{
 		"context":   "GoLife",
 		"processes": len(lm.processes),
 		"showData":  false,
@@ -228,20 +228,19 @@ func (lm *LifeCycle) Restart() error {
 func (lm *LifeCycle) Status() string {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
-	l.Info("Verificando status dos processos...", map[string]interface{}{"context": "GoLife", "showData": false})
+	l.Info("Checking process status...", map[string]interface{}{"context": "GoLife", "showData": false})
 	var status string
 	for name, proc := range lm.processes {
-		//fmt.Printf("Processo %s (PID %d) está rodando: %t\n", name, proc.Pid(), proc.IsRunning())
-		l.Info(fmt.Sprintf("Processo %s (PID %d) está rodando: %t", name, proc.Pid(), proc.IsRunning()), map[string]interface{}{
+		l.Info(fmt.Sprintf("Process %s (PID %d) is running: %t", name, proc.Pid(), proc.IsRunning()), map[string]interface{}{
 			"context":  "GoLife",
 			"process":  name,
 			"pid":      proc.Pid(),
 			"running":  proc.IsRunning(),
 			"showData": false,
 		})
-		status += fmt.Sprintf("Processo %s (PID %d) está rodando: %t\n", name, proc.Pid(), proc.IsRunning())
+		status += fmt.Sprintf("Process %s (PID %d) is running: %t\n", name, proc.Pid(), proc.IsRunning())
 	}
-	l.Info("Status dos processos verificado com sucesso!", map[string]interface{}{"context": "GoLife", "showData": false})
+	l.Info("Process status checked successfully!", map[string]interface{}{"context": "GoLife", "showData": false})
 	return status
 }
 
@@ -249,10 +248,10 @@ func (lm *LifeCycle) RegisterProcess(name string, command string, args []string,
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 
-	l.Info(fmt.Sprintf("Registrando processo %s...", name), map[string]interface{}{"context": "GoLife", "process": name, "showData": false})
+	l.Info(fmt.Sprintf("Registering process %s...", name), map[string]interface{}{"context": "GoLife", "process": name, "showData": false})
 	lm.processes[name] = NewManagedProcess(name, command, args, restart, customFn)
 
-	l.Info(fmt.Sprintf("Processo %s registrado com sucesso!", name), map[string]interface{}{"context": "GoLife", "process": name, "showData": false})
+	l.Info(fmt.Sprintf("Process %s registered successfully!", name), map[string]interface{}{"context": "GoLife", "process": name, "showData": false})
 	return nil
 }
 func (lm *LifeCycle) RegisterStage(stage IStage) error {
@@ -260,13 +259,13 @@ func (lm *LifeCycle) RegisterStage(stage IStage) error {
 	defer lm.mu.Unlock()
 
 	if id := lm.getStageIDByName(stage.Name()); id != "" {
-		l.Error(fmt.Sprintf("Estágio %s já registrado", stage.Name()), map[string]interface{}{"context": "GoLife", "stage": stage.Name(), "showData": false})
+		l.Error(fmt.Sprintf("Stage %s already registered", stage.Name()), map[string]interface{}{"context": "GoLife", "stage": stage.Name(), "showData": false})
 		return nil
 	}
 
-	l.Info(fmt.Sprintf("Registrando estágio %s...", stage.Name()), map[string]interface{}{"context": "GoLife", "stage": stage.Name(), "showData": false})
+	l.Info(fmt.Sprintf("Registering stage %s...", stage.Name()), map[string]interface{}{"context": "GoLife", "stage": stage.Name(), "showData": false})
 	lm.stages[stage.ID()] = stage
-	l.Info(fmt.Sprintf("Estágio %s registrado com sucesso!", stage.Name()), map[string]interface{}{"context": "GoLife", "stage": stage.Name(), "showData": false})
+	l.Info(fmt.Sprintf("Stage %s registered successfully!", stage.Name()), map[string]interface{}{"context": "GoLife", "stage": stage.Name(), "showData": false})
 
 	return nil
 }
@@ -274,17 +273,17 @@ func (lm *LifeCycle) RegisterEvent(event, stageName string, callback func(interf
 	lm.eventsMu.Lock()
 	defer lm.eventsMu.Unlock()
 
-	// Validar se o estágio existe
+	// Validate if the stage exists
 	stage := lm.GetStage(stageName)
 	if stage == nil {
-		return fmt.Errorf("estágio %s não encontrado ao registrar evento %s", stageName, event)
+		return fmt.Errorf("stage %s not found when registering event %s", stageName, event)
 	}
 
-	// Adicionar o evento no estágio
+	// Add the event to the stage
 	stage.OnEvent(event, callback)
 
-	// Log de sucesso
-	l.Info(fmt.Sprintf("Evento %s registrado em %s com sucesso!", event, stageName), map[string]interface{}{
+	// Log success
+	l.Info(fmt.Sprintf("Event %s registered in %s successfully!", event, stageName), map[string]interface{}{
 		"context": "GoLife",
 		"event":   event,
 		"stage":   stageName,
@@ -294,47 +293,47 @@ func (lm *LifeCycle) RegisterEvent(event, stageName string, callback func(interf
 }
 
 func (lm *LifeCycle) RemoveEvent(event, stageName string) error {
-	l.Info(fmt.Sprintf("Removendo evento %s de %s...", event, stageName), map[string]interface{}{"context": "GoLife", "event": event, "stage": stageName, "showData": false})
+	l.Info(fmt.Sprintf("Removing event %s from %s...", event, stageName), map[string]interface{}{"context": "GoLife", "event": event, "stage": stageName, "showData": false})
 	for i, e := range lm.events {
 		if e.Event() == event {
 			lm.events = append(lm.events[:i], lm.events[i+1:]...)
-			l.Info(fmt.Sprintf("Evento %s removido de %s com sucesso!", event, stageName), map[string]interface{}{"context": "GoLife", "event": event, "stage": stageName, "showData": false})
+			l.Info(fmt.Sprintf("Event %s removed from %s successfully!", event, stageName), map[string]interface{}{"context": "GoLife", "event": event, "stage": stageName, "showData": false})
 			return nil
 		}
 	}
-	l.Error(fmt.Sprintf("Evento %s não encontrado em %s", event, stageName), map[string]interface{}{"context": "GoLife", "event": event, "stage": stageName, "showData": false})
-	return fmt.Errorf("evento %s não encontrado em %s", event, stageName)
+	l.Error(fmt.Sprintf("Event %s not found in %s", event, stageName), map[string]interface{}{"context": "GoLife", "event": event, "stage": stageName, "showData": false})
+	return fmt.Errorf("event %s not found in %s", event, stageName)
 }
 func (lm *LifeCycle) StopEvents() error {
-	l.Info("Parando eventos...", map[string]interface{}{"context": "GoLife", "showData": false})
+	l.Info("Stopping events...", map[string]interface{}{"context": "GoLife", "showData": false})
 	for _, event := range lm.events {
 		stopErr := event.StopAll()
 		if stopErr != nil {
 			return stopErr
 		}
 	}
-	l.Info("Eventos parados com sucesso!", map[string]interface{}{"context": "GoLife", "showData": false})
+	l.Info("Events stopped successfully!", map[string]interface{}{"context": "GoLife", "showData": false})
 	return nil
 }
 func (lm *LifeCycle) StartAll() error {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 	for name, proc := range lm.processes {
-		l.Info(fmt.Sprintf("Iniciando %s...", name), map[string]interface{}{"context": "GoLife", "process": name, "showData": false})
+		l.Info(fmt.Sprintf("Starting %s...", name), map[string]interface{}{"context": "GoLife", "process": name, "showData": false})
 		if err := lm.StartProcess(proc); err != nil {
-			l.Error(fmt.Sprintf("Erro ao iniciar %s: %v", name, err), map[string]interface{}{"context": "GoLife", "process": name, "showData": true})
+			l.Error(fmt.Sprintf("Error starting %s: %v", name, err), map[string]interface{}{"context": "GoLife", "process": name, "showData": true})
 			return err
 		}
 	}
-	l.Info(fmt.Sprintf("%b Processos iniciados com sucesso!", len(lm.processes)), map[string]interface{}{"context": "GoLife", "processes": len(lm.processes), "showData": false})
+	l.Info(fmt.Sprintf("%b Processes started successfully!", len(lm.processes)), map[string]interface{}{"context": "GoLife", "processes": len(lm.processes), "showData": false})
 	return nil
 }
 func (lm *LifeCycle) StartProcess(proc IManagedProcess) error {
 	if err := proc.Start(); err != nil {
-		l.Error(fmt.Sprintf("Erro ao iniciar %s: %v", proc.String(), err), map[string]interface{}{"context": "GoLife", "process": proc.String(), "showData": true})
+		l.Error(fmt.Sprintf("Error starting %s: %v", proc.String(), err), map[string]interface{}{"context": "GoLife", "process": proc.String(), "showData": true})
 		return err
 	}
-	l.Info(fmt.Sprintf("%s iniciado com sucesso!", proc.String()), map[string]interface{}{"context": "GoLife", "process": proc.String(), "showData": false})
+	l.Info(fmt.Sprintf("%s started successfully!", proc.String()), map[string]interface{}{"context": "GoLife", "process": proc.String(), "showData": false})
 	return nil
 }
 func (lm *LifeCycle) StopAll() error {
@@ -342,14 +341,14 @@ func (lm *LifeCycle) StopAll() error {
 	defer lm.mu.Unlock()
 	for name, proc := range lm.processes {
 		if err := proc.Stop(); err != nil {
-			l.Error(fmt.Sprintf("Erro ao parar %s: %v", name, err), map[string]interface{}{"context": "GoLife", "process": name, "showData": true})
+			l.Error(fmt.Sprintf("Error stopping %s: %v", name, err), map[string]interface{}{"context": "GoLife", "process": name, "showData": true})
 			return err
 		} else {
-			l.Info(fmt.Sprintf("%s parado com sucesso!", name), map[string]interface{}{"context": "GoLife", "process": name, "showData": false})
+			l.Info(fmt.Sprintf("%s stopped successfully!", name), map[string]interface{}{"context": "GoLife", "process": name, "showData": false})
 			delete(lm.processes, name)
 		}
 	}
-	l.Info(fmt.Sprintf("%b Processos parados com sucesso!", len(lm.processes)), map[string]interface{}{"context": "GoLife", "processes": len(lm.processes), "showData": false})
+	l.Info(fmt.Sprintf("%b Processes stopped successfully!", len(lm.processes)), map[string]interface{}{"context": "GoLife", "processes": len(lm.processes), "showData": false})
 	return nil
 }
 func (lm *LifeCycle) ListenForSignals() error {
@@ -421,7 +420,7 @@ func NewLifecycleManager(processes map[string]IManagedProcess, stages map[string
 	go func() {
 		err := mgr.ListenForSignals()
 		if err != nil {
-			l.Error(fmt.Sprintf("Erro ao ouvir sinais: %v", err), map[string]interface{}{"context": "GoLife", "showData": true})
+			l.Error(fmt.Sprintf("Error listening for signals: %v", err), map[string]interface{}{"context": "GoLife", "showData": true})
 		}
 	}()
 

@@ -1,4 +1,4 @@
-APP_NAME := golife
+APP_NAME := $(shell basename $(shell pwd))
 ROOT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 BINARY_NAME := $(ROOT_DIR)$(APP_NAME)
 CMD_DIR := $(ROOT_DIR)cmd
@@ -91,6 +91,6 @@ help:
 	$(call log, $(APP_NAME) is a tool for managing Kubernetes resources)
 	$(call break, b )
 	$(call log, For more information, visit: )
-	$(call log, 'https://github.com/faelmori/golife' )
+	$(call log, 'https://github.com/faelmori/'$(APP_NAME))
 	$(call break, b )
 	$(call success, End of help message)

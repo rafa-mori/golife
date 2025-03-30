@@ -11,7 +11,7 @@ import (
 type IManagedProcess interface {
 	GetArgs() []string
 	GetCommand() string
-	GetCustomFunc() func() error // Novo método para obter função customizada
+	GetCustomFunc() func() error
 	GetName() string
 	GetWaitFor() bool
 	GetProcPid() int
@@ -30,7 +30,7 @@ type IManagedProcess interface {
 
 	SetArgs(args []string)
 	SetCommand(command string)
-	SetCustomFunc(func() error) // Novo método para definir função customizada
+	SetCustomFunc(func() error)
 	SetName(name string)
 	SetWaitFor(wait bool)
 	SetProcPid(pid int)
@@ -41,7 +41,7 @@ type IManagedProcess interface {
 type ManagedProcess struct {
 	Args       []string
 	Command    string
-	CustomFunc func() error // Função customizada
+	CustomFunc func() error
 	Cmd        *exec.Cmd
 	Name       string
 	WaitFor    bool
@@ -67,14 +67,13 @@ func (p *ManagedProcess) Start() error {
 	defer p.mu.Unlock()
 
 	if p.IsRunning() {
-		return fmt.Errorf("processo %s já está rodando", p.Name)
+		return fmt.Errorf("process %s is already running", p.Name)
 	}
 
-	// Verifica se é uma função customizada
 	if p.CustomFunc != nil {
 		go func() {
 			if err := p.CustomFunc(); err != nil {
-				lg.Error(fmt.Sprintf("Erro na execução customizada do processo %s: %v", p.Name, err), nil)
+				lg.Error(fmt.Sprintf("Error in custom execution of process %s: %v", p.Name, err), nil)
 			}
 		}()
 		return nil
@@ -91,7 +90,7 @@ func (p *ManagedProcess) Start() error {
 			return p.Cmd.Process.Release()
 		}
 	} else {
-		lg.Warn(fmt.Sprintf("Nenhum comando definido para o processo %s", p.Name), nil)
+		lg.Warn(fmt.Sprintf("No command defined for process %s", p.Name), nil)
 		return nil
 	}
 }
@@ -136,7 +135,7 @@ func (p *ManagedProcess) Wait() error {
 	return p.Cmd.Wait()
 }
 func (p *ManagedProcess) String() string {
-	return fmt.Sprintf("Processo %s (PID %d) está rodando: %t", p.Name, p.Pid(), p.IsRunning())
+	return fmt.Sprintf("Process %s (PID %d) is running: %t", p.Name, p.Pid(), p.IsRunning())
 }
 func (p *ManagedProcess) SetArgs(args []string) {
 	p.mu.Lock()

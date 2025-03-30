@@ -1,16 +1,14 @@
 package main
 
 import (
+	l "github.com/faelmori/logz"
 	"net/http"
 	"os"
-
-	l "github.com/faelmori/logz"
-	"github.com/faelmori/golife/api"
 )
 
 func main() {
 	mux := http.NewServeMux()
-	api.RegisterSSEEndpoint(mux)
+	//log.RegisterSSEEndpoint(mux)
 
 	go func() {
 		if err := http.ListenAndServe(":8080", mux); err != nil {

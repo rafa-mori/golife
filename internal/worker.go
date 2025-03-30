@@ -1,8 +1,8 @@
 package internal
 
 import (
-	"sync"
 	"github.com/faelmori/logz"
+	"sync"
 )
 
 type IWorkerPool interface {

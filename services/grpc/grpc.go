@@ -1,4 +1,4 @@
-package api
+package grpc
 
 import (
 	"context"
@@ -8,8 +8,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
-	pb "github.com/faelmori/golife/proto"
 	"github.com/faelmori/golife/internal"
+	pb "github.com/faelmori/golife/proto"
 )
 
 type server struct {

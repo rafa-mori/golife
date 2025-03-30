@@ -1,10 +1,10 @@
-package api
+package server
 
 import (
 	"fmt"
-	"net/http"
 	"github.com/faelmori/golife/internal"
 	"github.com/faelmori/logz"
+	"net/http"
 )
 
 func SSEHandler(w http.ResponseWriter, r *http.Request) {
@@ -17,7 +17,7 @@ func SSEHandler(w http.ResponseWriter, r *http.Request) {
 	events := make(chan internal.IManagedProcessEvents)
 
 	// Register the channel to receive events from the lifecycle manager
-	internal.RegisterEventChannel(events)
+	//internal.RegisterEventChannel(events)
 
 	// Handle client disconnection
 	ctx := r.Context()

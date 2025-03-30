@@ -1,4 +1,5 @@
-# GoLife - Advanced Lifecycle and Concurrency Management
+![GoLife Banner](./assets/top_banner.png)
+
 
 ![Go Version](https://img.shields.io/badge/Go-1.20%2B-blue) ![License](https://img.shields.io/badge/License-MIT-green) ![Status](https://img.shields.io/badge/Status-Active-brightgreen)
 
@@ -28,11 +29,11 @@ package main
 
 import (
 	"fmt"
-	"lifecycle"
+	"github.com/faelmori/golife"
 )
 
 func main() {
-	manager := lifecycle.NewLifecycleManager()
+	manager := golife.NewLifecycleManager()
 
 	manager.DefineStage("start").
 		OnEnter(func() { fmt.Println("Server started") }).
@@ -55,12 +56,13 @@ package main
 
 import (
 	"fmt"
-	"lifecycle"
 	"time"
+	
+	"github.com/faelmori/golife"
 )
 
 func main() {
-	manager := lifecycle.NewLifecycleManager()
+	manager := golife.NewLifecycleManager()
 
 	manager.DefineStage("processing").
 		AutoScale(5).
@@ -82,11 +84,12 @@ package main
 
 import (
 	"fmt"
-	"lifecycle"
+	
+	"github.com/faelmori/golife"
 )
 
 func main() {
-	manager := lifecycle.NewLifecycleManager()
+	manager := golife.NewLifecycleManager()
 
 	manager.DefineStage("start").
 		OnEnter(func() { fmt.Println("Server started") }).
@@ -125,11 +128,12 @@ package main
 
 import (
 	"fmt"
-	"lifecycle"
+	
+	"github.com/faelmori/golife"
 )
 
 func main() {
-	manager := lifecycle.NewLifecycleManager()
+	manager := golife.NewLifecycleManager()
 
 	manager.DefineStage("start").
 		OnEnter(func() { fmt.Println("Server started") }).
@@ -152,11 +156,12 @@ package main
 
 import (
 	"fmt"
-	"lifecycle"
+	
+	"github.com/faelmori/golife"
 )
 
 func main() {
-	manager := lifecycle.NewLifecycleManager()
+	manager := golife.NewLifecycleManager()
 
 	manager.RegisterEvent("dataReceived", "processing")
 

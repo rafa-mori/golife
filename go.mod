@@ -3,6 +3,8 @@ module github.com/faelmori/golife
 go 1.24.1
 
 require (
+	github.com/emersion/go-imap v1.2.1
+	github.com/emersion/go-message v0.18.2
 	github.com/faelmori/gkbxsrv v1.0.6
 	github.com/faelmori/logz v1.1.5
 	github.com/fatih/color v1.18.0
@@ -10,6 +12,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/pebbe/zmq4 v1.3.0
 	github.com/spf13/cobra v1.9.1
+	google.golang.org/grpc v1.71.0
 )
 
 require (
@@ -24,6 +27,7 @@ require (
 	github.com/docker/docker v28.0.4+incompatible // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
+	github.com/emersion/go-sasl v0.0.0-20200509203442-7bfe0ed36a21 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
@@ -77,7 +81,6 @@ require (
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250115164207-1a7da9e5054f // indirect
-	google.golang.org/grpc v1.71.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

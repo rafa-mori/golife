@@ -1,168 +1,92 @@
 package golife
 
 import (
-	"fmt"
-	l "github.com/faelmori/golife/api"
-	lg "github.com/faelmori/logz"
+	i "github.com/faelmori/golife/internal"
 	"os"
 )
 
-type LifecycleManager = l.LifeCycleManager
-type ManagedProcess = l.ManagedProcess
-type ManagedProcessEvents = l.ManagedProcessEvent
-type Stage = l.Stage
-type WorkerPool = l.WorkerPool
+type LifeCycleManager = i.LifeCycleManager
+type ManagedProcessEvent = i.IManagedProcessEvents
 
-func NewManagedProcess(name, cmd string, args []string, wait bool, customFn func() error) ManagedProcess {
-	return l.NewManagedProcess(name, cmd, args, wait, customFn)
+func NewLifecycleManager(processes map[string]i.IManagedProcess, stages map[string]i.IStage, sigChan chan os.Signal, doneChan chan struct{}, events []i.IManagedProcessEvents, eventsCh chan i.IManagedProcessEvents) LifeCycleManager {
+	return i.NewLifecycleManager(processes, stages, sigChan, doneChan, events, eventsCh)
 }
+func NewLifecycleMgrSig() (LifeCycleManager, error) {
+	processes := make(map[string]i.IManagedProcess)
+	stages := make(map[string]i.IStage)
+	sigChan := make(chan os.Signal, 2)
+	doneChan := make(chan struct{}, 2)
+	eventsCh := make(chan i.IManagedProcessEvents, 100)
+	events := make([]i.IManagedProcessEvents, 0)
 
-func NewLifecycleMgr(
-	processName, processCmd string,
-	processArgs []string,
-	processWait, restart bool,
-	stages, triggers []string,
-	processEvents map[string]func(interface{}),
-	customFn func() error,
-	sigChan chan os.Signal,
-	doneChan chan struct{},
-	eventsChan chan interface{},
-	eventsCh chan l.ManagedProcessEvent,
-) (LifecycleManager, error) {
-	return createManager(processName, processCmd, processArgs, processEvents, stages, triggers, processWait, restart, customFn, sigChan, doneChan, eventsChan, eventsCh)
+	return NewLifecycleManager(processes, stages, sigChan, doneChan, events, eventsCh), nil
 }
+func NewLifecycleMgrManual(processes map[string]i.IManagedProcess, stages map[string]i.IStage, sigChan chan os.Signal, doneChan chan struct{}, events []i.IManagedProcessEvents, eventsCh chan i.IManagedProcessEvents) (LifeCycleManager, error) {
+	return NewLifecycleManager(processes, stages, sigChan, doneChan, events, eventsCh), nil
+}
+func NewLifecycleMgrDec() (LifeCycleManager, error) {
+	processes := make(map[string]i.IManagedProcess)
+	stages := make(map[string]i.IStage)
+	sigChan := make(chan os.Signal, 2)
+	doneChan := make(chan struct{}, 2)
+	eventsCh := make(chan i.IManagedProcessEvents, 100)
+	events := make([]i.IManagedProcessEvents, 0)
 
-func NewLifecycleMgrDec(
-	processName, processCmd string,
-	processArgs []string,
-	processWait, restart bool,
-	stages, triggers []string,
-	processEvents map[string]func(interface{}),
-	customFn func() error,
-) (LifecycleManager, error) {
-	return createManager(processName, processCmd, processArgs, processEvents, stages, triggers, processWait, restart, customFn, nil, nil, nil, nil)
+	return NewLifecycleManager(processes, stages, sigChan, doneChan, events, eventsCh), nil
 }
-
-func NewLifecycleMgrSig(
-	sigChan chan os.Signal,
-	doneChan chan struct{},
-	eventsChan chan interface{},
-	eventsCh chan l.ManagedProcessEvent,
-) (LifecycleManager, error) {
-	return createManager("", "", nil, nil, nil, nil, false, false, nil, sigChan, doneChan, eventsChan, eventsCh)
-}
-
-func NewLifecycleMgrManual(
-	processName, processCmd string,
-	processArgs []string,
-	processWait,
-	restart bool,
-	stages, triggers []string,
-	processEvents map[string]func(interface{}),
-	customFn func() error,
-	sigChan chan os.Signal,
-	doneChan chan struct{},
-	eventsChan chan interface{},
-	eventsCh chan l.ManagedProcessEvent,
-) (LifecycleManager, error) {
-	return createManager(processName, processCmd, processArgs, processEvents, stages, triggers, processWait, restart, customFn, sigChan, doneChan, eventsChan, eventsCh)
-}
-func NewStage(name, desc, stageType string) Stage {
-	return l.NewStage(name, desc, stageType)
-}
-
-func createManager(
-	processName, processCmd string,
-	stages []string,
-	processEvents map[string]func(interface{}),
-	triggers, processArgs []string,
-	processWait, restart bool,
-	customFn func() error,
-	sigChan chan os.Signal,
-	doneChan chan struct{},
-	eventsChan chan interface{},
-	eventsCh chan l.ManagedProcessEvent,
-) (LifecycleManager, error) {
-	if processName == "" {
-		lg.Error("No process name provided", nil)
-		return nil, fmt.Errorf("no process name provided")
-	}
-	var events []l.ManagedProcessEvent
-	var processes = make(map[string]l.ManagedProcess)
-	var iStages = make(map[string]l.Stage)
-	if stages == nil {
-		sigChan = make(chan os.Signal, 1)
+func NewLifecycleMgrChan(sigChan chan os.Signal, doneChan chan struct{}, eventsCh chan i.IManagedProcessEvents) (LifeCycleManager, error) {
+	processes := make(map[string]i.IManagedProcess)
+	stages := make(map[string]i.IStage)
+	events := make([]i.IManagedProcessEvents, 0)
+	if sigChan == nil {
+		sigChan = make(chan os.Signal, 2)
 	}
 	if doneChan == nil {
-		doneChan = make(chan struct{}, 1)
-	}
-	if eventsChan == nil {
-		eventsChan = make(chan interface{}, 1)
+		doneChan = make(chan struct{}, 2)
 	}
 	if eventsCh == nil {
-		eventsCh = make(chan l.ManagedProcessEvent, 1)
+		eventsCh = make(chan i.IManagedProcessEvents, 100)
 	}
 
-	lcm, err := l.NewLifecycleMgrChan(sigChan, doneChan, eventsCh)
-	if err != nil {
-		return nil, err
-	}
+	return NewLifecycleManager(processes, stages, sigChan, doneChan, events, eventsCh), nil
+}
 
-	if len(stages) == 0 {
-		stages = []string{"all"}
-	}
-	if len(processEvents) == 0 {
-		processEvents = make(map[string]func(interface{}))
-	} else {
-		for _, trigger := range triggers {
-			for _, stage := range stages {
-				processEvents[trigger] = func(data interface{}) {
-					l.Trigger(lcm, stage, trigger, data)
-				}
-			}
-		}
-	}
+type Stage = i.IStage
 
-	for _, stage := range stages {
-		iStage := l.NewStage(stage, stage, "stage")
-		iStages[stage] = iStage
-	}
+func NewStage(name, desc, stageType string) Stage {
+	return i.NewStage(name, desc, stageType)
+}
 
-	for _, trigger := range triggers {
-		iStage := l.NewStage(trigger, trigger, "trigger")
-		iStages[trigger] = iStage
-	}
+type WorkerPool = i.IWorkerPool
 
-	for _, stage := range iStages {
-		for _, trigger := range triggers {
-			stage.OnEvent(trigger, func(data interface{}) {
-				eventsChan <- trigger
-			})
-		}
-	}
+func NewWorkerPool(size int) WorkerPool {
+	return i.NewWorkerPool(size)
+}
 
-	processes[processName] = l.NewManagedProcess(processName, processCmd, processArgs, processWait, customFn)
-	if processEvents != nil {
-		iEvent := l.NewEvent(processEvents, eventsChan)
-		events = append(events, iEvent)
-	}
+type ManagedProcess = i.IManagedProcess
 
-	regProcErr := lcm.RegisterProcess(processName, processCmd, processArgs, restart, customFn)
-	if regProcErr != nil {
-		return nil, regProcErr
-	}
+func NewManagedProcess(name string, command string, args []string, waitFor bool, customFn func() error) ManagedProcess {
+	return i.NewManagedProcess(name, command, args, waitFor, customFn)
+}
 
-	for _, stage := range iStages {
-		if regStageErr := lcm.RegisterStage(stage); regStageErr != nil {
-			return nil, regStageErr
-		}
-	}
+type Event = i.IManagedProcessEvents
 
-	startAllErr := lcm.Start()
-	if startAllErr != nil {
-		fmt.Println("Erro ao iniciar processos:", startAllErr)
-		return nil, startAllErr
-	}
+func NewEvent(eventFns map[string]func(interface{}), triggerCh chan interface{}) Event {
+	return i.NewManagedProcessEvents(eventFns, triggerCh)
+}
 
-	return lcm, lcm.ListenForSignals()
+func Trigger(lc LifeCycleManager, stage string, event string, data interface{}) {
+	lc.Trigger(stage, event, data)
+}
+
+func RegisterEvent(lc LifeCycleManager, stage string, event string, fn func(interface{})) error {
+	return lc.RegisterEvent(stage, event, fn)
+}
+
+func RegisterStage(lc LifeCycleManager, stage Stage) error {
+	return lc.RegisterStage(stage)
+}
+
+func RegisterProcess(lc LifeCycleManager, process ManagedProcess) error {
+	return lc.RegisterProcess(process.GetName(), process.GetCommand(), process.GetArgs(), process.WillRestart(), process.GetCustomFunc())
 }
