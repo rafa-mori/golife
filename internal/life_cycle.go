@@ -1,8 +1,9 @@
 package internal
 
 import (
-	"fmt"
 	l "github.com/faelmori/logz"
+
+	"fmt"
 	"os"
 	"os/signal"
 	"sync"

@@ -1,7 +1,8 @@
 package internal
 
 import (
-	"github.com/faelmori/logz"
+	l "github.com/faelmori/logz"
+
 	"sync"
 )
 
@@ -20,17 +21,17 @@ func (wp *WorkerPool) worker() {
 	for task := range wp.Tasks {
 		task()
 		wp.Wg.Done()
-		logz.Info("Task completed", nil)
+		l.Info("Task completed", nil)
 	}
 }
 func (wp *WorkerPool) Submit(task func()) {
 	wp.Wg.Add(1)
 	wp.Tasks <- task
-	logz.Info("Task submitted", nil)
+	l.Info("Task submitted", nil)
 }
 func (wp *WorkerPool) Wait() {
 	wp.Wg.Wait()
-	logz.Info("All tasks completed", nil)
+	l.Info("All tasks completed", nil)
 }
 
 func NewWorkerPool(size int) IWorkerPool {
@@ -38,6 +39,6 @@ func NewWorkerPool(size int) IWorkerPool {
 	for i := 0; i < size; i++ {
 		go pool.worker()
 	}
-	logz.Info("Worker pool created", map[string]interface{}{"size": size})
+	l.Info("Worker pool created", map[string]interface{}{"size": size})
 	return &pool
 }

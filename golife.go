@@ -2,6 +2,7 @@ package golife
 
 import (
 	i "github.com/faelmori/golife/internal"
+
 	"os"
 )
 

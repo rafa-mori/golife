@@ -1,9 +1,11 @@
 package main
 
 import (
-	"github.com/faelmori/golife/cmd/cli"
-	"github.com/faelmori/golife/version"
+	cc "github.com/faelmori/golife/cmd/cli"
+	vs "github.com/faelmori/golife/version"
+
 	"github.com/spf13/cobra"
+
 	"os"
 	"strings"
 )
@@ -42,17 +44,17 @@ func (m *GoLife) Command() *cobra.Command {
 		Use:     m.Module(),
 		Aliases: []string{m.Alias()},
 		Example: m.concatenateExamples(),
-		Version: cli.Version,
-		Annotations: cli.GetDescriptions([]string{
+		Version: cc.Version,
+		Annotations: cc.GetDescriptions([]string{
 			m.LongDescription(),
 			m.ShortDescription(),
 		}, m.printBanner),
 	}
 
-	rtCmd.AddCommand(cli.ServiceCmdList()...)
-	rtCmd.AddCommand(cli.EventsCmdList()...)
+	rtCmd.AddCommand(cc.ServiceCmdList()...)
+	rtCmd.AddCommand(cc.EventsCmdList()...)
 
-	rtCmd.AddCommand(version.CliCommand())
+	rtCmd.AddCommand(vs.CliCommand())
 
 	// Set usage definitions for the command and its subcommands
 	setUsageDefinition(rtCmd)

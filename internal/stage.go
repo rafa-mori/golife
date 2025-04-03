@@ -2,7 +2,7 @@ package internal
 
 import (
 	"fmt"
-	"github.com/faelmori/logz"
+	l "github.com/faelmori/logz"
 	"github.com/google/uuid"
 )
 
@@ -77,11 +77,11 @@ func (s *Stage) AutoScale(size int) IStage {
 // Dispatch sends a task to the worker pool.
 func (s *Stage) Dispatch(task func()) error {
 	if s.WorkerPool == nil {
-		logz.Error(fmt.Sprintf("WorkerPool not initialized for stage %s", s.Name()), nil)
+		l.Error(fmt.Sprintf("WorkerPool not initialized for stage %s", s.Name()), nil)
 		return fmt.Errorf("WorkerPool not initialized for stage %s", s.Name())
 	}
 	s.WorkerPool.Tasks <- task
-	logz.Info(fmt.Sprintf("Task dispatched to stage %s", s.Name()), nil)
+	l.Info(fmt.Sprintf("Task dispatched to stage %s", s.Name()), nil)
 	return nil
 }
 
@@ -127,6 +127,6 @@ func NewStage(name, desc, stageType string) IStage {
 		EventFns:   make(map[string]func(interface{})),
 		WorkerPool: nil,
 	}
-	logz.Info(fmt.Sprintf("New stage created: %s", name), nil)
+	l.GetLogger("GoLife").Info(fmt.Sprintf("New stage created: %s", name), nil)
 	return &stg
 }

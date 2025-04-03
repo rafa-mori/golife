@@ -1,8 +1,9 @@
 package internal
 
 import (
+	l "github.com/faelmori/logz"
+
 	"time"
-	"github.com/faelmori/logz"
 )
 
 type IManagedMonit interface {
@@ -54,99 +55,99 @@ type ManagedMonit struct {
 
 func (m *ManagedMonit) SetMonitoring(monitoring bool) {
 	m.Monitoring = monitoring
-	logz.Info("Monitoring set", map[string]interface{}{"monitoring": monitoring})
+	l.Info("Monitoring set", map[string]interface{}{"monitoring": monitoring})
 }
 func (m *ManagedMonit) SetInterval(interval time.Duration) {
 	m.Interval = interval
-	logz.Info("Interval set", map[string]interface{}{"interval": interval})
+	l.Info("Interval set", map[string]interface{}{"interval": interval})
 }
 func (m *ManagedMonit) SetTimeout(timeout time.Duration) {
 	m.Timeout = timeout
-	logz.Info("Timeout set", map[string]interface{}{"timeout": timeout})
+	l.Info("Timeout set", map[string]interface{}{"timeout": timeout})
 }
 func (m *ManagedMonit) SetDelay(delay time.Duration) {
 	m.Delay = delay
-	logz.Info("Delay set", map[string]interface{}{"delay": delay})
+	l.Info("Delay set", map[string]interface{}{"delay": delay})
 }
 func (m *ManagedMonit) SetTimeouts(timeouts []time.Duration) {
 	m.Timeouts = timeouts
-	logz.Info("Timeouts set", map[string]interface{}{"timeouts": timeouts})
+	l.Info("Timeouts set", map[string]interface{}{"timeouts": timeouts})
 }
 func (m *ManagedMonit) SetDelays(delays []time.Duration) {
 	m.Delays = delays
-	logz.Info("Delays set", map[string]interface{}{"delays": delays})
+	l.Info("Delays set", map[string]interface{}{"delays": delays})
 }
 func (m *ManagedMonit) SetRunning(running bool) {
 	m.Running = running
-	logz.Info("Running set", map[string]interface{}{"running": running})
+	l.Info("Running set", map[string]interface{}{"running": running})
 }
 func (m *ManagedMonit) SetStopped(stopped bool) {
 	m.Stopped = stopped
-	logz.Info("Stopped set", map[string]interface{}{"stopped": stopped})
+	l.Info("Stopped set", map[string]interface{}{"stopped": stopped})
 }
 func (m *ManagedMonit) SetFailed(failed bool) {
 	m.Failed = failed
-	logz.Info("Failed set", map[string]interface{}{"failed": failed})
+	l.Info("Failed set", map[string]interface{}{"failed": failed})
 }
 func (m *ManagedMonit) SetSuccess(success bool) {
 	m.Success = success
-	logz.Info("Success set", map[string]interface{}{"success": success})
+	l.Info("Success set", map[string]interface{}{"success": success})
 }
 func (m *ManagedMonit) Start() error {
-	logz.Info("Starting monitor", nil)
+	l.Info("Starting monitor", nil)
 	return nil
 }
 func (m *ManagedMonit) Stop() error {
-	logz.Info("Stopping monitor", nil)
+	l.Info("Stopping monitor", nil)
 	return nil
 }
 func (m *ManagedMonit) Restart() error {
-	logz.Info("Restarting monitor", nil)
+	l.Info("Restarting monitor", nil)
 	return nil
 }
 func (m *ManagedMonit) Reload() error {
-	logz.Info("Reloading monitor", nil)
+	l.Info("Reloading monitor", nil)
 	return nil
 }
 func (m *ManagedMonit) IsRunning() bool {
-	logz.Info("Checking if monitor is running", nil)
+	l.Info("Checking if monitor is running", nil)
 	return false
 }
 func (m *ManagedMonit) Pid() int {
-	logz.Info("Getting monitor PID", nil)
+	l.Info("Getting monitor PID", nil)
 	return 0
 }
 func (m *ManagedMonit) Wait() error {
-	logz.Info("Waiting for monitor", nil)
+	l.Info("Waiting for monitor", nil)
 	return nil
 }
 func (m *ManagedMonit) Status() string {
-	logz.Info("Getting monitor status", nil)
+	l.Info("Getting monitor status", nil)
 	return ""
 }
 func (m *ManagedMonit) String() string {
-	logz.Info("Getting monitor string representation", nil)
+	l.Info("Getting monitor string representation", nil)
 	return ""
 }
 func (m *ManagedMonit) Stdout() string {
-	logz.Info("Getting monitor stdout", nil)
+	l.Info("Getting monitor stdout", nil)
 	return ""
 }
 func (m *ManagedMonit) Stderr() string {
-	logz.Info("Getting monitor stderr", nil)
+	l.Info("Getting monitor stderr", nil)
 	return ""
 }
 func (m *ManagedMonit) Properties() map[string]interface{} {
-	logz.Info("Getting monitor properties", nil)
+	l.Info("Getting monitor properties", nil)
 	return nil
 }
 func (m *ManagedMonit) Monitor() error {
-	logz.Info("Monitoring", nil)
+	l.Info("Monitoring", nil)
 	return nil
 }
 
 func NewManagedMonit() IManagedMonit {
 	monit := ManagedMonit{}
-	logz.Info("Creating new ManagedMonit", nil)
+	l.Info("Creating new ManagedMonit", nil)
 	return &monit
 }

@@ -1,8 +1,9 @@
 package internal
 
 import (
+	l "github.com/faelmori/logz"
+
 	"fmt"
-	lg "github.com/faelmori/logz"
 	"os"
 	"os/exec"
 	"sync"
@@ -73,7 +74,7 @@ func (p *ManagedProcess) Start() error {
 	if p.CustomFunc != nil {
 		go func() {
 			if err := p.CustomFunc(); err != nil {
-				lg.Error(fmt.Sprintf("Error in custom execution of process %s: %v", p.Name, err), nil)
+				l.Error(fmt.Sprintf("Error in custom execution of process %s: %v", p.Name, err), nil)
 			}
 		}()
 		return nil
@@ -90,7 +91,7 @@ func (p *ManagedProcess) Start() error {
 			return p.Cmd.Process.Release()
 		}
 	} else {
-		lg.Warn(fmt.Sprintf("No command defined for process %s", p.Name), nil)
+		l.Warn(fmt.Sprintf("No command defined for process %s", p.Name), nil)
 		return nil
 	}
 }
