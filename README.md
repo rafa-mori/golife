@@ -1,4 +1,4 @@
-![GoLife Banner](./assets/top_banner.png)
+![GoLife Banner](docs/assets/top_banner.png)
 
 
 ![Go Version](https://img.shields.io/badge/Go-1.20%2B-blue) ![License](https://img.shields.io/badge/License-MIT-green) ![Status](https://img.shields.io/badge/Status-Active-brightgreen)

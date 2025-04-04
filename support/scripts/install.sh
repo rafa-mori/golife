@@ -18,7 +18,7 @@ get_release_url() {
 }
 
 # The _REPO_ROOT variable is set to the root directory of the repository. One above the script directory.
-_REPO_ROOT="$(dirname "$(dirname "$(realpath "$0")")")"
+_REPO_ROOT="$(dirname "$(dirname "$(dirname "$(realpath "$0")")")")"
 
 # The _APP_NAME variable is set to the name of the repository. It is used to identify the application.
 _APP_NAME="$(basename "$_REPO_ROOT")"
@@ -67,7 +67,7 @@ _CURRENT_SHELL=""
 
 # The _CMD_PATH variable is set to the path of the cmd directory. It is used to
 # identify the location of the main application code.
-_CMD_PATH="$(dirname "$(realpath "$(dirname "$0")")")/cmd"
+_CMD_PATH="$(dirname "$(dirname "$(realpath "$(dirname "$0")")")")/cmd"
 
 # The _BUILD_PATH variable is set to the path of the build directory. It is used
 # to identify the location of the build artifacts.
