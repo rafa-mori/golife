@@ -1,7 +1,7 @@
 package internal
 
 import (
-	kbxSrv "github.com/faelmori/gkbxsrv/services"
+	kbxSrv "github.com/faelmori/kbxutils/api"
 	l "github.com/faelmori/logz"
 
 	"context"
