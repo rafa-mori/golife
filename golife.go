@@ -6,8 +6,8 @@ import (
 	"os"
 )
 
-type LifeCycleManager = i.LifeCycleManager
-type ManagedProcessEvent = i.IManagedProcessEvents
+type LifeCycleManager interface{ i.LifeCycleManager }
+type ManagedProcessEvent interface{ i.IManagedProcessEvents }
 
 func NewLifecycleManager(processes map[string]i.IManagedProcess, stages map[string]i.IStage, sigChan chan os.Signal, doneChan chan struct{}, events []i.IManagedProcessEvents, eventsCh chan i.IManagedProcessEvents) LifeCycleManager {
 	return i.NewLifecycleManager(processes, stages, sigChan, doneChan, events, eventsCh)

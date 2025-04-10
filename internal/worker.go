@@ -1,44 +1,112 @@
 package internal
 
 import (
+	"context"
+	"fmt"
 	l "github.com/faelmori/logz"
 
 	"sync"
 )
 
 type IWorkerPool interface {
-	Submit(task func())
+	worker(ctx context.Context)
+	Submit(task func()) error
 	Wait()
-	worker()
+	Scale(size int)
+	workerWithError(errChan chan error)
+	safeExecute(task func()) error
 }
 
 type WorkerPool struct {
-	Tasks chan func()
-	Wg    sync.WaitGroup
+	ctx      context.Context
+	cancel   context.CancelFunc
+	Tasks    chan func()
+	Wg       sync.WaitGroup
+	Shutdown chan struct{}
 }
 
-func (wp *WorkerPool) worker() {
-	for task := range wp.Tasks {
-		task()
-		wp.Wg.Done()
-		l.Info("Task completed", nil)
+func (wp *WorkerPool) worker(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case task := <-wp.Tasks:
+			task()
+			wp.Wg.Done()
+		}
 	}
 }
-func (wp *WorkerPool) Submit(task func()) {
-	wp.Wg.Add(1)
-	wp.Tasks <- task
-	l.Info("Task submitted", nil)
+func (wp *WorkerPool) Submit(task func()) error {
+	select {
+	case wp.Tasks <- task:
+		wp.Wg.Add(1)
+		l.InfoCtx("Task submitted", nil)
+		return nil
+	default:
+		return fmt.Errorf("buffer de tarefas cheio")
+	}
 }
 func (wp *WorkerPool) Wait() {
 	wp.Wg.Wait()
-	l.Info("All tasks completed", nil)
+	l.InfoCtx("All tasks completed", nil)
+}
+func (wp *WorkerPool) Scale(size int) {
+	for i := 0; i < size; i++ {
+		// Create a new context for each worker based on the parent context from the pool
+		ctxWorker, cancelWorker := context.WithCancel(wp.ctx)
+		// Add a task to the wait group
+		wp.Wg.Add(1)
+		// Define the task for the worker
+		wp.Tasks <- func() {
+			defer wp.Wg.Done()
+			defer cancelWorker()
+			// Preciso fazer algo logo.. hgahahahahaha
+		}
+		// Add a task to the wait group
+		go wp.worker(ctxWorker)
+	}
+}
+func (wp *WorkerPool) workerWithError(errChan chan error) {
+	for task := range wp.Tasks {
+		defer wp.Wg.Done()
+		if err := wp.safeExecute(task); err != nil {
+			errChan <- err
+		}
+	}
+}
+func (wp *WorkerPool) safeExecute(task func()) error {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("Erro recuperado: %v\n", r)
+		}
+	}()
+	task()
+	return nil
 }
 
 func NewWorkerPool(size int) IWorkerPool {
-	pool := WorkerPool{Tasks: make(chan func(), size)}
+	ctx, cancel := context.WithCancel(context.Background())
+	pool := WorkerPool{Tasks: make(chan func(), size), ctx: ctx, cancel: cancel, Shutdown: make(chan struct{})}
+
 	for i := 0; i < size; i++ {
-		go pool.worker()
+		// Create a new context for each worker based on the parent context from the pool
+		ctxWorker, cancelWorker := context.WithCancel(ctx)
+
+		// Add a task to the wait group
+		pool.Wg.Add(1)
+
+		// Define the task for the worker
+		pool.Tasks <- func() {
+			defer pool.Wg.Done()
+			defer cancelWorker()
+			// Preciso fazer algo logo Pode ser aquiiiii...
+
+			// OOOOOU.... logo ali em cima.. kkkkk
+		}
+
+		// Start the worker
+		go pool.worker(ctxWorker)
 	}
-	l.Info("Worker pool created", map[string]interface{}{"size": size})
+	l.InfoCtx("Worker pool created", map[string]interface{}{"size": size})
 	return &pool
 }

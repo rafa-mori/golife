@@ -24,7 +24,7 @@ func SSEHandler(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		<-ctx.Done()
 		close(events)
-		logz.Info("Client disconnected", nil)
+		logz.InfoCtx("Client disconnected", nil)
 	}()
 
 	// Stream events to the client

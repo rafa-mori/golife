@@ -12,25 +12,25 @@ import (
 // ParseEmail parses the entire email, including the header, body, and attachments.
 func ParseEmail(msg *imap.Message) (*Email, error) {
 	if msg == nil {
-		logz.Error("Message is nil", nil)
+		logz.ErrorCtx("Message is nil", nil)
 		return nil, fmt.Errorf("message is nil")
 	}
 
 	headerReader, err := mail.CreateReader(msg.GetBody(&imap.BodySectionName{}))
 	if err != nil {
-		logz.Error("Failed to create mail reader", map[string]interface{}{"error": err})
+		logz.ErrorCtx("Failed to create mail reader", map[string]interface{}{"error": err})
 		return nil, err
 	}
 
 	mlHeader, err := ParseEmailHeader(&headerReader.Header)
 	if err != nil {
-		logz.Error("Failed to parse email header", map[string]interface{}{"error": err})
+		logz.ErrorCtx("Failed to parse email header", map[string]interface{}{"error": err})
 		return nil, err
 	}
 
 	body, attachments, err := ParseEmailBody(headerReader)
 	if err != nil {
-		logz.Error("Failed to parse email body", map[string]interface{}{"error": err})
+		logz.ErrorCtx("Failed to parse email body", map[string]interface{}{"error": err})
 		return nil, err
 	}
 

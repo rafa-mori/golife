@@ -38,7 +38,7 @@ func NewEmailService(smtpHost, smtpPort, smtpUsername, smtpPassword, imapHost, i
 func (es *EmailService) ParseEmailBody(msgReader *mail.Part) (string, error) {
 	// Check if the message reader is nil.
 	if msgReader == nil {
-		logz.Error("Message reader is nil", nil)
+		logz.ErrorCtx("Message reader is nil", nil)
 		return "", fmt.Errorf("message reader is nil")
 	}
 
@@ -47,7 +47,7 @@ func (es *EmailService) ParseEmailBody(msgReader *mail.Part) (string, error) {
 
 	bodyContent, err := io.ReadAll(body)
 	if err != nil {
-		logz.Error("Failed to read email body", map[string]interface{}{"error": err})
+		logz.ErrorCtx("Failed to read email body", map[string]interface{}{"error": err})
 		return "", err
 	}
 	return string(bodyContent), nil

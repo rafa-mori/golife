@@ -41,7 +41,7 @@ func lifeCycleManagerCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			mgr, mgrErr := createManager(processName, processCmd, stages, processEvents, triggers, processArgs, processWait, restart)
 			if mgrErr != nil {
-				l.Error(fmt.Sprintf("Fail to create manager: %s", mgrErr), map[string]interface{}{})
+				l.ErrorCtx(fmt.Sprintf("Fail to create manager: %s", mgrErr), map[string]interface{}{})
 			} else {
 				manager = mgr
 			}
@@ -76,7 +76,7 @@ func startCommand() *cobra.Command {
 			if processWait {
 				mgr, mgrErr := createManager(processName, processCmd, stages, processEvents, triggers, processArgs, processWait, restart)
 				if mgrErr != nil {
-					l.Error(fmt.Sprintf("Fail to create manager: %s", mgrErr), map[string]interface{}{})
+					l.ErrorCtx(fmt.Sprintf("Fail to create manager: %s", mgrErr), map[string]interface{}{})
 					return
 				} else {
 					manager = mgr
@@ -85,7 +85,7 @@ func startCommand() *cobra.Command {
 			} else {
 				appFullPath, appFullPathErr := exec.LookPath("golife")
 				if appFullPathErr != nil {
-					l.Error(fmt.Sprintf("Fail to find golife binary: %s", appFullPathErr), map[string]interface{}{})
+					l.ErrorCtx(fmt.Sprintf("Fail to find golife binary: %s", appFullPathErr), map[string]interface{}{})
 					return
 				}
 				argsStr, waitFlag, restartFlag, stagesStr, triggersStr := getFlagsAsSliceStr(processWait, restart, processArgs, stages, triggers)
@@ -96,12 +96,12 @@ func startCommand() *cobra.Command {
 				mgrCmd.Stdin = os.Stdin
 				mgrCmdErr := mgrCmd.Start()
 				if mgrCmdErr != nil {
-					l.Error(fmt.Sprintf("Fail to start manager command: %s", mgrCmdErr), map[string]interface{}{})
+					l.ErrorCtx(fmt.Sprintf("Fail to start manager command: %s", mgrCmdErr), map[string]interface{}{})
 					return
 				} else {
 					releaseErr := mgrCmd.Process.Release()
 					if releaseErr != nil {
-						l.Error(fmt.Sprintf("Fail to release process: %s", releaseErr), map[string]interface{}{})
+						l.ErrorCtx(fmt.Sprintf("Fail to release process: %s", releaseErr), map[string]interface{}{})
 						return
 					}
 					return
@@ -130,11 +130,11 @@ func stopCommand() *cobra.Command {
 		}, false),
 		Run: func(cmd *cobra.Command, args []string) {
 			if manager == nil {
-				l.Error("no manager found", map[string]interface{}{})
+				l.ErrorCtx("no manager found", map[string]interface{}{})
 			} else {
 				stopErr := manager.Stop()
 				if stopErr != nil {
-					l.Error(fmt.Sprintf("Fail to stop process: %s", stopErr), map[string]interface{}{})
+					l.ErrorCtx(fmt.Sprintf("Fail to stop process: %s", stopErr), map[string]interface{}{})
 				}
 			}
 		},
@@ -153,9 +153,9 @@ func statusCommand() *cobra.Command {
 		}, false),
 		Run: func(cmd *cobra.Command, args []string) {
 			if manager == nil {
-				l.Error("no manager found", map[string]interface{}{})
+				l.ErrorCtx("no manager found", map[string]interface{}{})
 			} else {
-				l.Info(manager.Status(), map[string]interface{}{})
+				l.InfoCtx(manager.Status(), map[string]interface{}{})
 			}
 		},
 	}
@@ -171,12 +171,12 @@ func restartCommand() *cobra.Command {
 		}, false),
 		Run: func(cmd *cobra.Command, args []string) {
 			if manager == nil {
-				l.Error("no manager found", map[string]interface{}{})
+				l.ErrorCtx("no manager found", map[string]interface{}{})
 			} else {
 				if err := manager.Restart(); err != nil {
-					l.Error(fmt.Sprintf("Fail to restart process: %s", err), map[string]interface{}{})
+					l.ErrorCtx(fmt.Sprintf("Fail to restart process: %s", err), map[string]interface{}{})
 				} else {
-					l.Info("Process restarted successfully", map[string]interface{}{})
+					l.InfoCtx("Process restarted successfully", map[string]interface{}{})
 				}
 			}
 		},
@@ -202,13 +202,13 @@ func serviceCommand() *cobra.Command {
 			usrEnvs = append(usrEnvs, fmt.Sprintf("PATH=%s", envPath))
 			appBinPath, appBinPathErr := exec.LookPath("golife")
 			if appBinPathErr != nil {
-				l.Error(fmt.Sprintf("Fail to find golife binary: %s", appBinPathErr), map[string]interface{}{})
+				l.ErrorCtx(fmt.Sprintf("Fail to find golife binary: %s", appBinPathErr), map[string]interface{}{})
 				return
 			}
 			cmdStartSpawner := fmt.Sprintf("%s service start -n %s -c %s -a %s -w %t -e %s", appBinPath, processName, processCmd, processArgs, processWait, processEvents)
 			cmdStartErr := syscall.Exec("/bin/sh", []string{"-c", cmdStartSpawner}, os.Environ())
 			if cmdStartErr != nil {
-				l.Error(fmt.Sprintf("Fail to start service: %s", cmdStartErr), map[string]interface{}{})
+				l.ErrorCtx(fmt.Sprintf("Fail to start service: %s", cmdStartErr), map[string]interface{}{})
 			}
 		},
 	}

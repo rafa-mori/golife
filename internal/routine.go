@@ -1,7 +1,7 @@
 package internal
 
 import (
-	kbxSrv "github.com/faelmori/kbxutils/api"
+	"github.com/faelmori/kbxutils/factory"
 	l "github.com/faelmori/logz"
 
 	"context"
@@ -576,17 +576,13 @@ func NewManagedGoroutine(fn func()) *ManagedGoroutine {
 }
 
 func logActivity(activity string) {
-	f := kbxSrv.NewFileSystemService("")
-	if f == nil {
-		return
-	}
-	fs := *f
+	fs := *factory.NewFilesystemService("")
 	cfgDir := filepath.Dir(fs.GetConfigFilePath())
 	logFilePath := filepath.Join(cfgDir, "goroutine.log")
 
 	logFile, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		l.Error("Erro ao abrir arquivo de log", map[string]interface{}{"error": err})
+		l.ErrorCtx("Erro ao abrir arquivo de log", map[string]interface{}{"error": err})
 		return
 	}
 	defer func(logFile *os.File) {
@@ -595,6 +591,6 @@ func logActivity(activity string) {
 
 	logEntry := time.Now().Format(time.RFC3339) + ": " + activity + "\n"
 	if _, err := logFile.WriteString(logEntry); err != nil {
-		l.Error("Erro ao escrever no arquivo de log", map[string]interface{}{"error": err})
+		l.ErrorCtx("Erro ao escrever no arquivo de log", map[string]interface{}{"error": err})
 	}
 }

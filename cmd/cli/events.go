@@ -30,7 +30,7 @@ func triggerCmd() *cobra.Command {
 			event = args[1]
 			data = args[2]
 			manager.Trigger(stage, event, data)
-			l.Info(fmt.Sprintf("Event %s triggered in stage %s with data: %s", event, stage, data), map[string]interface{}{})
+			l.InfoCtx(fmt.Sprintf("Event %s triggered in stage %s with data: %s", event, stage, data), map[string]interface{}{})
 		},
 	}
 
@@ -58,10 +58,10 @@ func registerEventCmd() *cobra.Command {
 				manager.Trigger(stage, event, data)
 			})
 			if regEvErr != nil {
-				l.Error(fmt.Sprintf("Error registering event: %s", regEvErr.Error()), map[string]interface{}{})
+				l.ErrorCtx(fmt.Sprintf("ErrorCtx registering event: %s", regEvErr.Error()), map[string]interface{}{})
 				return
 			}
-			l.Info("Event registered successfully", map[string]interface{}{})
+			l.InfoCtx("Event registered successfully", map[string]interface{}{})
 		},
 	}
 
@@ -86,10 +86,10 @@ func removeEventCmd() *cobra.Command {
 			event = args[1]
 			err := manager.RemoveEvent(stage, event)
 			if err != nil {
-				l.Error(fmt.Sprintf("Error removing event: %s", err.Error()), map[string]interface{}{})
+				l.ErrorCtx(fmt.Sprintf("ErrorCtx removing event: %s", err.Error()), map[string]interface{}{})
 				return
 			}
-			l.Info("Event removed successfully", map[string]interface{}{})
+			l.InfoCtx("Event removed successfully", map[string]interface{}{})
 		},
 	}
 
@@ -110,10 +110,10 @@ func stopEventsCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			err := manager.StopEvents()
 			if err != nil {
-				l.Error(fmt.Sprintf("Error stopping events: %s", err.Error()), map[string]interface{}{})
+				l.ErrorCtx(fmt.Sprintf("ErrorCtx stopping events: %s", err.Error()), map[string]interface{}{})
 				return
 			}
-			l.Info("Events stopped successfully", map[string]interface{}{})
+			l.InfoCtx("Events stopped successfully", map[string]interface{}{})
 		},
 	}
 

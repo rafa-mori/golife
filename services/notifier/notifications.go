@@ -26,10 +26,10 @@ func (nm *NotificationManager) SendEmail(to, subject, body string) error {
 		body + "\r\n")
 	err := smtp.SendMail(nm.SMTPHost+":"+nm.SMTPPort, auth, nm.SMTPUsername, []string{to}, msg)
 	if err != nil {
-		logz.Error("Failed to send email", map[string]interface{}{"error": err})
+		logz.ErrorCtx("Failed to send email", map[string]interface{}{"error": err})
 		return err
 	}
-	logz.Info("Email sent successfully", nil)
+	logz.InfoCtx("Email sent successfully", nil)
 	return nil
 }
 
@@ -40,20 +40,20 @@ func (nm *NotificationManager) SendSMS(to, message string) error {
 	}
 	jsonData, err := json.Marshal(data)
 	if err != nil {
-		logz.Error("Failed to marshal SMS data", map[string]interface{}{"error": err})
+		logz.ErrorCtx("Failed to marshal SMS data", map[string]interface{}{"error": err})
 		return err
 	}
 	resp, err := http.Post(nm.SMSGateway, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		logz.Error("Failed to send SMS", map[string]interface{}{"error": err})
+		logz.ErrorCtx("Failed to send SMS", map[string]interface{}{"error": err})
 		return err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		logz.Error("Failed to send SMS", map[string]interface{}{"status": resp.StatusCode})
+		logz.ErrorCtx("Failed to send SMS", map[string]interface{}{"status": resp.StatusCode})
 		return fmt.Errorf("failed to send SMS, status code: %d", resp.StatusCode)
 	}
-	logz.Info("SMS sent successfully", nil)
+	logz.InfoCtx("SMS sent successfully", nil)
 	return nil
 }
 

@@ -72,13 +72,16 @@ func (p *ManagedProcess) Start() error {
 	}
 
 	if p.CustomFunc != nil {
+		l.InfoCtx(fmt.Sprintf("Executing custom function for process %s", p.Name), nil)
 		go func() {
 			if err := p.CustomFunc(); err != nil {
-				l.Error(fmt.Sprintf("Error in custom execution of process %s: %v", p.Name, err), nil)
+				l.ErrorCtx(fmt.Sprintf("Error in custom execution of process %s: %v", p.Name, err), nil)
 			}
 		}()
 		return nil
-	} else if p.Command != "" {
+	}
+	if p.Command != "" {
+		l.InfoCtx(fmt.Sprintf("Starting process %s with command %s", p.Name, p.Command), nil)
 		p.Cmd = exec.Command(p.Command, p.Args...)
 		if p.WaitFor {
 			return p.Cmd.Run()
@@ -91,7 +94,7 @@ func (p *ManagedProcess) Start() error {
 			return p.Cmd.Process.Release()
 		}
 	} else {
-		l.Warn(fmt.Sprintf("No command defined for process %s", p.Name), nil)
+		l.WarnCtx(fmt.Sprintf("No command defined for process %s", p.Name), nil)
 		return nil
 	}
 }

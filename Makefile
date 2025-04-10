@@ -1,8 +1,8 @@
 APP_NAME := $(shell basename $(shell pwd))
-ROOT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+ROOT_DIR := $(dir $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 BINARY_NAME := $(ROOT_DIR)$(APP_NAME)
 CMD_DIR := $(ROOT_DIR)cmd
-INSTALL_SCRIPT=$(ROOT_DIR)scripts/install.sh
+INSTALL_SCRIPT=$(ROOT_DIR)support/scripts/install.sh
 ARGS :=
 
 # Colors

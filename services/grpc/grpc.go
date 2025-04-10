@@ -24,7 +24,7 @@ type server struct {
 //	if err != nil {
 //		return nil, err
 //	}
-//	return &pb.StartProcessResponse{Success: true}, nil
+//	return &pb.StartProcessResponse{SuccessCtx: true}, nil
 //}
 
 //func (s *server) StopProcess(ctx context.Context, req *pb.StopProcessRequest) (*pb.StopProcessResponse, error) {
@@ -36,7 +36,7 @@ type server struct {
 //	if err != nil {
 //		return nil, err
 //	}
-//	return &pb.StopProcessResponse{Success: true}, nil
+//	return &pb.StopProcessResponse{SuccessCtx: true}, nil
 //}
 
 //func (s *server) GetStatus(ctx context.Context, req *pb.GetStatusRequest) (*pb.GetStatusResponse, error) {
