@@ -3,10 +3,12 @@ package golife
 import (
 	//i "github.com/faelmori/golife/internal"
 	//p "github.com/faelmori/golife/internal/process"
+	"github.com/faelmori/golife/internal/property"
 	r "github.com/faelmori/golife/internal/routines"
 	c "github.com/faelmori/golife/internal/routines/agents"
 	_ "github.com/faelmori/golife/internal/routines/taskz"
 	a "github.com/faelmori/golife/internal/routines/taskz/actions"
+	"github.com/faelmori/golife/internal/utils"
 	"os"
 
 	//e "github.com/faelmori/golife/internal/routines/taskz/events"
@@ -52,7 +54,7 @@ func NewJob[T any](action Action[any], cancelChanel chan struct{}, doneChanel ch
 			ID:         uuid.New().String(),
 			Type:       "Job",
 			Errors:     make([]error, 0),
-			Properties: make(map[string]t.Property[any]),
+			Properties: make(map[string]property.Property[any]),
 		}
 	} else {
 		act = reflect.ValueOf(action).Interface().(a.IAction[T])
@@ -65,14 +67,14 @@ func NewJob[T any](action Action[any], cancelChanel chan struct{}, doneChanel ch
 }
 
 // Property is a generic type that represents a property of type T.
-type Property[T any] interface{ t.Property[T] }
+type Property[T any] interface{ property.Property[T] }
 
 // NewProperty creates a new property with the given name and value.
 func NewProperty[T any](name string, value T) Property[any] {
 	// Create a new property with the given name, value and type.
 	// The type is inferred from the value passed to the function.
 	// Type don't will be explicitly exposed but will be used to create the property and validate the value.
-	return t.NewProperty[T](name, &value)
+	return utils.NewProperty[T](name, &value)
 }
 
 type Routine[T any] = r.IManagedGoroutine[T]

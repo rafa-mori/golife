@@ -1,4 +1,4 @@
-package types
+package utils
 
 import "sync"
 
@@ -42,14 +42,14 @@ type IThreading interface {
 
 type ThreadingConfig struct {
 	// Thread-safe channel for event functions
-	mu sync.RWMutex
+	Mu sync.RWMutex
 	// Thread-safe channel for process functions
 	wg sync.WaitGroup
 }
 
 func NewThreadingConfig() *ThreadingConfig {
 	return &ThreadingConfig{
-		mu: sync.RWMutex{},
+		Mu: sync.RWMutex{},
 		wg: sync.WaitGroup{},
 	}
 }

@@ -1,7 +1,9 @@
 package golife
 
 import (
+	"github.com/faelmori/golife/internal/property"
 	t "github.com/faelmori/golife/internal/types"
+	"github.com/faelmori/golife/internal/utils"
 	c "github.com/faelmori/golife/services"
 	"github.com/google/uuid"
 	"sync"
@@ -16,13 +18,13 @@ type GoLife[T any] struct {
 	cond *sync.Cond
 
 	// properties is a map of string keys to DynamicProperty values.
-	properties map[string]t.Property[T]
+	properties map[string]property.Property[T]
 
 	// The size is implicitly defined with the new instance of the interface IChannel.
 	chanCtl c.IChannel[t.IJob[any], int]
 
 	// meta is a map of string keys to EventMetadata values.
-	meta map[string]*t.EventMetadata
+	meta map[string]*utils.EventMetadata
 }
 
 func NewGoLife[T any]() *GoLife[T] {
@@ -31,7 +33,7 @@ func NewGoLife[T any]() *GoLife[T] {
 		mu: sync.RWMutex{},
 		wg: sync.WaitGroup{},
 
-		properties: make(map[string]t.Property[T]),
+		properties: make(map[string]property.Property[T]),
 	}
 }
 
@@ -40,12 +42,12 @@ func (g *GoLife[T]) GetID() uuid.UUID {
 	defer g.mu.RUnlock()
 	return g.id
 }
-func (g *GoLife[T]) GetMeta() t.EventMetadata {
+func (g *GoLife[T]) GetMeta() utils.EventMetadata {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 	return g.meta
 }
-func (g *GoLife[T]) SetMeta(meta t.EventMetadata) {
+func (g *GoLife[T]) SetMeta(meta utils.EventMetadata) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if len(g.meta) > 0 {

@@ -3,8 +3,9 @@ package actions
 import (
 	"fmt"
 	t "github.com/faelmori/gastype/types"
+	"github.com/faelmori/golife/internal/property"
 	c "github.com/faelmori/golife/internal/routines/agents"
-	"github.com/faelmori/golife/internal/types"
+	"github.com/faelmori/golife/internal/utils"
 	"github.com/faelmori/golife/services"
 	"github.com/google/uuid"
 	"reflect"
@@ -28,8 +29,8 @@ type IAction[T any] interface {
 	GetResultChannel() chan T
 	GetDoneChannel() chan any
 	GetCancelChannel() chan any
-	GetProperties() map[string]types.Property[any]
-	GetProperty(name string) types.Property[any]
+	GetProperties() map[string]property.Property[any]
+	GetProperty(name string) property.Property[any]
 	SetProperty(name string, value any) error
 	GetTask() func(T) error
 	SetTask(task func(T) error)
@@ -51,7 +52,7 @@ type Action[T any] struct {
 	Errors     []error                                // List of errors associated with the action.
 	Results    map[string]t.IResult                   // Map of results associated with the action.
 	mapChan    map[string]services.IChannel[any, int] // Map of channels associated with the action.
-	Properties map[string]types.Property[any]         // Map of properties associated with the action.
+	Properties map[string]property.Property[any]      // Map of properties associated with the action.
 	task       func(T) error                          // Task associated with the action. .
 	data       T                                      // Data associated with the action.
 }
@@ -76,7 +77,7 @@ func NewAction[T any](identifier string, actionType string, data *T, ev func(T) 
 			Errors:     make([]error, 0),
 			Results:    make(map[string]t.IResult),
 			mapChan:    make(map[string]services.IChannel[any, int]),
-			Properties: make(map[string]types.Property[any]),
+			Properties: make(map[string]property.Property[any]),
 			task: func(data T) error {
 				if ev != nil {
 					return ev(data)
@@ -93,18 +94,18 @@ func NewAction[T any](identifier string, actionType string, data *T, ev func(T) 
 	actA.mapChan["done"] = c.NewChannel[struct{}, int](actA.ref.String(), nil, 10)
 
 	// Initialize the map of properties
-	actA.Properties["status"] = types.NewProperty[string]("status", nil)
+	actA.Properties["status"] = utils.NewProperty[string]("status", nil)
 	_ = actA.Properties["status"].SetValue("Pending", nil)
-	actA.Properties["type"] = types.NewProperty[string]("type", nil)
+	actA.Properties["type"] = utils.NewProperty[string]("type", nil)
 	_ = actA.Properties["type"].SetValue(actionType, nil)
-	actA.Properties["id"] = types.NewProperty[string]("id", nil)
+	actA.Properties["id"] = utils.NewProperty[string]("id", nil)
 	_ = actA.Properties["id"].SetValue(identifier, nil)
-	actA.Properties["data"] = types.NewProperty[T]("data", nil)
+	actA.Properties["data"] = utils.NewProperty[T]("data", nil)
 	_ = actA.Properties["data"].SetValue(*data, nil)
 
-	if err := actA.Properties["status"].AddListener("onStatusChange", func(oldValue, newValue any, metadata types.EventMetadata) types.ListenerResponse {
+	if err := actA.Properties["status"].AddListener("onStatusChange", func(oldValue, newValue any, metadata utils.EventMetadata) utils.ListenerResponse {
 		fmt.Printf("Action %s changed status: %v -> %v\n", actA.ID, oldValue, newValue)
-		return types.ListenerResponse{Success: true}
+		return utils.ListenerResponse{Success: true}
 	}); err != nil {
 		fmt.Printf("Error adding listener: %v\n", err)
 	}
@@ -286,7 +287,7 @@ func (ac *Action[T]) GetCancelChannel() chan any {
 // GetProperties retrieves a map of properties associated with the action.
 // Returns:
 //   - map[string]types.Property[any]: The map of properties.
-func (ac *Action[T]) GetProperties() map[string]types.Property[any] {
+func (ac *Action[T]) GetProperties() map[string]property.Property[any] {
 	ac.mu.RLock()
 	defer ac.mu.RUnlock()
 	return ac.Properties
@@ -298,7 +299,7 @@ func (ac *Action[T]) GetProperties() map[string]types.Property[any] {
 //
 // Returns:
 //   - types.Property[any]: The property associated with the specified name.
-func (ac *Action[T]) GetProperty(name string) types.Property[any] {
+func (ac *Action[T]) GetProperty(name string) property.Property[any] {
 	ac.mu.RLock()
 	defer ac.mu.RUnlock()
 	if prop, ok := ac.Properties[name]; ok {

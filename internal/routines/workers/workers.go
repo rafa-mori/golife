@@ -2,8 +2,10 @@ package workers
 
 import (
 	"fmt"
+	"github.com/faelmori/golife/internal/property"
 	"github.com/faelmori/golife/internal/routines/agents"
 	t "github.com/faelmori/golife/internal/types"
+	"github.com/faelmori/golife/internal/utils"
 	"github.com/faelmori/golife/services"
 	l "github.com/faelmori/logz"
 	"sync"
@@ -20,7 +22,7 @@ type Worker struct {
 	wg   sync.WaitGroup
 	cond *sync.Cond
 
-	properties map[string]t.Property[any]
+	properties map[string]property.Property[any]
 	// The size is implicitly defined with the new instance of the interface IChannel.
 	//
 	// Definition of the channel:
@@ -50,7 +52,7 @@ func NewWorker(workerID int, logger l.Logger) t.IWorker {
 		mu: sync.RWMutex{},
 		wg: sync.WaitGroup{},
 
-		properties:    make(map[string]t.Property[any]),
+		properties:    make(map[string]property.Property[any]),
 		jobChannel:    agents.NewChannel[t.IJob[any], int]("jobChannel", nil, 100),
 		resultChannel: agents.NewChannel[t.IResult, int]("resultChannel", nil, 100),
 		jobQueue:      agents.NewChannel[t.IAction[any], int]("jobQueue", nil, 100),
@@ -62,7 +64,7 @@ func NewWorker(workerID int, logger l.Logger) t.IWorker {
 		return &wb.muL
 	}(w))
 
-	w.properties["status"] = t.NewProperty[string]("status", nil)
+	w.properties["status"] = utils.NewProperty[string]("status", nil)
 	_ = w.properties["status"].SetValue("Stopped", nil)
 
 	return w

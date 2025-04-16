@@ -1,23 +1,25 @@
-package types
+package layers
 
 import (
 	"fmt"
+	"github.com/faelmori/golife/internal/types"
+	"github.com/faelmori/golife/internal/utils"
 	"sync"
 )
 
 type ManagerLayer struct {
-	ThreadingConfig
-	Telemetry
+	utils.ThreadingConfig
+	types.Telemetry
 
 	Scope            string
 	ManagerEvents    map[string]func(...any) error
-	ManagerListeners []GenericChannelCallback[any]
+	ManagerListeners []utils.BasicGenericCallback[any]
 }
 
 func NewManagerLayer(scope string) *ManagerLayer {
 	return &ManagerLayer{
-		ThreadingConfig: *NewThreadingConfig(),
-		Telemetry:       *NewTelemetry(),
+		ThreadingConfig: *utils.NewThreadingConfig(),
+		Telemetry:       *types.NewTelemetry(),
 		Scope:           scope,
 		ManagerEvents:   make(map[string]func(...any) error),
 	}

@@ -2,6 +2,7 @@ package workers
 
 import (
 	"fmt"
+	"github.com/faelmori/golife/internal/property"
 	"github.com/faelmori/golife/internal/routines/agents"
 	t "github.com/faelmori/golife/internal/types"
 	u "github.com/faelmori/golife/internal/utils"
@@ -17,7 +18,7 @@ type WorkerPool struct {
 	wg         sync.WaitGroup
 	logger     l.Logger
 	ID         string
-	Properties map[string]t.Property[any]
+	Properties map[string]property.Property[any]
 	workers    []t.IWorker // Referência aos workers gerenciados pelo pool
 
 	// Channels
@@ -41,7 +42,7 @@ func NewWorkerPool(workerLimit int, logger l.Logger) t.IWorkerPool {
 		wg:          sync.WaitGroup{},
 		logger:      logger,
 		ID:          uuid.NewString(),
-		Properties:  make(map[string]t.Property[any]),
+		Properties:  make(map[string]property.Property[any]),
 		workers:     make([]t.IWorker, workerLimit),
 		jobQueue:    agents.NewChannel[t.IAction[any], int]("jobQueue", &iAction, 100),
 		jobChannel:  agents.NewChannel[t.IJob[any], int]("jobChannel", &iJob, 100),
@@ -50,13 +51,13 @@ func NewWorkerPool(workerLimit int, logger l.Logger) t.IWorkerPool {
 	}
 
 	// Control
-	wp.Properties["workerLimit"] = t.NewProperty[int]("workerLimit", nil)
+	wp.Properties["workerLimit"] = u.NewProperty[int]("workerLimit", nil)
 	wp.Properties["workerLimit"].SetValue(workerLimit, nil)
 
-	wp.Properties["workerCount"] = t.NewProperty[int]("workerCount", nil)
+	wp.Properties["workerCount"] = u.NewProperty[int]("workerCount", nil)
 	wp.Properties["workerCount"].SetValue(0, nil)
 
-	wp.Properties["buffers"] = t.NewProperty[int]("buffers", nil) // Tamanho do buffer para os canais (Max 100)
+	wp.Properties["buffers"] = u.NewProperty[int]("buffers", nil) // Tamanho do buffer para os canais (Max 100)
 	_ = wp.Properties["buffers"].SetValue(100, nil)
 
 	// Validator
@@ -236,11 +237,11 @@ func (wp *WorkerPool) Report() string {
 }
 
 // AddListener adiciona um listener a um evento específico
-func (wp *WorkerPool) AddListener(event string, listener t.ChangeListener[any]) error {
+func (wp *WorkerPool) AddListener(event string, listener u.ChangeListener[any]) error {
 	wp.mu.Lock()
 	defer wp.mu.Unlock()
 	if property, ok := wp.Properties[event]; ok {
-		var ltn t.ChangeListener[any] = func(oldValue, newValue any, metadata t.EventMetadata) t.ListenerResponse {
+		var ltn property.ChangeListener[any] = func(oldValue, newValue any, metadata property.EventMetadata) property.ListenerResponse {
 			return listener(oldValue, newValue, metadata)
 		}
 		if err := property.AddListener(event, ltn); err != nil {

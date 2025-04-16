@@ -1,6 +1,8 @@
 package types
 
 import (
+	"github.com/faelmori/golife/internal/property"
+	"github.com/faelmori/golife/internal/utils"
 	c "github.com/faelmori/golife/services"
 	"github.com/google/uuid"
 )
@@ -10,12 +12,12 @@ type AccessConfig struct {
 	Telemetry
 
 	// Threading configuration
-	ThreadingConfig
+	utils.ThreadingConfig
 
 	// ID and Reference
 	ID uuid.UUID
 	// Access Properties
-	AccessProperties map[string]Property[any]
+	AccessProperties map[string]property.Property[any]
 	// Access Agents
 	AccessAgents map[string]c.IChannel[any, int]
 }
@@ -23,9 +25,9 @@ type AccessConfig struct {
 func NewAccessConfig() *AccessConfig {
 	return &AccessConfig{
 		Telemetry:        *NewTelemetry(),
-		ThreadingConfig:  *NewThreadingConfig(),
+		ThreadingConfig:  *utils.NewThreadingConfig(),
 		ID:               uuid.New(),
-		AccessProperties: make(map[string]Property[any]),
+		AccessProperties: make(map[string]property.Property[any]),
 		AccessAgents:     make(map[string]c.IChannel[any, int]),
 	}
 }

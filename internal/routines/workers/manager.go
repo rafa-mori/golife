@@ -2,8 +2,10 @@ package workers
 
 import (
 	"fmt"
+	"github.com/faelmori/golife/internal/property"
 	c "github.com/faelmori/golife/internal/routines/agents"
 	t "github.com/faelmori/golife/internal/types"
+	"github.com/faelmori/golife/internal/utils"
 	l "github.com/faelmori/logz"
 	"github.com/google/uuid"
 	"sync"
@@ -20,7 +22,7 @@ type WorkerManager[T any] struct {
 
 	logger l.Logger
 
-	Properties map[string]t.Property[any]
+	Properties map[string]property.Property[any]
 
 	workerPool t.IWorkerPool //t.IWorkerPool
 }
@@ -39,17 +41,17 @@ func NewWorkerManager[T any](pool t.IWorkerPool, logger l.Logger) t.IWorkerManag
 		wg:   sync.WaitGroup{},
 		cond: sync.NewCond(&sync.Mutex{}),
 
-		Properties: make(map[string]t.Property[any]),
+		Properties: make(map[string]property.Property[any]),
 
 		workerPool: pool,
 	}
 
 	// Propriedades de controle
-	wm.Properties["status"] = t.NewProperty[string]("status", nil)
+	wm.Properties["status"] = utils.NewProperty[string]("status", nil)
 	wm.Properties["status"].SetValue("Stopped", nil)
-	wm.Properties["workerCount"] = t.NewProperty[int]("workerCount", nil)
+	wm.Properties["workerCount"] = utils.NewProperty[int]("workerCount", nil)
 	wm.Properties["workerCount"].SetValue(0, nil)
-	wm.Properties["monitorInterval"] = t.NewProperty[int]("monitorInterval", nil)
+	wm.Properties["monitorInterval"] = utils.NewProperty[int]("monitorInterval", nil)
 	wm.Properties["monitorInterval"].SetValue(500, nil)
 
 	return wm
@@ -169,7 +171,7 @@ func (wm *WorkerManager[T]) MonitorWorkers() {
 // MonitorPool inicia um monitoramento do pool de workers
 func (wm *WorkerManager[T]) MonitorPool() chan interface{} {
 	if _, exists := wm.Properties["monitorCtl"]; !exists {
-		wm.Properties["monitorCtl"] = t.NewProperty[string]("monitorCtl", nil)
+		wm.Properties["monitorCtl"] = utils.NewProperty[string]("monitorCtl", nil)
 		if setValErr := wm.Properties["monitorCtl"].SetValue("Stopped", nil); setValErr != nil {
 			wm.logger.ErrorCtx("Failed to set monitor control value", map[string]any{
 				"context":  "WorkerManager",

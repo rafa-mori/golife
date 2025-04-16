@@ -1,6 +1,8 @@
 package types
 
 import (
+	"github.com/faelmori/golife/internal/property"
+	"github.com/faelmori/golife/internal/utils"
 	c "github.com/faelmori/golife/services"
 )
 
@@ -8,13 +10,13 @@ type RoutineConfig struct {
 	// Telemetry configuration
 	Telemetry
 	// Threading configuration
-	ThreadingConfig
+	utils.ThreadingConfig
 	// ID and Reference
 	ID string
 	// Routine Functions
 	RoutineFuncList func(func(...any) error)
 	// Routine Properties
-	RoutineProperties map[string]Property[any]
+	RoutineProperties map[string]property.Property[any]
 	// Routine Agents
 	RoutineAgents map[string]c.IChannel[any, int]
 	// Routine Event Map
@@ -28,9 +30,9 @@ type RoutineConfig struct {
 func NewRoutineConfig() *RoutineConfig {
 	return &RoutineConfig{
 		Telemetry:         *NewTelemetry(),
-		ThreadingConfig:   *NewThreadingConfig(),
+		ThreadingConfig:   *utils.NewThreadingConfig(),
 		ID:                "",
-		RoutineProperties: make(map[string]Property[any]),
+		RoutineProperties: make(map[string]property.Property[any]),
 		RoutineAgents:     make(map[string]c.IChannel[any, int]),
 		RoutineEventMap:   make(map[string]EventsConfig),
 		RoutineCommandMap: make(map[string]CommandConfig),

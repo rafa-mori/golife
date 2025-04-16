@@ -1,16 +1,18 @@
-package types
+package layers
 
 import (
 	"fmt"
+	"github.com/faelmori/golife/internal/types"
+	"github.com/faelmori/golife/internal/utils"
 )
 
 type BaseLayer struct {
-	ThreadingConfig
-	Telemetry
+	utils.ThreadingConfig
+	types.Telemetry
 
 	Scope     string
 	Events    map[string]func(...any) error
-	Listeners []GenericChannelCallback[any]
+	Listeners []utils.BasicGenericCallback[any]
 }
 
 func (b *BaseLayer) AddEvent(name string, event func(...any) error) {

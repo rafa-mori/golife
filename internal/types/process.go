@@ -1,6 +1,8 @@
 package types
 
 import (
+	f "github.com/faelmori/golife/internal/property"
+	u "github.com/faelmori/golife/internal/utils"
 	c "github.com/faelmori/golife/services"
 	"github.com/google/uuid"
 	"os"
@@ -23,7 +25,7 @@ type ProcessConfig struct {
 	Telemetry
 
 	// Threading configuration
-	ThreadingConfig
+	u.ThreadingConfig
 
 	// ID and Reference
 	ID uuid.UUID
@@ -34,7 +36,7 @@ type ProcessConfig struct {
 	// Name of the process
 	Name string
 	// Basic process properties
-	ProcessProperties map[string]Property[any]
+	ProcessProperties map[string]f.Property[any]
 	// Process Agents
 	ProcessAgents map[string]c.IChannel[any, int]
 	// Process Stages
@@ -48,28 +50,28 @@ func (pc *ProcessConfig) InitDefaults(args *ProcessParameters) {
 		args = &ProcessParameters{}
 	}
 
-	pc.ProcessProperties["name"] = NewProperty[string]("name", nil)
+	pc.ProcessProperties["name"] = f.NewProperty[any]("name", nil)
 	_ = pc.ProcessProperties["name"].SetValue(args.Name, nil)
 
-	pc.ProcessProperties["cwd"] = NewProperty[any]("cwd", nil)
+	pc.ProcessProperties["cwd"] = f.NewProperty[any]("cwd", nil)
 	_ = pc.ProcessProperties["cwd"].SetValue(args.CWD, nil)
 
-	pc.ProcessProperties["args"] = NewProperty[any]("args", nil)
+	pc.ProcessProperties["args"] = f.NewProperty[any]("args", nil)
 	_ = pc.ProcessProperties["args"].SetValue(args.Args, nil)
 
-	pc.ProcessProperties["env"] = NewProperty[any]("env", nil)
+	pc.ProcessProperties["env"] = f.NewProperty[any]("env", nil)
 	_ = pc.ProcessProperties["env"].SetValue(args.Env, nil)
 
-	pc.ProcessProperties["host"] = NewProperty[any]("host", nil)
+	pc.ProcessProperties["host"] = f.NewProperty[any]("host", nil)
 	_ = pc.ProcessProperties["host"].SetValue(args.Host, nil)
 
-	pc.ProcessProperties["port"] = NewProperty[any]("port", nil)
+	pc.ProcessProperties["port"] = f.NewProperty[any]("port", nil)
 	_ = pc.ProcessProperties["port"].SetValue(args.Port, nil)
 
-	pc.ProcessProperties["user"] = NewProperty[any]("user", nil)
+	pc.ProcessProperties["user"] = f.NewProperty[any]("user", nil)
 	_ = pc.ProcessProperties["user"].SetValue(args.User, nil)
 
-	pc.ProcessProperties["pid"] = NewProperty[any]("pid", nil)
+	pc.ProcessProperties["pid"] = f.NewProperty[any]("pid", nil)
 	_ = pc.ProcessProperties["pid"].SetValue(pc.Pid, nil)
 
 }
@@ -95,9 +97,9 @@ func (pc *ProcessConfig) GetProcessSysPid() int {
 func NewProcessConfig(args ProcessParameters) *ProcessConfig {
 	mc := &ProcessConfig{
 		Telemetry:         *NewTelemetry(),
-		ThreadingConfig:   *NewThreadingConfig(),
+		ThreadingConfig:   *u.NewThreadingConfig(),
 		ID:                uuid.New(),
-		ProcessProperties: make(map[string]Property[any]),
+		ProcessProperties: make(map[string]f.Property[any]),
 	}
 
 	mc.Type = args.Type

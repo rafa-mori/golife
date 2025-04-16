@@ -1,6 +1,7 @@
 package types
 
 import (
+	f "github.com/faelmori/golife/internal/property"
 	c "github.com/faelmori/golife/services"
 	l "github.com/faelmori/logz"
 )
@@ -63,7 +64,7 @@ type IWorkerPool interface {
 	Report() string
 	Debug()
 	SendToWorker(int, any) error
-	AddListener(string, ChangeListener[any]) error
+	AddListener(string, f.ChangeListener[any]) error
 }
 
 type IWorkerManager[T any] interface {
@@ -71,7 +72,7 @@ type IWorkerManager[T any] interface {
 	SetLogger(l.Logger)
 
 	GetID() string
-	GetProperties() map[string]Property[any]
+	GetProperties() map[string]f.Property[any]
 	GetWorker(int) (IWorker, error)
 	GetWorkerChannel(int) (chan IJob[any], error)
 	GetWorkerPool() []IWorker

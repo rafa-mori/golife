@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	f "github.com/faelmori/golife/internal/property"
 	"reflect"
 	"sync/atomic"
 )
@@ -10,7 +11,7 @@ type RegistryEntry[RU any] struct {
 	// name é o nome do registro.
 	name string
 	// metadata armazena informações adicionais sobre o registro.
-	metadata Metadata
+	metadata f.Metadata
 	// valueType é o tipo do valor armazenado no registro.
 	valueType reflect.Type
 	// value é o valor atual do registro, armazenado em um ponteiro atômico para
@@ -27,7 +28,7 @@ func NewRegistryEntry[E any](name string, value *E) *RegistryEntry[E] {
 		name:       name,
 		valueType:  reflect.TypeFor[E](),
 		value:      atomic.Pointer[E]{},
-		metadata:   make(Metadata),
+		metadata:   make(f.Metadata),
 		validators: make([]func(E) error, 0),
 	}
 	if value == nil {

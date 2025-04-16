@@ -2,6 +2,7 @@ package events
 
 import (
 	"github.com/faelmori/golife/internal/process"
+	"github.com/faelmori/golife/internal/property"
 	t "github.com/faelmori/golife/internal/types"
 	c "github.com/faelmori/golife/services"
 	"github.com/google/uuid"
@@ -80,8 +81,8 @@ type ManagedProcessEvents[T any] struct {
 	//		EventName  string
 	//		EventFunc  func(...any) error
 	//		EventStage string
-	EventProperties map[string]t.Property[any]
-	EventFuncList   map[string]t.GenericChannelCallback[any]
+	EventProperties map[string]property.Property[any]
+	EventFuncList   map[string]t.BasicGenericCallback[T]
 	EventAgents     map[string]c.IChannel[any, int]
 
 	// Original Payload/Data/State
@@ -92,7 +93,7 @@ type ManagedProcessEvents[T any] struct {
 	//CmdArgs []string
 	//CmdEnv  []string
 	//CmdDir  string
-	CmdProperties map[string]t.Property[any]
+	CmdProperties map[string]property.Property[any]
 
 	// Access properties
 	// Ex:
@@ -106,7 +107,7 @@ type ManagedProcessEvents[T any] struct {
 	//IsSSL  bool
 	//IsTLS  bool
 	//IsAuth bool
-	AccessProperties map[string]t.Property[any]
+	AccessProperties map[string]property.Property[any]
 }
 
 // <editor-fold defaultstate="collapsed" desc="ManagedProcessEvents">
@@ -115,13 +116,13 @@ func (m *ManagedProcessEvents[T]) Event() string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	return m.Name
+	return m.ID
 }
 func (m *ManagedProcessEvents[T]) RegisterEvent(event string, fn func(interface{})) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.EventFns[event] = fn
+	//m.EventFuncList[event] = fn
 }
 func (m *ManagedProcessEvents[T]) Trigger(stage, event string, data interface{}) {
 	m.mu.Lock()

@@ -1,20 +1,24 @@
-package types
+package layers
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/faelmori/golife/internal/types"
+	"github.com/faelmori/golife/internal/utils"
+)
 
 type EventLayer struct {
-	ThreadingConfig
-	Telemetry
+	utils.ThreadingConfig
+	types.Telemetry
 
 	Scope     string
 	Events    map[string]func(...any) error
-	Listeners []GenericChannelCallback[any]
+	Listeners []utils.BasicGenericCallback[any]
 }
 
 func NewEventLayer(scope string) *EventLayer {
 	return &EventLayer{
-		ThreadingConfig: *NewThreadingConfig(),
-		Telemetry:       *NewTelemetry(),
+		ThreadingConfig: *utils.NewThreadingConfig(),
+		Telemetry:       *types.NewTelemetry(),
 		Scope:           scope,
 		Events:          make(map[string]func(...any) error),
 	}

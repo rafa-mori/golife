@@ -2,6 +2,8 @@ package types
 
 import (
 	"fmt"
+	"github.com/faelmori/golife/internal/property"
+	"github.com/faelmori/golife/internal/utils"
 	c "github.com/faelmori/golife/services"
 	"github.com/google/uuid"
 )
@@ -10,7 +12,7 @@ type ManagerConfig struct {
 	// Telemetry configuration
 	Telemetry
 	// Threading configuration
-	ThreadingConfig
+	utils.ThreadingConfig
 	// ID and Reference
 	ID uuid.UUID
 
@@ -28,7 +30,7 @@ type ManagerConfig struct {
 	// Manager Routines
 	RoutineConfigMap map[string]*RoutineConfig
 	// Manager Properties
-	ManagerProperties map[string]Property[any]
+	ManagerProperties map[string]property.Property[any]
 	// Manager Agents
 	ManagerAgentsMap map[string]c.IChannel[any, int]
 	// Manager Stages
@@ -44,9 +46,9 @@ type ManagerConfig struct {
 func NewManagerConfig() *ManagerConfig {
 	return &ManagerConfig{
 		Telemetry:         *NewTelemetry(),
-		ThreadingConfig:   *NewThreadingConfig(),
+		ThreadingConfig:   *utils.NewThreadingConfig(),
 		ID:                uuid.New(),
-		ManagerProperties: make(map[string]Property[any]),
+		ManagerProperties: make(map[string]property.Property[any]),
 		ManagerAgentsMap:  make(map[string]c.IChannel[any, int]),
 
 		RoutineConfigMap: make(map[string]*RoutineConfig),
