@@ -2,9 +2,10 @@ package workers
 
 import (
 	"fmt"
-	"github.com/faelmori/golife/internal/routines/chan"
+	"github.com/faelmori/golife/internal/routines/agents"
 	t "github.com/faelmori/golife/internal/types"
 	u "github.com/faelmori/golife/internal/utils"
+	"github.com/faelmori/golife/services"
 	l "github.com/faelmori/logz"
 	"github.com/google/uuid"
 	"sync"
@@ -21,10 +22,10 @@ type WorkerPool struct {
 
 	// Channels
 
-	jobChannel  _chan.IChannel[t.IJob, int]    // Canal de trabalho do pool
-	jobQueue    _chan.IChannel[t.IAction, int] // Canal de trabalho do pool
-	resultQueue _chan.IChannel[t.IResult, int] // Canal de resultados do pool
-	doneChannel chan struct{}                  // Canal de resultados do pool
+	jobChannel  services.IChannel[t.IJob[any], int]    // Canal de trabalho do pool
+	jobQueue    services.IChannel[t.IAction[any], int] // Canal de trabalho do pool
+	resultQueue services.IChannel[t.IResult, int]      // Canal de resultados do pool
+	doneChannel chan struct{}                          // Canal de resultados do pool
 }
 
 // NewWorkerPool cria um novo WorkerPool com propriedades genéricas
@@ -32,9 +33,9 @@ func NewWorkerPool(workerLimit int, logger l.Logger) t.IWorkerPool {
 	if logger == nil {
 		logger = l.GetLogger("Kubex")
 	}
-	var iJob t.IJob
+	var iJob t.IJob[any]
 	var iResult t.IResult
-	var iAction t.IAction
+	var iAction t.IAction[any]
 	wp := &WorkerPool{
 		mu:          sync.RWMutex{},
 		wg:          sync.WaitGroup{},
@@ -42,9 +43,9 @@ func NewWorkerPool(workerLimit int, logger l.Logger) t.IWorkerPool {
 		ID:          uuid.NewString(),
 		Properties:  make(map[string]t.Property[any]),
 		workers:     make([]t.IWorker, workerLimit),
-		jobQueue:    _chan.NewChannel[t.IAction, int]("jobQueue", &iAction, 100),
-		jobChannel:  _chan.NewChannel[t.IJob, int]("jobChannel", &iJob, 100),
-		resultQueue: _chan.NewChannel[t.IResult, int]("resultQueue", &iResult, 100),
+		jobQueue:    agents.NewChannel[t.IAction[any], int]("jobQueue", &iAction, 100),
+		jobChannel:  agents.NewChannel[t.IJob[any], int]("jobChannel", &iJob, 100),
+		resultQueue: agents.NewChannel[t.IResult, int]("resultQueue", &iResult, 100),
 		doneChannel: make(chan struct{}, 5),
 	}
 
@@ -105,7 +106,7 @@ func (wp *WorkerPool) GetWorkerCount() int {
 }
 
 // GetPoolJobChannel retorna o canal de trabalho do pool
-func (wp *WorkerPool) GetPoolJobChannel() (_chan.IChannel[t.IJob, int], error) {
+func (wp *WorkerPool) GetPoolJobChannel() (services.IChannel[t.IJob[any], int], error) {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
 	if wp.jobChannel != nil {
@@ -115,7 +116,7 @@ func (wp *WorkerPool) GetPoolJobChannel() (_chan.IChannel[t.IJob, int], error) {
 }
 
 // GetPoolResultChannel retorna o canal de resultados do pool
-func (wp *WorkerPool) GetPoolResultChannel() (_chan.IChannel[t.IResult, int], error) {
+func (wp *WorkerPool) GetPoolResultChannel() (services.IChannel[t.IResult, int], error) {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
 	if wp.resultQueue != nil {
@@ -125,7 +126,7 @@ func (wp *WorkerPool) GetPoolResultChannel() (_chan.IChannel[t.IResult, int], er
 }
 
 // GetJobQueue retorna o canal de trabalho do pool
-func (wp *WorkerPool) GetJobQueue(workerID int) (_chan.IChannel[t.IAction, int], error) {
+func (wp *WorkerPool) GetJobQueue(workerID int) (services.IChannel[t.IAction[any], int], error) {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
 	if workerID < 0 || workerID >= len(wp.workers) {
@@ -168,7 +169,7 @@ func (wp *WorkerPool) GetWorker(workerID int) (t.IWorker, error) {
 }
 
 // GetWorkerChannel retorna o canal de trabalho de um worker específico
-func (wp *WorkerPool) GetWorkerChannel(workerID int) (_chan.IChannel[t.IJob, int], error) {
+func (wp *WorkerPool) GetWorkerChannel(workerID int) (services.IChannel[t.IJob[any], int], error) {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
 	if workerID < 0 || workerID >= len(wp.workers) {
@@ -178,7 +179,7 @@ func (wp *WorkerPool) GetWorkerChannel(workerID int) (_chan.IChannel[t.IJob, int
 }
 
 // GetResultChannel retorna o canal de resultados de um worker específico
-func (wp *WorkerPool) GetResultChannel(workerID int) (_chan.IChannel[t.IResult, int], error) {
+func (wp *WorkerPool) GetResultChannel(workerID int) (services.IChannel[t.IResult, int], error) {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
 	if workerID < 0 || workerID >= len(wp.workers) {
@@ -208,7 +209,7 @@ func (wp *WorkerPool) Debug() {
 }
 
 // SendToWorker envia um trabalho para um worker específico
-func (wp *WorkerPool) SendToWorker(workerID int, job t.IJob) error {
+func (wp *WorkerPool) SendToWorker(workerID int, job any) error {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
 
@@ -239,7 +240,7 @@ func (wp *WorkerPool) AddListener(event string, listener t.ChangeListener[any]) 
 	wp.mu.Lock()
 	defer wp.mu.Unlock()
 	if property, ok := wp.Properties[event]; ok {
-		var ltn t.ChangeListener[any] = func(oldValue, newValue any, metadata t.ChangeEventMetadata) t.ListenerResponse {
+		var ltn t.ChangeListener[any] = func(oldValue, newValue any, metadata t.EventMetadata) t.ListenerResponse {
 			return listener(oldValue, newValue, metadata)
 		}
 		if err := property.AddListener(event, ltn); err != nil {
@@ -328,7 +329,7 @@ func (wp *WorkerPool) validateWorkerID(workerID int) error {
 }
 
 // getWorkerChannel retorna o canal de um worker específico
-func (wp *WorkerPool) getWorkerChannel(workerID int, channelFunc func(t.IWorker) _chan.IChannel[t.IJob, int]) (_chan.IChannel[t.IJob, int], error) {
+func (wp *WorkerPool) getWorkerChannel(workerID int, channelFunc func(t.IWorker) services.IChannel[t.IJob[any], int]) (services.IChannel[t.IJob[any], int], error) {
 	if err := wp.validateWorkerID(workerID); err != nil {
 		return nil, err
 	}

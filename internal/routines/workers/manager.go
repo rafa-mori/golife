@@ -2,7 +2,7 @@ package workers
 
 import (
 	"fmt"
-	c "github.com/faelmori/golife/internal/routines/chan"
+	c "github.com/faelmori/golife/internal/routines/agents"
 	t "github.com/faelmori/golife/internal/types"
 	l "github.com/faelmori/logz"
 	"github.com/google/uuid"
@@ -12,13 +12,16 @@ import (
 
 type WorkerManager[T any] struct {
 	t.IWorkerManager[T]
+	ID string
 
-	mu         sync.RWMutex
-	wg         sync.WaitGroup
-	logger     l.Logger
-	ID         string
+	mu   sync.RWMutex
+	wg   sync.WaitGroup
+	cond *sync.Cond
+
+	logger l.Logger
+
 	Properties map[string]t.Property[any]
-	//workerPool WorkerPool
+
 	workerPool t.IWorkerPool //t.IWorkerPool
 }
 
@@ -28,13 +31,17 @@ func NewWorkerManager[T any](pool t.IWorkerPool, logger l.Logger) t.IWorkerManag
 		logger = l.GetLogger("Kubex")
 	}
 	wm := &WorkerManager[T]{
-		mu:         sync.RWMutex{},
-		wg:         sync.WaitGroup{},
-		logger:     logger,
-		ID:         uuid.NewString(),
+		ID: uuid.NewString(),
+
+		logger: logger,
+
+		mu:   sync.RWMutex{},
+		wg:   sync.WaitGroup{},
+		cond: sync.NewCond(&sync.Mutex{}),
+
 		Properties: make(map[string]t.Property[any]),
+
 		workerPool: pool,
-		//WorkerPool: pool,
 	}
 
 	// Propriedades de controle
@@ -49,7 +56,31 @@ func NewWorkerManager[T any](pool t.IWorkerPool, logger l.Logger) t.IWorkerManag
 }
 
 // AddWorker adiciona um worker ao pool
-func (wm *WorkerManager[T]) AddWorker(worker t.IWorker) error {
+func (wm *WorkerManager[T]) AddWorker() (t.IWorker, error) {
+	wm.mu.Lock()
+	defer wm.mu.Unlock()
+
+	if wm.workerPool.GetWorkerPool() == nil {
+		if err := wm.workerPool.SetWorkerPool(make([]t.IWorker, 0)); err != nil {
+			return nil, err
+		}
+	}
+	if len(wm.workerPool.GetWorkerPool()) >= wm.Properties["workerLimit"].GetValue().(int) {
+		return nil, fmt.Errorf("worker limit reached")
+	}
+
+	worker := NewWorker(wm.Properties["workerCount"].GetValue().(int), wm.logger)
+	if err := wm.workerPool.AddWorker(wm.Properties["workerCount"].GetValue().(int), worker); err != nil {
+		return nil, err
+	}
+	if setValErr := wm.Properties["workerCount"].SetValue(len(wm.workerPool.(*WorkerPool).workers), nil); setValErr != nil {
+		return nil, setValErr
+	}
+	return worker, nil
+}
+
+// AddWorkerObj adiciona um worker ao pool
+func (wm *WorkerManager[T]) AddWorkerObj(worker t.IWorker) error {
 	wm.mu.Lock()
 	defer wm.mu.Unlock()
 

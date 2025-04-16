@@ -1,7 +1,7 @@
 package types
 
 import (
-	t "github.com/faelmori/golife/internal/types"
+	c "github.com/faelmori/golife/services"
 	"github.com/google/uuid"
 )
 
@@ -13,9 +13,9 @@ type StageConfig struct {
 	// ID and Reference
 	ID uuid.UUID
 	// Stage Properties
-	StageProperties map[string]t.Property[any]
+	StageProperties map[string]Property[any]
 	// Stage Agents
-	StageAgents map[string]t.IChannel[any, int]
+	StageAgents map[string]c.IChannel[any, int]
 	// Event Map
 	EventConfigMap map[string]EventsConfig
 }
@@ -25,8 +25,8 @@ func NewStageConfig() *StageConfig {
 		Telemetry:       *NewTelemetry(),
 		ThreadingConfig: *NewThreadingConfig(),
 		ID:              uuid.New(),
-		StageProperties: make(map[string]t.Property[any]),
-		StageAgents:     make(map[string]t.IChannel[any, int]),
+		StageProperties: make(map[string]Property[any]),
+		StageAgents:     make(map[string]c.IChannel[any, int]),
 		EventConfigMap:  make(map[string]EventsConfig),
 	}
 }

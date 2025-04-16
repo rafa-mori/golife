@@ -1,7 +1,6 @@
 package types
 
 import (
-	t "github.com/faelmori/golife/internal/types"
 	"github.com/google/uuid"
 )
 
@@ -13,9 +12,7 @@ type CommandConfig struct {
 	// ID and Reference
 	ID uuid.UUID
 	// Command Properties
-	CmdProperties map[string]t.Property[any]
-	// Command Agents
-	CmdAgents map[string]t.IChannel[any, int]
+	CmdProperties map[string]Property[any]
 }
 
 func NewCommandConfig() *CommandConfig {
@@ -23,7 +20,6 @@ func NewCommandConfig() *CommandConfig {
 		Telemetry:       *NewTelemetry(),
 		ThreadingConfig: *NewThreadingConfig(),
 		ID:              uuid.New(),
-		CmdProperties:   make(map[string]t.Property[any]),
-		CmdAgents:       make(map[string]t.IChannel[any, int]),
+		CmdProperties:   make(map[string]Property[any]),
 	}
 }

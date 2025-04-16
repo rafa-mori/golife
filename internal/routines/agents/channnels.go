@@ -1,6 +1,7 @@
-package _chan
+package agents
 
 import (
+	"github.com/faelmori/golife/services"
 	"reflect"
 	"sync"
 	"sync/atomic"
@@ -9,7 +10,7 @@ import (
 // channel is a struct that implements the IChannel and IDynChan interfaces.
 // It provides a more complex implementation of a channel with monitoring capabilities.
 type channel[T any, N int] struct {
-	IChannel[T, N]
+	services.IChannel[T, N]
 
 	mu           sync.Mutex        // Mutex for thread-safe operations.
 	wg           sync.WaitGroup    // WaitGroup for goroutines.
@@ -25,7 +26,7 @@ type channel[T any, N int] struct {
 
 // NewLoaderChanInterface creates a new channel with a name, type, and buffer size.
 // It returns an instance of IChannel.
-func NewLoaderChanInterface[T any, N int](name string, tp *T, buffers N) IChannel[T, N] {
+func NewLoaderChanInterface[T any, N int](name string, tp *T, buffers N) services.IChannel[T, N] {
 	ch := &channel[T, N]{
 		name:     name,
 		buffers:  buffers,
@@ -46,7 +47,7 @@ func NewLoaderChanInterface[T any, N int](name string, tp *T, buffers N) IChanne
 
 // NewChannel creates a new channel with a name, type, and buffer size.
 // It returns an instance of IChannel.
-func NewChannel[T any, N int](name string, tp *T, buffers N) IChannel[T, N] {
+func NewChannel[T any, N int](name string, tp *T, buffers N) services.IChannel[T, N] {
 	ch := &channel[T, N]{
 		name:     name,
 		buffers:  buffers,
@@ -130,7 +131,7 @@ func (c *channel[T, N]) SetLast(v any) error {
 		c.chanSys <- v
 	}
 	if c.chanT != nil {
-		c.chanT <- v
+		c.chanT <- v.(T)
 	}
 	return nil
 }
@@ -249,7 +250,7 @@ func (c *channel[T, N]) Send(v any) error {
 	if c.chanSys == nil {
 		c.chanSys = make(chan any, 10)
 	}
-	c.chanT <- v
+	c.chanT <- v.(T)
 	if c.chanSys != nil {
 		c.chanSys <- v
 	}

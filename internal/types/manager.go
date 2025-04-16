@@ -2,7 +2,7 @@ package types
 
 import (
 	"fmt"
-	c "github.com/faelmori/golife/internal/routines/chan"
+	c "github.com/faelmori/golife/services"
 	"github.com/google/uuid"
 )
 

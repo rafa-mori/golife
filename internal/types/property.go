@@ -2,7 +2,7 @@ package types
 
 import (
 	"fmt"
-	"github.com/faelmori/golife/internal/routines/chan"
+	"github.com/faelmori/golife/services"
 	"reflect"
 	"sync/atomic"
 	"time"
@@ -12,28 +12,28 @@ import (
 type ListenerResponse struct {
 	Success  bool
 	ErrorMsg string
-	Metadata ChangeEventMetadata
+	Metadata EventMetadata
 }
 
 // Metadata represents a map of metadata key-value pairs.
 type Metadata map[string]interface{}
 
-// ChangeEventMetadata represents metadata for a change event.
-type ChangeEventMetadata struct {
+// EventMetadata represents metadata for a change event.
+type EventMetadata struct {
 	Timestamp string
 	Source    string
 	Details   map[string]interface{}
 }
 
 // ChangeListener is a function type that takes two values of type T and returns a ListenerResponse.
-type ChangeListener[T any] func(oldValue T, newValue T, metadata ChangeEventMetadata) ListenerResponse
+type ChangeListener[T any] func(oldValue T, newValue T, metadata EventMetadata) ListenerResponse
 
 // NewListener creates a new ChangeListener with the specified name and listener function.
 func NewListener[T any](name string, listener ChangeListener[T]) ChangeListener[T] {
 	if listener == nil {
 		return nil
 	}
-	var nLtn ChangeListener[T] = func(oldValue, newValue T, metadata ChangeEventMetadata) ListenerResponse {
+	var nLtn ChangeListener[T] = func(oldValue, newValue T, metadata EventMetadata) ListenerResponse {
 		if reflect.TypeFor[T]() == reflect.TypeOf(oldValue) && reflect.TypeFor[T]() == reflect.TypeOf(newValue) {
 			res := listener(oldValue, newValue, metadata)
 			if res.Success {
@@ -42,7 +42,7 @@ func NewListener[T any](name string, listener ChangeListener[T]) ChangeListener[
 				return ListenerResponse{
 					Success:  false,
 					ErrorMsg: res.ErrorMsg,
-					Metadata: ChangeEventMetadata{
+					Metadata: EventMetadata{
 						Timestamp: time.Now().String(),
 						Source:    "WorkerPool",
 						Details: map[string]interface{}{
@@ -55,7 +55,7 @@ func NewListener[T any](name string, listener ChangeListener[T]) ChangeListener[
 		return ListenerResponse{
 			Success:  false,
 			ErrorMsg: fmt.Sprintf("type mismatch: expected %s, got %s", reflect.TypeFor[T]().String(), reflect.TypeOf(oldValue).String()),
-			Metadata: ChangeEventMetadata{
+			Metadata: EventMetadata{
 				Timestamp: time.Now().String(),
 				Source:    "WorkerPool",
 				Details: map[string]interface{}{
@@ -68,12 +68,12 @@ func NewListener[T any](name string, listener ChangeListener[T]) ChangeListener[
 }
 
 // n is a no-op function that returns a ListenerResponse.
-func (cl ChangeListener[T]) n(oldValue, newValue T, metadata ChangeEventMetadata) ListenerResponse {
+func (cl ChangeListener[T]) n(oldValue, newValue T, metadata EventMetadata) ListenerResponse {
 	if cl == nil {
 		return ListenerResponse{
 			Success:  false,
 			ErrorMsg: "ChangeListener is nil",
-			Metadata: ChangeEventMetadata{
+			Metadata: EventMetadata{
 				Timestamp: metadata.Timestamp,
 				Source:    metadata.Source,
 				Details: map[string]interface{}{
@@ -86,22 +86,22 @@ func (cl ChangeListener[T]) n(oldValue, newValue T, metadata ChangeEventMetadata
 }
 
 // m is a method that takes two values of type any and returns a ListenerResponse.
-func (cl ChangeListener[T]) m(oldValue, newValue any, metadata ChangeEventMetadata) *ListenerResponse {
+func (cl ChangeListener[T]) m(oldValue, newValue any, metadata EventMetadata) ListenerResponse {
 	if cl == nil {
-		return &ListenerResponse{Success: false, ErrorMsg: "Listener cannot be nil", Metadata: metadata}
+		return ListenerResponse{Success: false, ErrorMsg: "Listener cannot be nil", Metadata: metadata}
 	}
-	listenerResponse := cl(oldValue, newValue, metadata)
+	listenerResponse := cl(oldValue.(T), newValue.(T), metadata)
 	if listenerResponse.ErrorMsg != "" {
-		return &ListenerResponse{Success: false, ErrorMsg: listenerResponse.ErrorMsg, Metadata: metadata}
+		return ListenerResponse{Success: false, ErrorMsg: listenerResponse.ErrorMsg, Metadata: metadata}
 	}
-	return &ListenerResponse{Success: true, Metadata: metadata}
+	return ListenerResponse{Success: true, Metadata: metadata}
 }
 
 func (cl ChangeListener[T]) Broadcast(oldValue, newValue T) {
 	if cl == nil {
 		return
 	}
-	listenerResponse := cl(oldValue, newValue, ChangeEventMetadata{
+	listenerResponse := cl(oldValue, newValue, EventMetadata{
 		Timestamp: time.Now().String(),
 		Source:    "WorkerPool",
 		Details: map[string]interface{}{
@@ -162,9 +162,9 @@ type PropertyBase interface {
 
 type PropertyChanCtl[T any] interface {
 	// GetChannel retrieves the channel for receiving updates to the property value.
-	GetChannel() _chan.IChannel[any, int]
+	GetChannel() services.IChannel[any, int]
 	// SetChannel sets the channel for receiving updates to the property value.
-	SetChannel(_chan.IChannel[any, int])
+	SetChannel(services.IChannel[any, int])
 	// GetChannelValue retrieves the value from the channel.
 	GetChannelValue() any
 	// SetChannelValue sets the value in the channel.
@@ -197,13 +197,37 @@ type KubexProperty[T any] struct {
 	// value is the current value of the property.
 	value atomic.Pointer[T]
 	// IChannel is the channel for receiving updates to the property value.
-	chanCtl _chan.IChannel[T, int]
+	chanCtl services.IChannel[T, int]
 	// validators is a list of validation functions for the property value.
 	validators []func(T) error
 	// listeners is a list of change listeners for the property value.
-	listeners map[string]ChangeListener[any]
+	listeners map[string]ChangeListener[T]
 
 	mu IThreading
+}
+
+// NewProperty creates a new property with the specified name and optional initial value.
+// If the value is nil, the property is initialized with the zero value of type T.
+// NewProperty creates a new property with the specified name and optional initial value.
+func NewPropertyWithType[T any](name string, value *T) *KubexProperty[T] {
+	var defaultValue T
+	kbxProp := KubexProperty[T]{
+		name:       name,
+		metadata:   make(Metadata),
+		validators: make([]func(T) error, 0),
+		listeners:  make(map[string]ChangeListener[T]),
+	}
+	if value == nil {
+		return &kbxProp
+	} else {
+		if reflect.TypeFor[T]() == reflect.TypeOf(value) {
+			defaultValue = reflect.New(reflect.TypeFor[T]()).Interface().(T)
+		} else {
+			defaultValue = *value
+		}
+		kbxProp.value.Store(&defaultValue)
+		return &kbxProp
+	}
 }
 
 // NewProperty creates a new property with the specified name and optional initial value.
@@ -215,7 +239,7 @@ func NewProperty[T any](name string, value *T) Property[any] {
 		name:       name,
 		metadata:   make(Metadata),
 		validators: make([]func(T) error, 0),
-		listeners:  make(map[string]ChangeListener[any]),
+		listeners:  make(map[string]ChangeListener[T]),
 	}
 	if value == nil {
 		return &kbxProp
@@ -281,7 +305,7 @@ func (bp *KubexProperty[T]) SetValue(value any, cb func(any) error) error {
 	if err := bp.validateAndSet(value); err != nil {
 		return err
 	}
-	bp.notifyListeners(oldValue, value, ChangeEventMetadata{
+	bp.notifyListeners(oldValue, value, EventMetadata{
 		Timestamp: "2023-10-01T00:00:00Z",
 		Source:    "KubexProperty",
 		Details: map[string]interface{}{
@@ -300,10 +324,10 @@ func (bp *KubexProperty[T]) SetValue(value any, cb func(any) error) error {
 }
 
 // GetChannel retrieves the channel for receiving updates to the property value.
-func (bp *KubexProperty[T]) GetChannel() _chan.IChannel[any, int] { return bp.chanCtl }
+func (bp *KubexProperty[T]) GetChannel() services.IChannel[any, int] { return bp.chanCtl }
 
 // SetChannel sets the channel for receiving updates to the property value.
-func (bp *KubexProperty[T]) SetChannel(channel _chan.IChannel[any, int]) {
+func (bp *KubexProperty[T]) SetChannel(channel services.IChannel[any, int]) {
 	bp.chanCtl = channel
 }
 
@@ -350,9 +374,9 @@ func (bp *KubexProperty[T]) AddListener(name string, listener ChangeListener[any
 	if _, exists := bp.listeners[name]; exists {
 		return fmt.Errorf("listener with name %s already exists", name)
 	}
-	var ltn ChangeListener[any] = func(oldValue, newValue any, metadata ChangeEventMetadata) ListenerResponse {
+	var ltn ChangeListener[T] = func(oldValue, newValue T, metadata EventMetadata) ListenerResponse {
 		if reflect.TypeFor[T]() == reflect.TypeOf(oldValue) && reflect.TypeFor[T]() == reflect.TypeOf(newValue) {
-			meta := ChangeEventMetadata{
+			meta := EventMetadata{
 				Timestamp: "2023-10-01T00:00:00Z",
 				Source:    "KubexProperty",
 				Details: map[string]interface{}{
@@ -364,7 +388,7 @@ func (bp *KubexProperty[T]) AddListener(name string, listener ChangeListener[any
 			return ListenerResponse{
 				Success:  false,
 				ErrorMsg: "Type mismatch in listener",
-				Metadata: ChangeEventMetadata{
+				Metadata: EventMetadata{
 					Timestamp: "2023-10-01T00:00:00Z",
 					Source:    "KubexProperty",
 					Details: map[string]interface{}{
@@ -385,7 +409,7 @@ func (bp *KubexProperty[T]) BroadcastChange(oldValue, newValue any) {
 			ch <- newValue
 		}
 	}
-	bp.notifyListeners(oldValue, newValue, ChangeEventMetadata{
+	bp.notifyListeners(oldValue, newValue, EventMetadata{
 		Timestamp: "2023-10-01T00:00:00Z",
 		Source:    "KubexProperty",
 		Details: map[string]interface{}{
@@ -394,7 +418,7 @@ func (bp *KubexProperty[T]) BroadcastChange(oldValue, newValue any) {
 	})
 }
 
-func (bp *KubexProperty[T]) notifyListeners(oldValue, newValue any, metadata ChangeEventMetadata) {
+func (bp *KubexProperty[T]) notifyListeners(oldValue, newValue any, metadata EventMetadata) {
 	for _, listener := range bp.listeners {
 		listenerResponse := listener(oldValue.(T), newValue.(T), metadata)
 		if listenerResponse.ErrorMsg != "" {

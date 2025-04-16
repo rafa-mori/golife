@@ -3,8 +3,9 @@ package actions
 import (
 	"fmt"
 	t "github.com/faelmori/gastype/types"
-	c "github.com/faelmori/golife/internal/routines/chan"
+	c "github.com/faelmori/golife/internal/routines/agents"
 	"github.com/faelmori/golife/internal/types"
+	"github.com/faelmori/golife/services"
 	"github.com/google/uuid"
 	"reflect"
 	"sync"
@@ -23,8 +24,8 @@ type IAction[T any] interface {
 	CanExecute() bool
 	Execute() error
 	Cancel() error
-	GetResultChannel() chan any
-	GetErrorChannel() chan any
+	GetErrorChannel() chan error
+	GetResultChannel() chan T
 	GetDoneChannel() chan any
 	GetCancelChannel() chan any
 	GetProperties() map[string]types.Property[any]
@@ -47,11 +48,12 @@ type Action[T any] struct {
 	isRunning bool         // Indicates whether the action is currently running.
 
 	// New Fields - Let's do it the insane (moderate) way! hehehehe
-	Errors     []error                         // List of errors associated with the action.
-	Results    map[string]t.IResult            // Map of results associated with the action.
-	mapChan    map[string]c.IChannel[any, int] // Map of channels associated with the action.
-	Properties map[string]types.Property[any]  // Map of properties associated with the action.
-	task       func(T) error                   // Task associated with the action. .
+	Errors     []error                                // List of errors associated with the action.
+	Results    map[string]t.IResult                   // Map of results associated with the action.
+	mapChan    map[string]services.IChannel[any, int] // Map of channels associated with the action.
+	Properties map[string]types.Property[any]         // Map of properties associated with the action.
+	task       func(T) error                          // Task associated with the action. .
+	data       T                                      // Data associated with the action.
 }
 
 // NewAction creates a new action with the specified type.
@@ -73,7 +75,7 @@ func NewAction[T any](identifier string, actionType string, data *T, ev func(T) 
 			// New Fields - Let's do it the insane (moderate) way! hehehehe
 			Errors:     make([]error, 0),
 			Results:    make(map[string]t.IResult),
-			mapChan:    make(map[string]c.IChannel[any, int]),
+			mapChan:    make(map[string]services.IChannel[any, int]),
 			Properties: make(map[string]types.Property[any]),
 			task: func(data T) error {
 				if ev != nil {
@@ -100,7 +102,7 @@ func NewAction[T any](identifier string, actionType string, data *T, ev func(T) 
 	actA.Properties["data"] = types.NewProperty[T]("data", nil)
 	_ = actA.Properties["data"].SetValue(*data, nil)
 
-	if err := actA.Properties["status"].AddListener("onStatusChange", func(oldValue, newValue any, metadata types.ChangeEventMetadata) types.ListenerResponse {
+	if err := actA.Properties["status"].AddListener("onStatusChange", func(oldValue, newValue any, metadata types.EventMetadata) types.ListenerResponse {
 		fmt.Printf("Action %s changed status: %v -> %v\n", actA.ID, oldValue, newValue)
 		return types.ListenerResponse{Success: true}
 	}); err != nil {
@@ -226,15 +228,15 @@ func (ac *Action[T]) Cancel() error {
 // GetResultChannel retrieves the channel used to communicate action results.
 // Returns:
 //   - chan t.IResult: The result channel (currently nil).
-func (ac *Action[T]) GetResultChannel() chan any {
+func (ac *Action[T]) GetResultChannel() chan T {
 	ac.mu.RLock()
 	defer ac.mu.RUnlock()
 	if ac.mapChan["result"] == nil {
 		return nil
 	}
 	if ch, _ := ac.mapChan["result"].GetChan(); ch != nil {
-		if reflect.TypeOf(ch) == reflect.TypeOf(make(chan t.IResult)) {
-			return ch
+		if reflect.TypeOf(ch) == reflect.TypeOf(make(chan T)) {
+			return reflect.ValueOf(ch).Interface().(chan T)
 		}
 	}
 	return nil
@@ -243,7 +245,7 @@ func (ac *Action[T]) GetResultChannel() chan any {
 // GetErrorChannel retrieves the channel used to communicate errors.
 // Returns:
 //   - chan error: The error channel (currently nil).
-func (ac *Action[T]) GetErrorChannel() chan any {
+func (ac *Action[T]) GetErrorChannel() chan error {
 	ac.mu.RLock()
 	defer ac.mu.RUnlock()
 	if ac.mapChan["error"] == nil {
@@ -251,7 +253,7 @@ func (ac *Action[T]) GetErrorChannel() chan any {
 	}
 	if ch, _ := ac.mapChan["error"].GetChan(); ch != nil {
 		if reflect.TypeOf(ch) == reflect.TypeOf(make(chan error)) {
-			return ch
+			return reflect.ValueOf(ch).Interface().(chan error)
 		}
 	}
 	return nil

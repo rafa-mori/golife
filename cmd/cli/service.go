@@ -4,8 +4,8 @@ import (
 	"fmt"
 	. "github.com/faelmori/golife/internal"
 	. "github.com/faelmori/golife/internal/process"
-	. "github.com/faelmori/golife/internal/routines/taskz"
 	. "github.com/faelmori/golife/internal/routines/taskz/events"
+	. "github.com/faelmori/golife/internal/routines/taskz/stage"
 	l "github.com/faelmori/logz"
 	"github.com/spf13/cobra"
 	"os"
@@ -256,7 +256,7 @@ func createManager(processName, processCmd string, stages []string, processEvent
 	var eventsCh = make(chan IManagedProcessEvents, 1)
 
 	for _, stage := range stages {
-		iStage := NewStage(stage, stage, "stage")
+		iStage := stage.NewStage(stage, stage, "stage")
 		iStages[stage] = iStage
 	}
 

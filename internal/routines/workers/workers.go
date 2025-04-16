@@ -2,48 +2,68 @@ package workers
 
 import (
 	"fmt"
-	"github.com/faelmori/golife/internal/routines/chan"
+	"github.com/faelmori/golife/internal/routines/agents"
 	t "github.com/faelmori/golife/internal/types"
+	"github.com/faelmori/golife/services"
 	l "github.com/faelmori/logz"
 	"sync"
 )
 
 type Worker struct {
 	t.IWorker
-	mu             sync.RWMutex
-	wg             sync.WaitGroup
-	logger         l.Logger
-	ID             int
-	Properties     map[string]t.Property[any]
-	JobChannel     _chan.IChannel[t.IJob, int]    // Canal de trabalho do worker
-	ResultChannel  _chan.IChannel[t.IResult, int] // Canal de resultados do worker
-	JobQueue       _chan.IChannel[t.IAction, int] // Canal de trabalho do worker
-	StopChannel    chan struct{}                  // Canal de parada do worker
-	JobQueueSize   int                            // Tamanho do buffer para os canais (Max 100)
-	JobChannelSize int                            // Tamanho do buffer para os canais (Max 100)
+	ID int
+
+	logger l.Logger
+
+	mu   sync.RWMutex
+	muL  sync.RWMutex
+	wg   sync.WaitGroup
+	cond *sync.Cond
+
+	properties map[string]t.Property[any]
+	// The size is implicitly defined with the new instance of the interface IChannel.
+	//
+	// Definition of the channel:
+	//
+	//		IChannel[T - chan Type, N - buffer size]
+	//
+	jobChannel    services.IChannel[t.IJob[any], int]    // Canal de trabalho do worker,
+	resultChannel services.IChannel[t.IResult, int]      // Canal de resultados do worker
+	jobQueue      services.IChannel[t.IAction[any], int] // Canal de trabalho do worker
+
+	stopChannel chan struct{} // Canal de parada do worker
 }
 
 // NewWorker cria um novo Worker com propriedades genéricas
 func NewWorker(workerID int, logger l.Logger) t.IWorker {
+	// Create a new logger if none is provided
 	if logger == nil {
 		logger = l.GetLogger("Kubex")
 	}
+
+	// Create a new worker with the provided ID and logger
 	w := &Worker{
-		mu:             sync.RWMutex{},
-		wg:             sync.WaitGroup{},
-		logger:         logger,
-		ID:             workerID,
-		Properties:     make(map[string]t.Property[any]),
-		JobChannel:     _chan.NewChannel[t.IJob, int]("jobChannel", nil, 100),
-		ResultChannel:  _chan.NewChannel[t.IResult, int]("resultChannel", nil, 100),
-		JobQueue:       _chan.NewChannel[t.IAction, int]("jobQueue", nil, 100),
-		StopChannel:    make(chan struct{}, 5),
-		JobQueueSize:   100,
-		JobChannelSize: 100,
+		ID: workerID,
+
+		logger: logger,
+
+		mu: sync.RWMutex{},
+		wg: sync.WaitGroup{},
+
+		properties:    make(map[string]t.Property[any]),
+		jobChannel:    agents.NewChannel[t.IJob[any], int]("jobChannel", nil, 100),
+		resultChannel: agents.NewChannel[t.IResult, int]("resultChannel", nil, 100),
+		jobQueue:      agents.NewChannel[t.IAction[any], int]("jobQueue", nil, 100),
+		stopChannel:   make(chan struct{}, 2),
 	}
 
-	w.Properties["status"] = t.NewProperty[string]("status", nil)
-	_ = w.Properties["status"].SetValue("Stopped", nil)
+	w.cond = sync.NewCond(func(wb *Worker) *sync.RWMutex {
+		wb.muL = sync.RWMutex{}
+		return &wb.muL
+	}(w))
+
+	w.properties["status"] = t.NewProperty[string]("status", nil)
+	_ = w.properties["status"].SetValue("Stopped", nil)
 
 	return w
 }
@@ -57,7 +77,7 @@ func (w *Worker) GetWorkerID() int {
 func (w *Worker) GetStatus() string {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
-	if status, ok := w.Properties["status"]; ok {
+	if status, ok := w.properties["status"]; ok {
 		return status.GetValue().(string)
 	} else {
 		return "Unknown"
@@ -71,7 +91,7 @@ func (w *Worker) StartWorkers() {
 		return
 	}
 
-	_ = w.Properties["status"].SetValue("Running", nil)
+	_ = w.properties["status"].SetValue("Running", nil)
 	go func(wk t.IWorker) {
 
 		w.wg.Add(1)
@@ -79,35 +99,35 @@ func (w *Worker) StartWorkers() {
 		defer func(wkk t.IWorker) {
 			if r := recover(); r != nil {
 				wkk.Logger().ErrorCtx(fmt.Sprintf("Recovered from panic: %v", r), nil)
-				_ = w.Properties["status"].SetValue("Stopped", nil)
+				_ = w.properties["status"].SetValue("Stopped", nil)
 			} else {
 				w.logger.InfoCtx("Worker stopped", nil)
 
-				w.JobChannel.StopSysMonitor()
-				w.ResultChannel.StopSysMonitor()
-				w.JobQueue.StopSysMonitor()
+				w.jobChannel.StopSysMonitor()
+				w.resultChannel.StopSysMonitor()
+				w.jobQueue.StopSysMonitor()
 
-				_ = w.JobChannel.Close()
-				_ = w.ResultChannel.Close()
-				_ = w.JobQueue.Close()
+				_ = w.jobChannel.Close()
+				_ = w.resultChannel.Close()
+				_ = w.jobQueue.Close()
 
 				w.wg.Done()
 			}
 		}(wk)
 
 		defer w.wg.Done()
-		defer close(w.StopChannel)
+		defer close(w.stopChannel)
 
 		for {
-			iJob, _ := w.JobChannel.GetChan()
-			iRes, _ := w.ResultChannel.GetChan()
+			iJob, _ := w.jobChannel.GetChan()
+			iRes, _ := w.resultChannel.GetChan()
 			select {
 			case job := <-iJob:
 				if job == nil {
 					w.logger.ErrorCtx("Job channel closed", nil)
 					continue
 				} else {
-					jj := job.(t.IJob)
+					jj := job.(t.IJob[any])
 					if err := w.HandleJob(jj); err != nil {
 						w.logger.ErrorCtx(fmt.Sprintf("Error handling job: %v", err), nil)
 					}
@@ -130,9 +150,9 @@ func (w *Worker) StartWorkers() {
 					w.logger.ErrorCtx(fmt.Sprintf("Error handling result: %v", err), nil)
 				}
 				//if res
-			case <-w.StopChannel:
+			case <-w.stopChannel:
 				w.logger.InfoCtx("Worker stopped", nil)
-				_ = w.Properties["status"].SetValue("Stopped", nil)
+				_ = w.properties["status"].SetValue("Stopped", nil)
 				w.wg.Done()
 
 				return
@@ -148,11 +168,11 @@ func (w *Worker) StopWorkers() {
 		return
 	}
 
-	_ = w.Properties["status"].SetValue("Stopped", nil)
-	close(w.StopChannel)
+	_ = w.properties["status"].SetValue("Stopped", nil)
+	close(w.stopChannel)
 	w.wg.Wait()
 }
-func (w *Worker) HandleJob(job t.IJob) error {
+func (w *Worker) HandleJob(job t.IJob[any]) error {
 	// Handle the job here
 	return nil
 }
@@ -160,7 +180,7 @@ func (w *Worker) HandleResult(result t.IResult) error {
 	// Handle the result here
 	return nil
 }
-func (w *Worker) GetStopChannel() chan struct{}                    { return w.StopChannel }
-func (w *Worker) GetJobChannel() _chan.IChannel[t.IJob, int]       { return w.JobChannel }
-func (w *Worker) GetJobQueue() _chan.IChannel[t.IAction, int]      { return w.JobQueue }
-func (w *Worker) GetResultChannel() _chan.IChannel[t.IResult, int] { return w.ResultChannel }
+func (w *Worker) GetStopChannel() chan struct{}                       { return w.stopChannel }
+func (w *Worker) GetJobChannel() services.IChannel[t.IJob[any], int]  { return w.jobChannel }
+func (w *Worker) GetJobQueue() services.IChannel[t.IAction[any], int] { return w.jobQueue }
+func (w *Worker) GetResultChannel() services.IChannel[t.IResult, int] { return w.resultChannel }

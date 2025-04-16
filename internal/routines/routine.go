@@ -1,9 +1,8 @@
 package routines
 
 import (
-	"github.com/faelmori/kbxutils/factory"
-	///"github.com/faelmori/kbxutils/factory"
-	l "github.com/faelmori/logz"
+	"fmt"
+	"log"
 
 	"context"
 	"os"
@@ -12,7 +11,7 @@ import (
 	"time"
 )
 
-type IManagedGoroutine interface {
+type IManagedGoroutine[T any] interface {
 	Start() error
 	Stop() error
 	Pause() error
@@ -65,10 +64,10 @@ type IManagedGoroutine interface {
 	GetGoroutineDeadline() time.Time
 	GetGoroutineDeadlineSet() bool
 
-	Copy() IManagedGoroutine
+	Copy() IManagedGoroutine[T]
 }
 
-type ManagedGoroutine struct {
+type ManagedGoroutine[T any] struct {
 	// Processo gerenciado (terceira opção - goroutine)
 	goroutineFn          func()
 	goroutineCh          chan struct{}
@@ -89,7 +88,7 @@ type ManagedGoroutine struct {
 	goroutineDeadlineSet bool
 }
 
-func (m *ManagedGoroutine) Start() error {
+func (m *ManagedGoroutine[T]) Start() error {
 	if m == nil {
 		return nil
 	}
@@ -109,7 +108,7 @@ func (m *ManagedGoroutine) Start() error {
 
 	return nil
 }
-func (m *ManagedGoroutine) Stop() error {
+func (m *ManagedGoroutine[T]) Stop() error {
 	if m == nil {
 		return nil
 	}
@@ -126,7 +125,7 @@ func (m *ManagedGoroutine) Stop() error {
 
 	return nil
 }
-func (m *ManagedGoroutine) Pause() error {
+func (m *ManagedGoroutine[T]) Pause() error {
 	if m == nil {
 		return nil
 	}
@@ -142,7 +141,7 @@ func (m *ManagedGoroutine) Pause() error {
 
 	return nil
 }
-func (m *ManagedGoroutine) Resume() error {
+func (m *ManagedGoroutine[T]) Resume() error {
 	if m == nil {
 		return nil
 	}
@@ -162,7 +161,7 @@ func (m *ManagedGoroutine) Resume() error {
 
 	return nil
 }
-func (m *ManagedGoroutine) IsRunning() bool {
+func (m *ManagedGoroutine[T]) IsRunning() bool {
 	if m == nil {
 		return false
 	}
@@ -171,7 +170,7 @@ func (m *ManagedGoroutine) IsRunning() bool {
 
 	return m.goroutineDone
 }
-func (m *ManagedGoroutine) Wait() error {
+func (m *ManagedGoroutine[T]) Wait() error {
 	if m == nil {
 		return nil
 	}
@@ -182,7 +181,7 @@ func (m *ManagedGoroutine) Wait() error {
 
 	return nil
 }
-func (m *ManagedGoroutine) String() string {
+func (m *ManagedGoroutine[T]) String() string {
 	if m == nil {
 		return ""
 	}
@@ -191,7 +190,7 @@ func (m *ManagedGoroutine) String() string {
 
 	return ""
 }
-func (m *ManagedGoroutine) Send(msg interface{}) {
+func (m *ManagedGoroutine[T]) Send(msg interface{}) {
 	if m == nil {
 		return
 	}
@@ -199,7 +198,7 @@ func (m *ManagedGoroutine) Send(msg interface{}) {
 	defer m.goroutineMu.Unlock()
 
 }
-func (m *ManagedGoroutine) Receive() interface{} {
+func (m *ManagedGoroutine[T]) Receive() interface{} {
 	if m == nil {
 		return nil
 	}
@@ -208,35 +207,35 @@ func (m *ManagedGoroutine) Receive() interface{} {
 
 	return nil
 }
-func (m *ManagedGoroutine) SetArgs(args []string) {
+func (m *ManagedGoroutine[T]) SetArgs(args []string) {
 	if m == nil {
 		return
 	}
 	m.goroutineMu.Lock()
 	defer m.goroutineMu.Unlock()
 }
-func (m *ManagedGoroutine) SetCommand(command string) {
+func (m *ManagedGoroutine[T]) SetCommand(command string) {
 	if m == nil {
 		return
 	}
 	m.goroutineMu.Lock()
 	defer m.goroutineMu.Unlock()
 }
-func (m *ManagedGoroutine) SetName(name string) {
+func (m *ManagedGoroutine[T]) SetName(name string) {
 	if m == nil {
 		return
 	}
 	m.goroutineMu.Lock()
 	defer m.goroutineMu.Unlock()
 }
-func (m *ManagedGoroutine) SetWaitFor(wait bool) {
+func (m *ManagedGoroutine[T]) SetWaitFor(wait bool) {
 	if m == nil {
 		return
 	}
 	m.goroutineMu.Lock()
 	defer m.goroutineMu.Unlock()
 }
-func (m *ManagedGoroutine) SetGoroutineFn(fn func()) {
+func (m *ManagedGoroutine[T]) SetGoroutineFn(fn func()) {
 	if m == nil {
 		return
 	}
@@ -245,7 +244,7 @@ func (m *ManagedGoroutine) SetGoroutineFn(fn func()) {
 
 	m.goroutineFn = fn
 }
-func (m *ManagedGoroutine) SetGoroutineCh(ch chan struct{}) {
+func (m *ManagedGoroutine[T]) SetGoroutineCh(ch chan struct{}) {
 	if m == nil {
 		return
 	}
@@ -254,7 +253,7 @@ func (m *ManagedGoroutine) SetGoroutineCh(ch chan struct{}) {
 
 	m.goroutineCh = ch
 }
-func (m *ManagedGoroutine) SetGoroutineErr(err error) {
+func (m *ManagedGoroutine[T]) SetGoroutineErr(err error) {
 	if m == nil {
 		return
 	}
@@ -263,7 +262,7 @@ func (m *ManagedGoroutine) SetGoroutineErr(err error) {
 
 	m.goroutineErr = err
 }
-func (m *ManagedGoroutine) SetGoroutineDone(done bool) {
+func (m *ManagedGoroutine[T]) SetGoroutineDone(done bool) {
 	if m == nil {
 		return
 	}
@@ -272,7 +271,7 @@ func (m *ManagedGoroutine) SetGoroutineDone(done bool) {
 
 	m.goroutineDone = done
 }
-func (m *ManagedGoroutine) SetGoroutineWG(wg sync.WaitGroup) {
+func (m *ManagedGoroutine[T]) SetGoroutineWG(wg sync.WaitGroup) {
 	if m == nil {
 		return
 	}
@@ -281,7 +280,7 @@ func (m *ManagedGoroutine) SetGoroutineWG(wg sync.WaitGroup) {
 
 	m.goroutineWG = wg
 }
-func (m *ManagedGoroutine) SetGoroutineMu(mu sync.Mutex) {
+func (m *ManagedGoroutine[T]) SetGoroutineMu(mu sync.Mutex) {
 	if m == nil {
 		return
 	}
@@ -290,7 +289,7 @@ func (m *ManagedGoroutine) SetGoroutineMu(mu sync.Mutex) {
 
 	m.goroutineMu = mu
 }
-func (m *ManagedGoroutine) SetGoroutineOnce(once sync.Once) {
+func (m *ManagedGoroutine[T]) SetGoroutineOnce(once sync.Once) {
 	if m == nil {
 		return
 	}
@@ -299,7 +298,7 @@ func (m *ManagedGoroutine) SetGoroutineOnce(once sync.Once) {
 
 	m.goroutineOnce = once
 }
-func (m *ManagedGoroutine) SetGoroutineCond(cond *sync.Cond) {
+func (m *ManagedGoroutine[T]) SetGoroutineCond(cond *sync.Cond) {
 	if m == nil {
 		return
 	}
@@ -308,7 +307,7 @@ func (m *ManagedGoroutine) SetGoroutineCond(cond *sync.Cond) {
 
 	m.goroutineCond = cond
 }
-func (m *ManagedGoroutine) SetGoroutineLock(lock sync.Mutex) {
+func (m *ManagedGoroutine[T]) SetGoroutineLock(lock sync.Mutex) {
 	if m == nil {
 		return
 	}
@@ -317,7 +316,7 @@ func (m *ManagedGoroutine) SetGoroutineLock(lock sync.Mutex) {
 
 	m.goroutineLock = lock
 }
-func (m *ManagedGoroutine) SetGoroutineDoneCh(ch chan struct{}) {
+func (m *ManagedGoroutine[T]) SetGoroutineDoneCh(ch chan struct{}) {
 	if m == nil {
 		return
 	}
@@ -326,7 +325,7 @@ func (m *ManagedGoroutine) SetGoroutineDoneCh(ch chan struct{}) {
 
 	m.goroutineDoneCh = ch
 }
-func (m *ManagedGoroutine) SetGoroutineErrCh(ch chan error) {
+func (m *ManagedGoroutine[T]) SetGoroutineErrCh(ch chan error) {
 	if m == nil {
 		return
 	}
@@ -335,7 +334,7 @@ func (m *ManagedGoroutine) SetGoroutineErrCh(ch chan error) {
 
 	m.goroutineErrCh = ch
 }
-func (m *ManagedGoroutine) SetGoroutineCancel(cancel func()) {
+func (m *ManagedGoroutine[T]) SetGoroutineCancel(cancel func()) {
 	if m == nil {
 		return
 	}
@@ -344,7 +343,7 @@ func (m *ManagedGoroutine) SetGoroutineCancel(cancel func()) {
 
 	m.goroutineCancel = cancel
 }
-func (m *ManagedGoroutine) SetGoroutineCtx(ctx context.Context) {
+func (m *ManagedGoroutine[T]) SetGoroutineCtx(ctx context.Context) {
 	if m == nil {
 		return
 	}
@@ -353,7 +352,7 @@ func (m *ManagedGoroutine) SetGoroutineCtx(ctx context.Context) {
 
 	m.goroutineCtx = ctx
 }
-func (m *ManagedGoroutine) SetGoroutineCancelFn(cancelFn context.CancelFunc) {
+func (m *ManagedGoroutine[T]) SetGoroutineCancelFn(cancelFn context.CancelFunc) {
 	if m == nil {
 		return
 	}
@@ -362,7 +361,7 @@ func (m *ManagedGoroutine) SetGoroutineCancelFn(cancelFn context.CancelFunc) {
 
 	m.goroutineCancelFn = cancelFn
 }
-func (m *ManagedGoroutine) SetGoroutineTimeout(timeout time.Duration) {
+func (m *ManagedGoroutine[T]) SetGoroutineTimeout(timeout time.Duration) {
 	if m == nil {
 		return
 	}
@@ -371,7 +370,7 @@ func (m *ManagedGoroutine) SetGoroutineTimeout(timeout time.Duration) {
 
 	m.goroutineTimeout = timeout
 }
-func (m *ManagedGoroutine) SetGoroutineDeadline(deadline time.Time) {
+func (m *ManagedGoroutine[T]) SetGoroutineDeadline(deadline time.Time) {
 	if m == nil {
 		return
 	}
@@ -380,7 +379,7 @@ func (m *ManagedGoroutine) SetGoroutineDeadline(deadline time.Time) {
 
 	m.goroutineDeadline = deadline
 }
-func (m *ManagedGoroutine) SetGoroutineDeadlineSet(set bool) {
+func (m *ManagedGoroutine[T]) SetGoroutineDeadlineSet(set bool) {
 	if m == nil {
 		return
 	}
@@ -389,7 +388,7 @@ func (m *ManagedGoroutine) SetGoroutineDeadlineSet(set bool) {
 
 	m.goroutineDeadlineSet = set
 }
-func (m *ManagedGoroutine) GetGoroutineFn() func() {
+func (m *ManagedGoroutine[T]) GetGoroutineFn() func() {
 	if m == nil {
 		return nil
 	}
@@ -398,7 +397,7 @@ func (m *ManagedGoroutine) GetGoroutineFn() func() {
 
 	return m.goroutineFn
 }
-func (m *ManagedGoroutine) GetGoroutineCh() chan struct{} {
+func (m *ManagedGoroutine[T]) GetGoroutineCh() chan struct{} {
 	if m == nil {
 		return nil
 	}
@@ -407,7 +406,7 @@ func (m *ManagedGoroutine) GetGoroutineCh() chan struct{} {
 
 	return m.goroutineCh
 }
-func (m *ManagedGoroutine) GetGoroutineErr() error {
+func (m *ManagedGoroutine[T]) GetGoroutineErr() error {
 	if m == nil {
 		return nil
 	}
@@ -416,7 +415,7 @@ func (m *ManagedGoroutine) GetGoroutineErr() error {
 
 	return m.goroutineErr
 }
-func (m *ManagedGoroutine) GetGoroutineDone() bool {
+func (m *ManagedGoroutine[T]) GetGoroutineDone() bool {
 	if m == nil {
 		return false
 	}
@@ -425,7 +424,7 @@ func (m *ManagedGoroutine) GetGoroutineDone() bool {
 
 	return m.goroutineDone
 }
-func (m *ManagedGoroutine) GetGoroutineWG() sync.WaitGroup {
+func (m *ManagedGoroutine[T]) GetGoroutineWG() sync.WaitGroup {
 	if m == nil {
 		return sync.WaitGroup{}
 	}
@@ -434,7 +433,7 @@ func (m *ManagedGoroutine) GetGoroutineWG() sync.WaitGroup {
 
 	return m.goroutineWG
 }
-func (m *ManagedGoroutine) GetGoroutineMu() sync.Mutex {
+func (m *ManagedGoroutine[T]) GetGoroutineMu() sync.Mutex {
 	if m == nil {
 		return sync.Mutex{}
 	}
@@ -443,7 +442,7 @@ func (m *ManagedGoroutine) GetGoroutineMu() sync.Mutex {
 
 	return m.goroutineMu
 }
-func (m *ManagedGoroutine) GetGoroutineOnce() sync.Once {
+func (m *ManagedGoroutine[T]) GetGoroutineOnce() sync.Once {
 	if m == nil {
 		return sync.Once{}
 	}
@@ -452,7 +451,7 @@ func (m *ManagedGoroutine) GetGoroutineOnce() sync.Once {
 
 	return m.goroutineOnce
 }
-func (m *ManagedGoroutine) GetGoroutineCond() *sync.Cond {
+func (m *ManagedGoroutine[T]) GetGoroutineCond() *sync.Cond {
 	if m == nil {
 		return nil
 	}
@@ -461,7 +460,7 @@ func (m *ManagedGoroutine) GetGoroutineCond() *sync.Cond {
 
 	return m.goroutineCond
 }
-func (m *ManagedGoroutine) GetGoroutineLock() sync.Mutex {
+func (m *ManagedGoroutine[T]) GetGoroutineLock() sync.Mutex {
 	if m == nil {
 		return sync.Mutex{}
 	}
@@ -470,7 +469,7 @@ func (m *ManagedGoroutine) GetGoroutineLock() sync.Mutex {
 
 	return m.goroutineLock
 }
-func (m *ManagedGoroutine) GetGoroutineDoneCh() chan struct{} {
+func (m *ManagedGoroutine[T]) GetGoroutineDoneCh() chan struct{} {
 	if m == nil {
 		return nil
 	}
@@ -479,7 +478,7 @@ func (m *ManagedGoroutine) GetGoroutineDoneCh() chan struct{} {
 
 	return m.goroutineDoneCh
 }
-func (m *ManagedGoroutine) GetGoroutineErrCh() chan error {
+func (m *ManagedGoroutine[T]) GetGoroutineErrCh() chan error {
 	if m == nil {
 		return nil
 	}
@@ -488,7 +487,7 @@ func (m *ManagedGoroutine) GetGoroutineErrCh() chan error {
 
 	return m.goroutineErrCh
 }
-func (m *ManagedGoroutine) GetGoroutineCancel() func() {
+func (m *ManagedGoroutine[T]) GetGoroutineCancel() func() {
 	if m == nil {
 		return nil
 	}
@@ -497,7 +496,7 @@ func (m *ManagedGoroutine) GetGoroutineCancel() func() {
 
 	return m.goroutineCancel
 }
-func (m *ManagedGoroutine) GetGoroutineCtx() context.Context {
+func (m *ManagedGoroutine[T]) GetGoroutineCtx() context.Context {
 	if m == nil {
 		return nil
 	}
@@ -506,7 +505,7 @@ func (m *ManagedGoroutine) GetGoroutineCtx() context.Context {
 
 	return m.goroutineCtx
 }
-func (m *ManagedGoroutine) GetGoroutineCancelFn() context.CancelFunc {
+func (m *ManagedGoroutine[T]) GetGoroutineCancelFn() context.CancelFunc {
 	if m == nil {
 		return nil
 	}
@@ -515,7 +514,7 @@ func (m *ManagedGoroutine) GetGoroutineCancelFn() context.CancelFunc {
 
 	return m.goroutineCancelFn
 }
-func (m *ManagedGoroutine) GetGoroutineTimeout() time.Duration {
+func (m *ManagedGoroutine[T]) GetGoroutineTimeout() time.Duration {
 	if m == nil {
 		return 0
 	}
@@ -524,7 +523,7 @@ func (m *ManagedGoroutine) GetGoroutineTimeout() time.Duration {
 
 	return m.goroutineTimeout
 }
-func (m *ManagedGoroutine) GetGoroutineDeadline() time.Time {
+func (m *ManagedGoroutine[T]) GetGoroutineDeadline() time.Time {
 	if m == nil {
 		return time.Time{}
 	}
@@ -533,7 +532,7 @@ func (m *ManagedGoroutine) GetGoroutineDeadline() time.Time {
 
 	return m.goroutineDeadline
 }
-func (m *ManagedGoroutine) GetGoroutineDeadlineSet() bool {
+func (m *ManagedGoroutine[T]) GetGoroutineDeadlineSet() bool {
 	if m == nil {
 		return false
 	}
@@ -542,7 +541,7 @@ func (m *ManagedGoroutine) GetGoroutineDeadlineSet() bool {
 
 	return m.goroutineDeadlineSet
 }
-func (m *ManagedGoroutine) Copy() IManagedGoroutine {
+func (m *ManagedGoroutine[T]) Copy() IManagedGoroutine[T] {
 	if m == nil {
 		return nil
 	}
@@ -570,20 +569,19 @@ func (m *ManagedGoroutine) Copy() IManagedGoroutine {
 	}
 }
 
-func NewManagedGoroutine(fn func()) *ManagedGoroutine {
-	return &ManagedGoroutine{
+func NewManagedGoroutine[T any](fn func()) *ManagedGoroutine[T] {
+	return &ManagedGoroutine[T]{
 		goroutineFn: fn,
 	}
 }
 
 func logActivity(activity string) {
-	fs := *factory.NewFilesystemService("")
-	cfgDir := filepath.Dir(fs.GetConfigFilePath())
+	cfgDir := filepath.Dir("")
 	logFilePath := filepath.Join(cfgDir, "goroutine.log")
 
 	logFile, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		l.ErrorCtx("Erro ao abrir arquivo de log", map[string]interface{}{"error": err})
+		log.Println(fmt.Sprintf("Erro ao abrir arquivo de log", err.Error()), activity)
 		return
 	}
 	defer func(logFile *os.File) {
@@ -592,6 +590,6 @@ func logActivity(activity string) {
 
 	logEntry := time.Now().Format(time.RFC3339) + ": " + activity + "\n"
 	if _, err := logFile.WriteString(logEntry); err != nil {
-		l.ErrorCtx("Erro ao escrever no arquivo de log", map[string]interface{}{"error": err})
+		fmt.Println("Erro ao escrever no arquivo de log", map[string]interface{}{"error": err})
 	}
 }

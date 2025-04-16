@@ -45,7 +45,7 @@ func (m *GoLife) Command() *cobra.Command {
 	l.InfoCtx("Starting GoLife...", map[string]interface{}{
 		"context":  "main",
 		"action":   "start",
-		"version":  vs.Version,
+		"version":  vs.GetVersion(),
 		"showData": false,
 	})
 

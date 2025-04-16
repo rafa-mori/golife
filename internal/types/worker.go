@@ -1,7 +1,7 @@
 package types
 
 import (
-	c "github.com/faelmori/golife/internal/routines/chan"
+	c "github.com/faelmori/golife/services"
 	l "github.com/faelmori/logz"
 )
 
@@ -25,13 +25,13 @@ type IWorker interface {
 	StartWorkers()
 	StopWorkers()
 
-	HandleJob(job IJob) error
+	HandleJob(job IJob[any]) error
 	HandleResult(result IResult) error
 
 	GetStopChannel() chan struct{}
 
-	GetJobChannel() c.IChannel[IJob, int]
-	GetJobQueue() c.IChannel[IAction, int]
+	GetJobChannel() c.IChannel[IJob[any], int]
+	GetJobQueue() c.IChannel[IAction[any], int]
 	GetResultChannel() c.IChannel[IResult, int]
 }
 
@@ -41,15 +41,15 @@ type IWorkerPool interface {
 
 	GetWorkerCount() int
 
-	GetPoolJobChannel() (c.IChannel[IJob, int], error)
+	GetPoolJobChannel() (c.IChannel[IJob[any], int], error)
 	GetPoolResultChannel() (c.IChannel[IResult, int], error)
 
 	GetWorkerLimit() int
 	GetWorker(workerID int) (IWorker, error)
 
-	GetWorkerChannel(workerID int) (c.IChannel[IJob, int], error)
+	GetWorkerChannel(workerID int) (c.IChannel[IJob[any], int], error)
 	GetResultChannel(workerID int) (c.IChannel[IResult, int], error)
-	GetJobQueue(workerID int) (c.IChannel[IAction, int], error)
+	GetJobQueue(workerID int) (c.IChannel[IAction[any], int], error)
 	GetResultQueue(workerID int) (c.IChannel[IResult, int], error)
 	GetDoneChannel() (chan struct{}, error)
 
@@ -62,7 +62,7 @@ type IWorkerPool interface {
 
 	Report() string
 	Debug()
-	SendToWorker(int, IJob) error
+	SendToWorker(int, any) error
 	AddListener(string, ChangeListener[any]) error
 }
 
@@ -73,17 +73,17 @@ type IWorkerManager[T any] interface {
 	GetID() string
 	GetProperties() map[string]Property[any]
 	GetWorker(int) (IWorker, error)
-	GetWorkerChannel(int) (chan IJob, error)
+	GetWorkerChannel(int) (chan IJob[any], error)
 	GetWorkerPool() []IWorker
 
 	SetWorkerPool([]IWorker)
 	SetWorkerCount(int) error
 
 	SetWorker(int, IWorker) error
-	SetWorkerPoolChannel(int, c.IChannel[IJob, int]) error
-	SetWorkerChannel(int, c.IChannel[IJob, int]) error
+	SetWorkerPoolChannel(int, c.IChannel[IJob[any], int]) error
+	SetWorkerChannel(int, c.IChannel[IJob[any], int]) error
 	SetWorkerResultChannel(int, c.IChannel[IResult, int]) error
-	SetWorkerJobQueue(int, c.IChannel[IAction, int]) error
+	SetWorkerJobQueue(int, c.IChannel[IAction[any], int]) error
 	SetWorkerResultQueue(int, c.IChannel[IResult, int]) error
 	SetWorkerStatus(int, string) error
 	SetWorkerJobQueueCount(int, int) error
@@ -94,9 +94,9 @@ type IWorkerManager[T any] interface {
 	GetWorkerStatusByID(int) string
 
 	GetWorkerPoolInstance() IWorkerPool
-	GetWorkerPoolChannel() (c.IChannel[IJob, int], error)
+	GetWorkerPoolChannel() (c.IChannel[IJob[any], int], error)
 	GetWorkerPoolResultChannel() (c.IChannel[IResult, int], error)
-	GetWorkerPoolJobQueue() (c.IChannel[IAction, int], error)
+	GetWorkerPoolJobQueue() (c.IChannel[IAction[any], int], error)
 	GetWorkerPoolResultQueue() (c.IChannel[IResult, int], error)
 
 	AddWorker(worker IWorker) error

@@ -1,6 +1,7 @@
 package types
 
 import (
+	c "github.com/faelmori/golife/services"
 	"github.com/google/uuid"
 	"os"
 	"syscall"
@@ -35,7 +36,7 @@ type ProcessConfig struct {
 	// Basic process properties
 	ProcessProperties map[string]Property[any]
 	// Process Agents
-	ProcessAgents map[string]t.IChannel[any, int]
+	ProcessAgents map[string]c.IChannel[any, int]
 	// Process Stages
 	ProcessStagesMap map[string]StageConfig
 	// Process Events

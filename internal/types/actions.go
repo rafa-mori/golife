@@ -5,7 +5,7 @@ import (
 )
 
 // IActionManager defines the interface for managing actions and their associated channels.
-type IActionManager interface {
+type IActionManager[T any] interface {
 	// GetResults retrieves a map of results associated with the action.
 	GetResults() map[string]IResult
 
@@ -13,17 +13,17 @@ type IActionManager interface {
 	GetErrorChannel() chan error
 
 	// GetDoneChannel returns the channel used to signal the completion of the action.
-	GetDoneChannel() chan struct{}
+	GetDoneChannel() chan any
 
 	// GetCancelChannel returns the channel used to signal the cancellation of the action.
-	GetCancelChannel() chan struct{}
+	GetCancelChannel() chan any
 
 	// GetResultsChannel returns the channel used to communicate results.
-	GetResultsChannel() chan IResult
+	GetResultsChannel() chan T
 }
 
 // IActionBase defines the base interface for an action, including its metadata and status.
-type IActionBase interface {
+type IActionBase[T any] interface {
 	// GetID retrieves the unique identifier of the action.
 	GetID() string
 
@@ -38,9 +38,9 @@ type IActionBase interface {
 }
 
 // IAction defines the interface for an executable action, combining base and manager functionalities.
-type IAction interface {
-	IActionBase
-	IActionManager
+type IAction[T any] interface {
+	IActionBase[T]
+	IActionManager[T]
 
 	// IsRunning checks if the action is currently running.
 	IsRunning() bool
@@ -56,11 +56,11 @@ type IAction interface {
 }
 
 // IJob defines the interface for a job, which is a specialized action with additional time tracking.
-type IJob interface {
-	IAction
+type IJob[T any] interface {
+	IAction[T]
 
 	// GetAction retrieves the associated action of the job.
-	GetAction() IAction
+	GetAction() IAction[T]
 
 	// GetResults retrieves a map of results associated with the job.
 	GetResults() map[string]IResult
@@ -69,13 +69,13 @@ type IJob interface {
 	GetErrorChannel() chan error
 
 	// GetDoneChannel returns the channel used to signal the completion of the job.
-	GetDoneChannel() chan struct{}
+	GetDoneChannel() chan any
 
 	// GetCancelChannel returns the channel used to signal the cancellation of the job.
-	GetCancelChannel() chan struct{}
+	GetCancelChannel() chan any
 
 	// GetResultsChannel returns the channel used to communicate results for the job.
-	GetResultsChannel() chan IResult
+	GetResultsChannel() chan T
 
 	// GetCreateTime retrieves the creation time of the job.
 	GetCreateTime() time.Time

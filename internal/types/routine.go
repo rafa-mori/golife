@@ -1,6 +1,8 @@
 package types
 
-import c "github.com/faelmori/golife/internal/routines/chan"
+import (
+	c "github.com/faelmori/golife/services"
+)
 
 type RoutineConfig struct {
 	// Telemetry configuration

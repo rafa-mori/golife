@@ -1,106 +1,58 @@
 package golife
 
 import (
-	i "github.com/faelmori/golife/internal"
-	"github.com/faelmori/golife/internal/process"
-	"github.com/faelmori/golife/internal/routines/taskz"
-	"github.com/faelmori/golife/internal/routines/taskz/events"
-	"github.com/faelmori/golife/internal/routines/workers"
-
-	"os"
+	t "github.com/faelmori/golife/internal/types"
+	c "github.com/faelmori/golife/services"
+	"github.com/google/uuid"
+	"sync"
 )
 
-type WorkerPool = workers.IWorkerPool
+type GoLife[T any] struct {
+	id uuid.UUID
 
-func NewWorkerPool(size int) WorkerPool { return workers.NewWorkerPool(size) }
+	mu   sync.RWMutex
+	muL  sync.RWMutex
+	wg   sync.WaitGroup
+	cond *sync.Cond
 
-type WorkerPoolGl interface{ i.IWorkerPoolGl }
+	// properties is a map of string keys to DynamicProperty values.
+	properties map[string]t.Property[T]
 
-func NewWorkerPoolGl(size int) WorkerPoolGl { return i.NewWorkerPoolGL(size) }
+	// The size is implicitly defined with the new instance of the interface IChannel.
+	chanCtl c.IChannel[t.IJob[any], int]
 
-type LifeCycleManager interface{ i.LifeCycleManager }
-type ManagedProcessEvent interface{ events.IManagedProcessEvents }
-
-func NewLifecycleManager(processes map[string]process.IManagedProcess, stages map[string]taskz.IStage, sigChan chan os.Signal, doneChan chan struct{}, events []events.IManagedProcessEvents, eventsCh chan events.IManagedProcessEvents) LifeCycleManager {
-	return i.NewLifecycleManager(processes, stages, sigChan, doneChan, events, eventsCh)
+	// meta is a map of string keys to EventMetadata values.
+	meta map[string]*t.EventMetadata
 }
-func NewLifecycleMgrSig() (LifeCycleManager, error) {
-	processes := make(map[string]process.IManagedProcess)
-	stages := make(map[string]taskz.IStage)
-	sigChan := make(chan os.Signal, 2)
-	doneChan := make(chan struct{}, 2)
-	eventsCh := make(chan events.IManagedProcessEvents, 100)
-	events := make([]events.IManagedProcessEvents, 0)
 
-	return NewLifecycleManager(processes, stages, sigChan, doneChan, events, eventsCh), nil
-}
-func NewLifecycleMgrManual(processes map[string]process.IManagedProcess, stages map[string]taskz.IStage, sigChan chan os.Signal, doneChan chan struct{}, events []events.IManagedProcessEvents, eventsCh chan events.IManagedProcessEvents) (LifeCycleManager, error) {
-	return NewLifecycleManager(processes, stages, sigChan, doneChan, events, eventsCh), nil
-}
-func NewLifecycleMgrDec() (LifeCycleManager, error) {
-	processes := make(map[string]process.IManagedProcess)
-	stages := make(map[string]taskz.IStage)
-	sigChan := make(chan os.Signal, 2)
-	doneChan := make(chan struct{}, 2)
-	eventsCh := make(chan events.IManagedProcessEvents, 100)
-	events := make([]events.IManagedProcessEvents, 0)
+func NewGoLife[T any]() *GoLife[T] {
+	return &GoLife[T]{
+		id: uuid.New(),
+		mu: sync.RWMutex{},
+		wg: sync.WaitGroup{},
 
-	return NewLifecycleManager(processes, stages, sigChan, doneChan, events, eventsCh), nil
-}
-func NewLifecycleMgrChan(sigChan chan os.Signal, doneChan chan struct{}, eventsCh chan events.IManagedProcessEvents) (LifeCycleManager, error) {
-	processes := make(map[string]process.IManagedProcess)
-	stages := make(map[string]taskz.IStage)
-	events := make([]events.IManagedProcessEvents, 0)
-	if sigChan == nil {
-		sigChan = make(chan os.Signal, 2)
+		properties: make(map[string]t.Property[T]),
 	}
-	if doneChan == nil {
-		doneChan = make(chan struct{}, 2)
+}
+
+func (g *GoLife[T]) GetID() uuid.UUID {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return g.id
+}
+func (g *GoLife[T]) GetMeta() t.EventMetadata {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return g.meta
+}
+func (g *GoLife[T]) SetMeta(meta t.EventMetadata) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if len(g.meta) > 0 {
+		for k, v := range g.meta {
+			if _, ok := meta[k]; !ok {
+				meta[k] = v
+			}
+		}
 	}
-	if eventsCh == nil {
-		eventsCh = make(chan events.IManagedProcessEvents, 100)
-	}
-
-	return NewLifecycleManager(processes, stages, sigChan, doneChan, events, eventsCh), nil
 }
-
-type Stage = taskz.IStage
-
-func NewStage(name, desc, stageType string) Stage {
-	return taskz.NewStage(name, desc, stageType)
-}
-
-type ManagedProcess = process.IManagedProcess
-
-func NewManagedProcess(name string, command string, args []string, waitFor bool, customFn func() error) ManagedProcess {
-	return process.NewManagedProcess(name, command, args, waitFor, customFn)
-}
-
-type Event = events.IManagedProcessEvents
-
-func NewEvent(eventFns map[string]func(interface{}), triggerCh chan interface{}) Event {
-	return events.NewManagedProcessEvents(eventFns, triggerCh)
-}
-
-func Trigger(lc LifeCycleManager, stage string, event string, data interface{}) {
-	lc.Trigger(stage, event, data)
-}
-
-func RegisterEvent(lc LifeCycleManager, stage string, event string, fn func(interface{})) error {
-	return lc.RegisterEvent(stage, event, fn)
-}
-
-func RegisterStage(lc LifeCycleManager, stage Stage) error {
-	return lc.RegisterStage(stage)
-}
-
-func RegisterProcess(lc LifeCycleManager, process ManagedProcess) error {
-	return lc.RegisterProcess(process.GetName(), process.GetCommand(), process.GetArgs(), process.WillRestart(), process.GetCustomFunc())
-}
-
-//func abc() {
-//	var ch = make(chan int)
-//
-//	// Tentando enviar uma string (vai dar erro de tipo)
-//	ch <- "isso não é um número!"
-//}
