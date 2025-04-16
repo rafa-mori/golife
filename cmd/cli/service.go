@@ -3,6 +3,9 @@ package cli
 import (
 	"fmt"
 	. "github.com/faelmori/golife/internal"
+	. "github.com/faelmori/golife/internal/process"
+	. "github.com/faelmori/golife/internal/routines/taskz"
+	. "github.com/faelmori/golife/internal/routines/taskz/events"
 	l "github.com/faelmori/logz"
 	"github.com/spf13/cobra"
 	"os"

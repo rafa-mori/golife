@@ -2,7 +2,7 @@ package server
 
 import (
 	"fmt"
-	"github.com/faelmori/golife/internal"
+	"github.com/faelmori/golife/internal/routines/taskz/events"
 	"github.com/faelmori/logz"
 	"net/http"
 )
@@ -14,7 +14,7 @@ func SSEHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 
 	// Create a channel to receive events
-	events := make(chan internal.IManagedProcessEvents)
+	events := make(chan events.IManagedProcessEvents)
 
 	// Register the channel to receive events from the lifecycle manager
 	//internal.RegisterEventChannel(events)

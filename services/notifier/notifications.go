@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/faelmori/golife/internal"
+	"github.com/faelmori/golife/internal/routines/taskz/events"
 	"github.com/faelmori/logz"
 	"net/http"
 	"net/smtp"
@@ -57,7 +57,7 @@ func (nm *NotificationManager) SendSMS(to, message string) error {
 	return nil
 }
 
-func (nm *NotificationManager) Notify(event internal.IManagedProcessEvents) {
+func (nm *NotificationManager) Notify(event events.IManagedProcessEvents) {
 	// Example notification logic
 	if event.Event() == "process_started" {
 		nm.SendEmail("user@example.com", "Process Started", "A process has started.")

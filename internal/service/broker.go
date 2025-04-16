@@ -66,7 +66,7 @@ func (c *BrokerClient) handleIncomingReplies() {
 		select {
 		case <-c.quitCh:
 			lep, _ := c.client.GetLastEndpoint()
-			l.GetLogger("GoLife").Debug("Shutting down the reply reception goroutine...", map[string]interface{}{
+			l.GetLogger("GoLife").DebugCtx("Shutting down the reply reception goroutine...", map[string]interface{}{
 				"context":        "handleIncomingReplies",
 				"brokerEndpoint": lep,
 				"timeout":        c.timeout,
@@ -74,7 +74,7 @@ func (c *BrokerClient) handleIncomingReplies() {
 			return
 		case reply := <-c.receiveCh:
 			if len(reply) < 1 {
-				l.GetLogger("GoLife").Warn("Reply received from broker (not deserializable)", map[string]interface{}{
+				l.GetLogger("GoLife").WarnCtx("Reply received from broker (not deserializable)", map[string]interface{}{
 					"context": "handleIncomingReplies",
 					"reply":   reply,
 					"timeout": c.timeout,
@@ -118,7 +118,7 @@ func (c *BrokerClient) handleIncomingReplies() {
 			}
 			dt := p["data"]
 
-			l.GetLogger("GoLife").Debug("Payload decoded, sending to data channel...", map[string]interface{}{
+			l.GetLogger("GoLife").DebugCtx("Payload decoded, sending to data channel...", map[string]interface{}{
 				"context": "handleIncomingReplies",
 				"type":    tp,
 				"data":    dt,
@@ -129,7 +129,7 @@ func (c *BrokerClient) handleIncomingReplies() {
 			return
 		case <-c.timeCh:
 			if c.retries == c.retryLimit {
-				l.GetLogger("GoLife").Warn("Retry limit exceeded. Shutting down the reply reception goroutine...", map[string]interface{}{
+				l.GetLogger("GoLife").WarnCtx("Retry limit exceeded. Shutting down the reply reception goroutine...", map[string]interface{}{
 					"context": "handleIncomingReplies",
 					"timeout": c.timeout,
 					"retries": c.retries,
@@ -137,7 +137,7 @@ func (c *BrokerClient) handleIncomingReplies() {
 				close(c.quitCh)
 				return
 			} else {
-				l.GetLogger("GoLife").Warn("Waiting before resending message...", map[string]interface{}{
+				l.GetLogger("GoLife").WarnCtx("Waiting before resending message...", map[string]interface{}{
 					"context": "handleIncomingReplies",
 					"timeout": c.timeout,
 					"retries": c.retries,
@@ -145,7 +145,7 @@ func (c *BrokerClient) handleIncomingReplies() {
 
 				time.Sleep(c.tryInterval)
 
-				l.GetLogger("GoLife").Warn("Resending message...", map[string]interface{}{
+				l.GetLogger("GoLife").WarnCtx("Resending message...", map[string]interface{}{
 					"context": "handleIncomingReplies",
 					"timeout": c.timeout,
 					"retries": c.retries,
@@ -155,7 +155,7 @@ func (c *BrokerClient) handleIncomingReplies() {
 			}
 			continue
 		case msg := <-c.sendCh:
-			l.GetLogger("GoLife").Debug("Message received for sending...", map[string]interface{}{
+			l.GetLogger("GoLife").DebugCtx("Message received for sending...", map[string]interface{}{
 				"context": "handleIncomingReplies",
 				"msg":     msg,
 				"timeout": c.timeout,
@@ -172,7 +172,7 @@ func (c *BrokerClient) handleIncomingReplies() {
 				})
 				return
 			} else {
-				l.GetLogger("GoLife").Debug("Message sent successfully", map[string]interface{}{
+				l.GetLogger("GoLife").DebugCtx("Message sent successfully", map[string]interface{}{
 					"context": "handleIncomingReplies",
 					"msg":     msg,
 					"timeout": c.timeout,
@@ -205,7 +205,7 @@ func (c *BrokerClient) SendMessage(service string, requestPayload interface{}) e
 
 	for i, frame := range req {
 		if frame == "" {
-			l.GetLogger("GoLife").Warn(fmt.Sprintf("Empty frame detected: position %d", i), map[string]interface{}{
+			l.GetLogger("GoLife").WarnCtx(fmt.Sprintf("Empty frame detected: position %d", i), map[string]interface{}{
 				"context":  "SendMessage",
 				"frame":    frame,
 				"position": i,
@@ -251,7 +251,7 @@ func (c *BrokerClient) trySendReceive(req interface{}) error {
 	if reply, recvErr := c.client.RecvMessage(0); recvErr != nil {
 		if errors.Is(recvErr, zmq4.EFSM) {
 			c.handleEFSMError()
-			l.GetLogger("GoLife").Warn("Reinitializing socket due to state machine error (EFSM)...", map[string]interface{}{
+			l.GetLogger("GoLife").WarnCtx("Reinitializing socket due to state machine error (EFSM)...", map[string]interface{}{
 				"context": "SendMessage",
 				"reply":   reply,
 				"req":     req,
@@ -271,7 +271,7 @@ func (c *BrokerClient) trySendReceive(req interface{}) error {
 		}
 		return recvErr
 	} else {
-		l.GetLogger("GoLife").Debug("Reply received from broker", map[string]interface{}{
+		l.GetLogger("GoLife").DebugCtx("Reply received from broker", map[string]interface{}{
 			"context": "SendMessage",
 			"reply":   reply,
 			"req":     req,
@@ -286,7 +286,7 @@ func (c *BrokerClient) trySendReceive(req interface{}) error {
 
 // handleEFSMError handles EFSM errors by reinitializing the socket.
 func (c *BrokerClient) handleEFSMError() {
-	l.GetLogger("GoLife").Warn("Reinitializing socket due to state machine error (EFSM)...", nil)
+	l.GetLogger("GoLife").WarnCtx("Reinitializing socket due to state machine error (EFSM)...", nil)
 	closeErr := c.client.Close()
 	if closeErr != nil {
 		l.GetLogger("GoLife").ErrorCtx("ErrorCtx closing socket", map[string]interface{}{
@@ -320,7 +320,7 @@ func (c *BrokerClient) Start() error {
 		if c.poller != nil {
 			remPollerErr := c.poller.RemoveBySocket(c.client)
 			if remPollerErr != nil {
-				l.GetLogger("GoLife").Warn("ErrorCtx removing socket from poller (existing).", map[string]interface{}{
+				l.GetLogger("GoLife").WarnCtx("ErrorCtx removing socket from poller (existing).", map[string]interface{}{
 					"context": "Start",
 					"error":   remPollerErr,
 				})
@@ -391,7 +391,7 @@ func (c *BrokerClient) Status() map[string]interface{} {
 	if c.client != nil {
 		sktState, sktStateErr = c.client.GetEvents()
 		if sktStateErr != nil {
-			sktStatus = sktStateErr.ErrorCtx()
+			sktStatus = sktStateErr.Error()
 		} else {
 			sktStatus = sktState.String()
 		}
@@ -407,7 +407,7 @@ func (c *BrokerClient) Status() map[string]interface{} {
 		"retries":     c.retries,
 		"status":      sktStatus,
 	}
-	l.GetLogger("GoLife").Debug("Client status", status)
+	l.GetLogger("GoLife").DebugCtx("Client status", status)
 	return status
 }
 
@@ -419,7 +419,7 @@ func (c *BrokerClient) Stop() {
 
 // Reset resets the broker client channels.
 func (c *BrokerClient) Reset() {
-	l.GetLogger("GoLife").Warn("Reinitializing channels...", map[string]interface{}{
+	l.GetLogger("GoLife").WarnCtx("Reinitializing channels...", map[string]interface{}{
 		"context": "handleIncomingReplies",
 		"timeout": c.timeout,
 		"retries": c.retries,
@@ -431,7 +431,7 @@ func (c *BrokerClient) Reset() {
 	c.timeCh = make(chan time.Time, 1)
 	c.quitCh = make(chan bool, 1)
 
-	l.GetLogger("GoLife").Warn("Channels reinitialized", map[string]interface{}{
+	l.GetLogger("GoLife").WarnCtx("Channels reinitialized", map[string]interface{}{
 		"context": "handleIncomingReplies",
 		"timeout": c.timeout,
 		"retries": c.retries,

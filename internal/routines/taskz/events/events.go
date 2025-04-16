@@ -1,6 +1,11 @@
-package internal
+package events
 
-import "sync"
+import (
+	"github.com/faelmori/golife/internal/process"
+	c "github.com/faelmori/golife/internal/routines/chan"
+	t "github.com/faelmori/golife/internal/types"
+	"sync"
+)
 
 type IManagedProcessEvents interface {
 	Event() string
@@ -10,11 +15,11 @@ type IManagedProcessEvents interface {
 	Receive(stage string) interface{}
 	ListenForSignals() error
 	RegisterProcess(name string, command string, args []string, restart bool) error
-	StartProcess(proc *ManagedProcess) error
+	StartProcess(proc *process.ManagedProcess) error
 	StartAll() error
 	StopAll() error
-	StopProcess(proc *ManagedProcess) error
-	RestartProcess(proc *ManagedProcess) error
+	StopProcess(proc *process.ManagedProcess) error
+	RestartProcess(proc *process.ManagedProcess) error
 	IsRunning() bool
 	Pid() int
 	Wait() error
@@ -34,30 +39,46 @@ type IManagedProcessEvents interface {
 	SetTLS(tls bool)
 	SetAuth(auth bool)
 }
-type ManagedProcessEvents struct {
-	EventFns  map[string]func(interface{})
-	TriggerCh chan interface{}
-	Name      string
+type ManagedProcessEvents[T any] struct {
+	// ID and Reference
+	ID string
 
-	// Internals
-	mu    sync.Mutex
-	Data  interface{}
-	Ev    string
-	Fn    func(interface{}) error
-	Stage string
-	User  string
-	Pass  string
-	Args  []string
-	Env   []string
-	Dir   string
-	Port  int
-	Host  string
-	Cert  string
-	Key   string
-	CA    string
-	SSL   bool
-	TLS   bool
-	Auth  bool
+	// Thread-safe channel for event functions
+	mu sync.Mutex
+	wg sync.WaitGroup
+
+	// Event Dynamic Secure Properties
+	// Ex:
+	//		EventName  string
+	//		EventFunc  func(...any) error
+	//		EventStage string
+	EventProperties map[string]t.Property[any]
+	EventFuncList   map[string]t.GenericChannelCallback[any]
+	EventAgents     map[string]c.IChannel[any, int]
+
+	// Original Payload/Data/State
+	Data T
+
+	// Command properties
+	//CmdName string
+	//CmdArgs []string
+	//CmdEnv  []string
+	//CmdDir  string
+	CmdProperties map[string]t.Property[any]
+
+	// Access properties
+	// Ex:
+	//User string
+	//Pass string
+	//Port   int
+	//Host   string
+	//Cert   string
+	//Key    string
+	//CA     string
+	//IsSSL  bool
+	//IsTLS  bool
+	//IsAuth bool
+	AccessProperties map[string]t.Property[any]
 }
 
 // <editor-fold defaultstate="collapsed" desc="ManagedProcessEvents">
@@ -115,7 +136,7 @@ func (m *ManagedProcessEvents) RegisterProcess(name string, command string, args
 
 	return nil
 }
-func (m *ManagedProcessEvents) StartProcess(proc *ManagedProcess) error {
+func (m *ManagedProcessEvents) StartProcess(proc *process.ManagedProcess) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -133,13 +154,13 @@ func (m *ManagedProcessEvents) StopAll() error {
 
 	return nil
 }
-func (m *ManagedProcessEvents) StopProcess(proc *ManagedProcess) error {
+func (m *ManagedProcessEvents) StopProcess(proc *process.ManagedProcess) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	return nil
 }
-func (m *ManagedProcessEvents) RestartProcess(proc *ManagedProcess) error {
+func (m *ManagedProcessEvents) RestartProcess(proc *process.ManagedProcess) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

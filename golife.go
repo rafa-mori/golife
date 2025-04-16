@@ -2,43 +2,55 @@ package golife
 
 import (
 	i "github.com/faelmori/golife/internal"
+	"github.com/faelmori/golife/internal/process"
+	"github.com/faelmori/golife/internal/routines/taskz"
+	"github.com/faelmori/golife/internal/routines/taskz/events"
+	"github.com/faelmori/golife/internal/routines/workers"
 
 	"os"
 )
 
-type LifeCycleManager interface{ i.LifeCycleManager }
-type ManagedProcessEvent interface{ i.IManagedProcessEvents }
+type WorkerPool = workers.IWorkerPool
 
-func NewLifecycleManager(processes map[string]i.IManagedProcess, stages map[string]i.IStage, sigChan chan os.Signal, doneChan chan struct{}, events []i.IManagedProcessEvents, eventsCh chan i.IManagedProcessEvents) LifeCycleManager {
+func NewWorkerPool(size int) WorkerPool { return workers.NewWorkerPool(size) }
+
+type WorkerPoolGl interface{ i.IWorkerPoolGl }
+
+func NewWorkerPoolGl(size int) WorkerPoolGl { return i.NewWorkerPoolGL(size) }
+
+type LifeCycleManager interface{ i.LifeCycleManager }
+type ManagedProcessEvent interface{ events.IManagedProcessEvents }
+
+func NewLifecycleManager(processes map[string]process.IManagedProcess, stages map[string]taskz.IStage, sigChan chan os.Signal, doneChan chan struct{}, events []events.IManagedProcessEvents, eventsCh chan events.IManagedProcessEvents) LifeCycleManager {
 	return i.NewLifecycleManager(processes, stages, sigChan, doneChan, events, eventsCh)
 }
 func NewLifecycleMgrSig() (LifeCycleManager, error) {
-	processes := make(map[string]i.IManagedProcess)
-	stages := make(map[string]i.IStage)
+	processes := make(map[string]process.IManagedProcess)
+	stages := make(map[string]taskz.IStage)
 	sigChan := make(chan os.Signal, 2)
 	doneChan := make(chan struct{}, 2)
-	eventsCh := make(chan i.IManagedProcessEvents, 100)
-	events := make([]i.IManagedProcessEvents, 0)
+	eventsCh := make(chan events.IManagedProcessEvents, 100)
+	events := make([]events.IManagedProcessEvents, 0)
 
 	return NewLifecycleManager(processes, stages, sigChan, doneChan, events, eventsCh), nil
 }
-func NewLifecycleMgrManual(processes map[string]i.IManagedProcess, stages map[string]i.IStage, sigChan chan os.Signal, doneChan chan struct{}, events []i.IManagedProcessEvents, eventsCh chan i.IManagedProcessEvents) (LifeCycleManager, error) {
+func NewLifecycleMgrManual(processes map[string]process.IManagedProcess, stages map[string]taskz.IStage, sigChan chan os.Signal, doneChan chan struct{}, events []events.IManagedProcessEvents, eventsCh chan events.IManagedProcessEvents) (LifeCycleManager, error) {
 	return NewLifecycleManager(processes, stages, sigChan, doneChan, events, eventsCh), nil
 }
 func NewLifecycleMgrDec() (LifeCycleManager, error) {
-	processes := make(map[string]i.IManagedProcess)
-	stages := make(map[string]i.IStage)
+	processes := make(map[string]process.IManagedProcess)
+	stages := make(map[string]taskz.IStage)
 	sigChan := make(chan os.Signal, 2)
 	doneChan := make(chan struct{}, 2)
-	eventsCh := make(chan i.IManagedProcessEvents, 100)
-	events := make([]i.IManagedProcessEvents, 0)
+	eventsCh := make(chan events.IManagedProcessEvents, 100)
+	events := make([]events.IManagedProcessEvents, 0)
 
 	return NewLifecycleManager(processes, stages, sigChan, doneChan, events, eventsCh), nil
 }
-func NewLifecycleMgrChan(sigChan chan os.Signal, doneChan chan struct{}, eventsCh chan i.IManagedProcessEvents) (LifeCycleManager, error) {
-	processes := make(map[string]i.IManagedProcess)
-	stages := make(map[string]i.IStage)
-	events := make([]i.IManagedProcessEvents, 0)
+func NewLifecycleMgrChan(sigChan chan os.Signal, doneChan chan struct{}, eventsCh chan events.IManagedProcessEvents) (LifeCycleManager, error) {
+	processes := make(map[string]process.IManagedProcess)
+	stages := make(map[string]taskz.IStage)
+	events := make([]events.IManagedProcessEvents, 0)
 	if sigChan == nil {
 		sigChan = make(chan os.Signal, 2)
 	}
@@ -46,34 +58,28 @@ func NewLifecycleMgrChan(sigChan chan os.Signal, doneChan chan struct{}, eventsC
 		doneChan = make(chan struct{}, 2)
 	}
 	if eventsCh == nil {
-		eventsCh = make(chan i.IManagedProcessEvents, 100)
+		eventsCh = make(chan events.IManagedProcessEvents, 100)
 	}
 
 	return NewLifecycleManager(processes, stages, sigChan, doneChan, events, eventsCh), nil
 }
 
-type Stage = i.IStage
+type Stage = taskz.IStage
 
 func NewStage(name, desc, stageType string) Stage {
-	return i.NewStage(name, desc, stageType)
+	return taskz.NewStage(name, desc, stageType)
 }
 
-type WorkerPool = i.IWorkerPool
-
-func NewWorkerPool(size int) WorkerPool {
-	return i.NewWorkerPool(size)
-}
-
-type ManagedProcess = i.IManagedProcess
+type ManagedProcess = process.IManagedProcess
 
 func NewManagedProcess(name string, command string, args []string, waitFor bool, customFn func() error) ManagedProcess {
-	return i.NewManagedProcess(name, command, args, waitFor, customFn)
+	return process.NewManagedProcess(name, command, args, waitFor, customFn)
 }
 
-type Event = i.IManagedProcessEvents
+type Event = events.IManagedProcessEvents
 
 func NewEvent(eventFns map[string]func(interface{}), triggerCh chan interface{}) Event {
-	return i.NewManagedProcessEvents(eventFns, triggerCh)
+	return events.NewManagedProcessEvents(eventFns, triggerCh)
 }
 
 func Trigger(lc LifeCycleManager, stage string, event string, data interface{}) {
@@ -91,3 +97,10 @@ func RegisterStage(lc LifeCycleManager, stage Stage) error {
 func RegisterProcess(lc LifeCycleManager, process ManagedProcess) error {
 	return lc.RegisterProcess(process.GetName(), process.GetCommand(), process.GetArgs(), process.WillRestart(), process.GetCustomFunc())
 }
+
+//func abc() {
+//	var ch = make(chan int)
+//
+//	// Tentando enviar uma string (vai dar erro de tipo)
+//	ch <- "isso não é um número!"
+//}

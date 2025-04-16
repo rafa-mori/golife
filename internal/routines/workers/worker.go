@@ -1,12 +1,14 @@
-package internal
+package workers
 
 import (
 	"context"
-	"fmt"
-	l "github.com/faelmori/logz"
-
-	"sync"
 )
+
+type IWorkerPoolBase interface {
+	worker(ctx context.Context)
+	safeExecute(task func()) error
+	workerWithError(errChan chan error)
+}
 
 type IWorkerPool interface {
 	worker(ctx context.Context)
@@ -17,15 +19,18 @@ type IWorkerPool interface {
 	safeExecute(task func()) error
 }
 
-type WorkerPool struct {
+/*type WorkerPool struct {
+	IWorkerPoolBase
+	IWorkerPool
+
 	ctx      context.Context
 	cancel   context.CancelFunc
 	Tasks    chan func()
 	Wg       sync.WaitGroup
 	Shutdown chan struct{}
-}
+}*/
 
-func (wp *WorkerPool) worker(ctx context.Context) {
+/*func (wp *WorkerPool) worker(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -110,3 +115,4 @@ func NewWorkerPool(size int) IWorkerPool {
 	l.InfoCtx("Worker pool created", map[string]interface{}{"size": size})
 	return &pool
 }
+*/

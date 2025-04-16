@@ -1,4 +1,4 @@
-package internal
+package routines
 
 import (
 	"github.com/faelmori/kbxutils/factory"
