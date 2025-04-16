@@ -1,7 +1,6 @@
 package types
 
 import (
-	c "github.com/faelmori/golife/internal/routines/chan"
 	"github.com/google/uuid"
 	"os"
 	"syscall"
@@ -36,11 +35,11 @@ type ProcessConfig struct {
 	// Basic process properties
 	ProcessProperties map[string]Property[any]
 	// Process Agents
-	ProcessAgents map[string]c.IChannel[any, int]
+	ProcessAgents map[string]t.IChannel[any, int]
 	// Process Stages
 	ProcessStagesMap map[string]StageConfig
 	// Process Events
-	ProcessEventsMap map[string]ManagedEventsConfig
+	ProcessEventsMap map[string]EventsConfig
 }
 
 func (pc *ProcessConfig) InitDefaults(args *ProcessParameters) {

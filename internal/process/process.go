@@ -1,7 +1,6 @@
 package process
 
 import (
-	t "github.com/faelmori/golife/internal/types"
 	l "github.com/faelmori/logz"
 
 	"fmt"
@@ -10,7 +9,7 @@ import (
 	"sync"
 )
 
-type IManagedProcess[T t.ProcessConfig] interface {
+type IManagedProcess[T any] interface {
 	GetArgs() []string
 	GetCommand() string
 	GetCustomFunc() func() error
@@ -40,7 +39,7 @@ type IManagedProcess[T t.ProcessConfig] interface {
 	SetCmd(cmd *exec.Cmd)
 }
 
-type ManagedProcess[T t.ProcessConfig] struct {
+type ManagedProcess[T any] struct {
 	Args       []string
 	Command    string
 	CustomFunc func() error
@@ -190,7 +189,7 @@ func (p *ManagedProcess[T]) SetCustomFunc(customFunc func() error) {
 	p.CustomFunc = customFunc
 }
 
-func NewManagedProcess[T t.ProcessConfig](name string, command string, args []string, wait bool, customFunc func() error) IManagedProcess[T] {
+func NewManagedProcess[T any](name string, command string, args []string, wait bool, customFunc func() error) IManagedProcess[T] {
 	envs := os.Environ()
 	envPath := os.Getenv("PATH")
 	envs = append(envs, fmt.Sprintf("PATH=%s", envPath))

@@ -1,11 +1,11 @@
 package types
 
 import (
-	t "github.com/faelmori/kubex-interfaces/types"
+	t "github.com/faelmori/golife/internal/types"
 	"github.com/google/uuid"
 )
 
-type ManagedEventsConfig struct {
+type EventsConfig struct {
 	// Telemetry configuration
 	Telemetry
 	// Threading configuration
@@ -18,8 +18,8 @@ type ManagedEventsConfig struct {
 	EventFuncList func(func(...any) error)
 }
 
-func NewManagedEventsConfig() *ManagedEventsConfig {
-	return &ManagedEventsConfig{
+func NewManagedEventsConfig() *EventsConfig {
+	return &EventsConfig{
 		Telemetry:       *NewTelemetry(),
 		ThreadingConfig: *NewThreadingConfig(),
 		ID:              uuid.New(),

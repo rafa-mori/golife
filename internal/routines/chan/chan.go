@@ -1,18 +1,18 @@
 package _chan
 
 import (
-	ks "github.com/faelmori/kubex-interfaces/settings"
-	t "github.com/faelmori/kubex-interfaces/types"
 	"reflect"
+	"sync"
 	"sync/atomic"
 )
 
 // channel is a struct that implements the IChannel and IDynChan interfaces.
 // It provides a more complex implementation of a channel with monitoring capabilities.
 type channel[T any, N int] struct {
-	t.IChannel[T, N]
+	IChannel[T, N]
 
-	mu           ks.KubexThreading // Locker for thread-safe operations.
+	mu           sync.Mutex        // Mutex for thread-safe operations.
+	wg           sync.WaitGroup    // WaitGroup for goroutines.
 	buffers      N                 // Buffer size of the channel.
 	name         string            // Name of the channel.
 	chanAny      chan any          // Main channel for communication.
@@ -25,7 +25,7 @@ type channel[T any, N int] struct {
 
 // NewLoaderChanInterface creates a new channel with a name, type, and buffer size.
 // It returns an instance of IChannel.
-func NewLoaderChanInterface[T any, N int](name string, tp *T, buffers N) t.IChannel[T, N] {
+func NewLoaderChanInterface[T any, N int](name string, tp *T, buffers N) IChannel[T, N] {
 	ch := &channel[T, N]{
 		name:     name,
 		buffers:  buffers,
@@ -46,7 +46,7 @@ func NewLoaderChanInterface[T any, N int](name string, tp *T, buffers N) t.IChan
 
 // NewChannel creates a new channel with a name, type, and buffer size.
 // It returns an instance of IChannel.
-func NewChannel[T any, N int](name string, tp *T, buffers N) t.IChannel[T, N] {
+func NewChannel[T any, N int](name string, tp *T, buffers N) IChannel[T, N] {
 	ch := &channel[T, N]{
 		name:     name,
 		buffers:  buffers,
@@ -161,10 +161,10 @@ func (c *channel[T, N]) StartSysMonitor() {
 	if c.isSysEnabled {
 		return
 	}
-	c.mu.Add(1)
+	c.wg.Add(1)
 	go func() {
 		c.isSysEnabled = true
-		defer c.mu.Done()
+		defer c.wg.Done()
 		defer c.StopSysMonitor()
 		for {
 			select {
@@ -199,7 +199,7 @@ func (c *channel[T, N]) StartSysMonitor() {
 
 // StopSysMonitor stops the system monitoring goroutine and closes all associated channels.
 func (c *channel[T, N]) StopSysMonitor() {
-	defer c.mu.Done()
+	defer c.wg.Done()
 
 	if c.chanSys != nil {
 		c.mu.Lock()

@@ -1,7 +1,7 @@
 package types
 
 import (
-	t "github.com/faelmori/kubex-interfaces/types"
+	t "github.com/faelmori/golife/internal/types"
 	"github.com/google/uuid"
 )
 
@@ -17,7 +17,7 @@ type StageConfig struct {
 	// Stage Agents
 	StageAgents map[string]t.IChannel[any, int]
 	// Event Map
-	StageEventMap map[string]ManagedEventsConfig
+	EventConfigMap map[string]EventsConfig
 }
 
 func NewStageConfig() *StageConfig {
@@ -27,6 +27,6 @@ func NewStageConfig() *StageConfig {
 		ID:              uuid.New(),
 		StageProperties: make(map[string]t.Property[any]),
 		StageAgents:     make(map[string]t.IChannel[any, int]),
-		StageEventMap:   make(map[string]ManagedEventsConfig),
+		EventConfigMap:  make(map[string]EventsConfig),
 	}
 }

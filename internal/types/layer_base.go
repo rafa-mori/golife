@@ -1,6 +1,8 @@
 package types
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type BaseLayer struct {
 	ThreadingConfig

@@ -7,13 +7,13 @@ require (
 	github.com/emersion/go-message v0.18.2
 	github.com/faelmori/gastype v1.1.3
 	github.com/faelmori/kbxutils v1.0.0
-	github.com/faelmori/kubex-interfaces v1.0.0
 	github.com/faelmori/logz v1.1.8
 	github.com/fatih/color v1.18.0
 	github.com/goccy/go-json v0.10.5
 	github.com/google/uuid v1.6.0
 	github.com/pebbe/zmq4 v1.3.0
 	github.com/spf13/cobra v1.9.1
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -84,7 +84,6 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250324211829-b45e905df463 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gorm.io/driver/mysql v1.5.7 // indirect
 	gorm.io/driver/postgres v1.5.11 // indirect
 	gorm.io/driver/sqlite v1.5.7 // indirect
@@ -94,13 +93,13 @@ require (
 
 replace github.com/faelmori/kbxutils => ../kbxutils
 
-replace github.com/faelmori/gkbxsrv => ../gkbxsrv
-
 replace github.com/faelmori/gastype => ../gastype
 
-replace github.com/faelmori/kubex-interfaces => ../kubex-interfaces
+//replace github.com/faelmori/kubex-interfaces => ../kubex-interfaces
 
-replace github.com/faelmori/gospider => ../gospider
+//replace github.com/faelmori/gkbxsrv => ../gkbxsrv
+
+//replace github.com/faelmori/gospider => ../gospider
 
 replace github.com/faelmori/golife => ../golife
 

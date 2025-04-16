@@ -1,7 +1,7 @@
 package types
 
 import (
-	t "github.com/faelmori/kubex-interfaces/types"
+	t "github.com/faelmori/golife/internal/types"
 	"github.com/google/uuid"
 )
 
