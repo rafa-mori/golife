@@ -548,7 +548,7 @@ func (m *ManagedGoroutine[T]) Copy() IManagedGoroutine[T] {
 	m.goroutineMu.Lock()
 	defer m.goroutineMu.Unlock()
 
-	return &ManagedGoroutine{
+	return &ManagedGoroutine[T]{
 		goroutineFn:          m.goroutineFn,
 		goroutineCh:          m.goroutineCh,
 		goroutineErr:         m.goroutineErr,

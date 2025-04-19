@@ -26,7 +26,7 @@ type channel[T any, N int] struct {
 
 // NewLoaderChanInterface creates a new channel with a name, type, and buffer size.
 // It returns an instance of IChannel.
-func NewLoaderChanInterface[T any, N int](name string, tp *T, buffers N) services.IChannel[T, N] {
+func NewLoaderChanInterface[T any, N int](name string, tp *T, buffers N) IChannel[T, N] {
 	ch := &channel[T, N]{
 		name:     name,
 		buffers:  buffers,
@@ -47,7 +47,7 @@ func NewLoaderChanInterface[T any, N int](name string, tp *T, buffers N) service
 
 // NewChannel creates a new channel with a name, type, and buffer size.
 // It returns an instance of IChannel.
-func NewChannel[T any, N int](name string, tp *T, buffers N) services.IChannel[T, N] {
+func NewChannel[T any, N int](name string, tp *T, buffers N) IChannel[T, N] {
 	ch := &channel[T, N]{
 		name:     name,
 		buffers:  buffers,

@@ -128,34 +128,35 @@ func (m *ManagedProcessEvents[T]) Trigger(stage, event string, data interface{})
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if fn, ok := m.EventFns[event]; ok {
-		fn(data)
-	}
+	//if fn, ok := m.EventFns[event]; ok {
+	//	fn(data)
+	//}
 }
 func (m *ManagedProcessEvents[T]) Send(stage string, msg interface{}) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.TriggerCh <- msg
+	//m.TriggerCh <- msg
 }
 func (m *ManagedProcessEvents[T]) Receive(stage string) interface{} {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	return <-m.TriggerCh
+	//return <-m.TriggerCh
+	return nil
 }
 func (m *ManagedProcessEvents[T]) ListenForSignals() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	go func() {
-		for {
-			select {
-			case <-m.TriggerCh:
-				// Do something
-			}
-		}
-	}()
+	//go func() {
+	//	for {
+	//		//select {
+	//		//case <-m.TriggerCh:
+	//		//	// Do something
+	//		//}
+	//	}
+	//}()
 
 	return nil
 }
@@ -229,79 +230,79 @@ func (m *ManagedProcessEvents[T]) SetArgs(args []string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.Args = args
+	//m.Args = args
 }
 func (m *ManagedProcessEvents[T]) SetEnv(env []string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.Env = env
+	//m.Env = env
 }
 func (m *ManagedProcessEvents[T]) SetDir(dir string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.Dir = dir
+	//m.Dir = dir
 }
 func (m *ManagedProcessEvents[T]) SetPort(port int) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.Port = port
+	//m.Port = port
 }
 func (m *ManagedProcessEvents[T]) SetHost(host string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.Host = host
+	//m.Host = host
 }
 func (m *ManagedProcessEvents[T]) SetUser(user string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.User = user
+	//m.User = user
 }
 func (m *ManagedProcessEvents[T]) SetPass(pass string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.Pass = pass
+	//m.Pass = pass
 }
 func (m *ManagedProcessEvents[T]) SetCert(cert string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.Cert = cert
+	//m.Cert = cert
 }
 func (m *ManagedProcessEvents[T]) SetKey(key string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.Key = key
+	//m.Key = key
 }
 func (m *ManagedProcessEvents[T]) SetCA(ca string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.CA = ca
+	//m.CA = ca
 }
 func (m *ManagedProcessEvents[T]) SetSSL(ssl bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.SSL = ssl
+	//m.SSL = ssl
 }
 func (m *ManagedProcessEvents[T]) SetTLS(tls bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.TLS = tls
+	//m.TLS = tls
 }
 func (m *ManagedProcessEvents[T]) SetAuth(auth bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.Auth = auth
+	//m.Auth = auth
 }
 
 // </editor-fold>

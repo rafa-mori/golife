@@ -55,99 +55,99 @@ type ManagedMonit struct {
 
 func (m *ManagedMonit) SetMonitoring(monitoring bool) {
 	m.Monitoring = monitoring
-	l.InfoCtx("Monitoring set", map[string]interface{}{"monitoring": monitoring})
+	l.Info("Monitoring set", map[string]interface{}{"monitoring": monitoring})
 }
 func (m *ManagedMonit) SetInterval(interval time.Duration) {
 	m.Interval = interval
-	l.InfoCtx("Interval set", map[string]interface{}{"interval": interval})
+	l.Info("Interval set", map[string]interface{}{"interval": interval})
 }
 func (m *ManagedMonit) SetTimeout(timeout time.Duration) {
 	m.Timeout = timeout
-	l.InfoCtx("Timeout set", map[string]interface{}{"timeout": timeout})
+	l.Info("Timeout set", map[string]interface{}{"timeout": timeout})
 }
 func (m *ManagedMonit) SetDelay(delay time.Duration) {
 	m.Delay = delay
-	l.InfoCtx("Delay set", map[string]interface{}{"delay": delay})
+	l.Info("Delay set", map[string]interface{}{"delay": delay})
 }
 func (m *ManagedMonit) SetTimeouts(timeouts []time.Duration) {
 	m.Timeouts = timeouts
-	l.InfoCtx("Timeouts set", map[string]interface{}{"timeouts": timeouts})
+	l.Info("Timeouts set", map[string]interface{}{"timeouts": timeouts})
 }
 func (m *ManagedMonit) SetDelays(delays []time.Duration) {
 	m.Delays = delays
-	l.InfoCtx("Delays set", map[string]interface{}{"delays": delays})
+	l.Info("Delays set", map[string]interface{}{"delays": delays})
 }
 func (m *ManagedMonit) SetRunning(running bool) {
 	m.Running = running
-	l.InfoCtx("Running set", map[string]interface{}{"running": running})
+	l.Info("Running set", map[string]interface{}{"running": running})
 }
 func (m *ManagedMonit) SetStopped(stopped bool) {
 	m.Stopped = stopped
-	l.InfoCtx("Stopped set", map[string]interface{}{"stopped": stopped})
+	l.Info("Stopped set", map[string]interface{}{"stopped": stopped})
 }
 func (m *ManagedMonit) SetFailed(failed bool) {
 	m.Failed = failed
-	l.InfoCtx("Failed set", map[string]interface{}{"failed": failed})
+	l.Info("Failed set", map[string]interface{}{"failed": failed})
 }
 func (m *ManagedMonit) SetSuccess(success bool) {
 	m.Success = success
-	l.InfoCtx("SuccessCtx set", map[string]interface{}{"success": success})
+	l.Info("SuccessCtx set", map[string]interface{}{"success": success})
 }
 func (m *ManagedMonit) Start() error {
-	l.InfoCtx("Starting monitor", nil)
+	l.Info("Starting monitor", nil)
 	return nil
 }
 func (m *ManagedMonit) Stop() error {
-	l.InfoCtx("Stopping monitor", nil)
+	l.Info("Stopping monitor", nil)
 	return nil
 }
 func (m *ManagedMonit) Restart() error {
-	l.InfoCtx("Restarting monitor", nil)
+	l.Info("Restarting monitor", nil)
 	return nil
 }
 func (m *ManagedMonit) Reload() error {
-	l.InfoCtx("Reloading monitor", nil)
+	l.Info("Reloading monitor", nil)
 	return nil
 }
 func (m *ManagedMonit) IsRunning() bool {
-	l.InfoCtx("Checking if monitor is running", nil)
+	l.Info("Checking if monitor is running", nil)
 	return false
 }
 func (m *ManagedMonit) Pid() int {
-	l.InfoCtx("Getting monitor PID", nil)
+	l.Info("Getting monitor PID", nil)
 	return 0
 }
 func (m *ManagedMonit) Wait() error {
-	l.InfoCtx("Waiting for monitor", nil)
+	l.Info("Waiting for monitor", nil)
 	return nil
 }
 func (m *ManagedMonit) Status() string {
-	l.InfoCtx("Getting monitor status", nil)
+	l.Info("Getting monitor status", nil)
 	return ""
 }
 func (m *ManagedMonit) String() string {
-	l.InfoCtx("Getting monitor string representation", nil)
+	l.Info("Getting monitor string representation", nil)
 	return ""
 }
 func (m *ManagedMonit) Stdout() string {
-	l.InfoCtx("Getting monitor stdout", nil)
+	l.Info("Getting monitor stdout", nil)
 	return ""
 }
 func (m *ManagedMonit) Stderr() string {
-	l.InfoCtx("Getting monitor stderr", nil)
+	l.Info("Getting monitor stderr", nil)
 	return ""
 }
 func (m *ManagedMonit) Properties() map[string]interface{} {
-	l.InfoCtx("Getting monitor properties", nil)
+	l.Info("Getting monitor properties", nil)
 	return nil
 }
 func (m *ManagedMonit) Monitor() error {
-	l.InfoCtx("Monitoring", nil)
+	l.Info("Monitoring", nil)
 	return nil
 }
 
 func NewManagedMonit() IManagedMonit {
 	monit := ManagedMonit{}
-	l.InfoCtx("Creating new ManagedMonit", nil)
+	l.Info("Creating new ManagedMonit", nil)
 	return &monit
 }

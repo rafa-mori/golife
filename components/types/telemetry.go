@@ -12,7 +12,7 @@ type TelemetryIdentifier struct {
 	ID string
 	// Name is the name of the telemetry instance
 	Name string
-	// Logger is the logger instance for this telemetry
+	// Logger is the Logger instance for this telemetry
 	Logger l.Logger
 	// Type is the type of telemetry (e.g., CPU, Memory, etc.)
 	Type string
@@ -22,7 +22,7 @@ type TelemetryIdentifier struct {
 type TelemetryMutex struct {
 	// mutex is a mutex for synchronizing access to the telemetry data
 	mutex *sync.RWMutex
-	// mutexL is a mutex for synchronizing access to the logger
+	// mutexL is a mutex for synchronizing access to the Logger
 	mutexL *sync.RWMutex
 	// mutexC is a mutex for synchronizing access to the channels
 	mutexC *sync.RWMutex
@@ -52,7 +52,7 @@ type TelemetryData struct {
 	Metrics map[string]float64
 }
 
-// TelemetryLogger is a struct that holds a logger for telemetry data
+// TelemetryLogger is a struct that holds a Logger for telemetry data
 type TelemetryLogger struct {
 	// logger is the logger instance
 	logger l.Logger
@@ -74,7 +74,7 @@ type TelemetryConfig struct {
 type Telemetry struct {
 	// TelemetryIdentifier is the identifier for telemetry data
 	TelemetryIdentifier
-	// TelemetryLogger is the logger for telemetry data
+	// TelemetryLogger is the Logger for telemetry data
 	TelemetryLogger
 	// TelemetryData is the telemetry data
 	TelemetryData

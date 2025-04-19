@@ -1,6 +1,7 @@
 package process
 
 import (
+	p "github.com/faelmori/golife/components/types"
 	l "github.com/faelmori/logz"
 
 	"fmt"
@@ -12,7 +13,7 @@ import (
 type IManagedProcess[T any] interface {
 	GetArgs() []string
 	GetCommand() string
-	GetCustomFunc() func() error
+	GetCustomFunc() *p.ValidationFunc[any]
 	GetName() string
 	GetWaitFor() bool
 	GetProcPid() int
@@ -20,6 +21,7 @@ type IManagedProcess[T any] interface {
 	GetCmd() *exec.Cmd
 	WillRestart() bool
 
+	Status() string
 	Start() error
 	Stop() error
 	Restart() error
@@ -31,7 +33,7 @@ type IManagedProcess[T any] interface {
 
 	SetArgs(args []string)
 	SetCommand(command string)
-	SetCustomFunc(func() error)
+	SetCustomFunc(*p.ValidationFunc[any])
 	SetName(name string)
 	SetWaitFor(wait bool)
 	SetProcPid(pid int)
@@ -42,7 +44,7 @@ type IManagedProcess[T any] interface {
 type ManagedProcess[T any] struct {
 	Args       []string
 	Command    string
-	CustomFunc func() error
+	CustomFunc *p.ValidationFunc[any]
 	Cmd        *exec.Cmd
 	Name       string
 	WaitFor    bool
@@ -51,15 +53,30 @@ type ManagedProcess[T any] struct {
 	mu         sync.Mutex
 }
 
-func (p *ManagedProcess[T]) GetArgs() []string           { return p.Args }
-func (p *ManagedProcess[T]) GetCommand() string          { return p.Command }
-func (p *ManagedProcess[T]) GetCustomFunc() func() error { return p.CustomFunc }
-func (p *ManagedProcess[T]) GetName() string             { return p.Name }
-func (p *ManagedProcess[T]) GetWaitFor() bool            { return p.WaitFor }
-func (p *ManagedProcess[T]) GetProcPid() int             { return p.ProcPid }
-func (p *ManagedProcess[T]) GetProcHandle() uintptr      { return p.ProcHandle }
-func (p *ManagedProcess[T]) GetCmd() *exec.Cmd           { return p.Cmd }
-func (p *ManagedProcess[T]) WillRestart() bool           { return p.Cmd != nil }
+func (p *ManagedProcess[T]) GetArgs() []string                     { return p.Args }
+func (p *ManagedProcess[T]) GetCommand() string                    { return p.Command }
+func (p *ManagedProcess[T]) GetCustomFunc() *p.ValidationFunc[any] { return p.CustomFunc }
+func (p *ManagedProcess[T]) GetName() string                       { return p.Name }
+func (p *ManagedProcess[T]) GetWaitFor() bool                      { return p.WaitFor }
+func (p *ManagedProcess[T]) GetProcPid() int                       { return p.ProcPid }
+func (p *ManagedProcess[T]) GetProcHandle() uintptr                { return p.ProcHandle }
+func (p *ManagedProcess[T]) GetCmd() *exec.Cmd                     { return p.Cmd }
+func (p *ManagedProcess[T]) WillRestart() bool                     { return p.Cmd != nil }
+func (p *ManagedProcess[T]) Status() string {
+	if p == nil {
+		return "nil"
+	}
+	if p.Cmd == nil {
+		return "nil"
+	}
+	if p.Cmd.Process == nil {
+		return "nil"
+	}
+	if p.Cmd.ProcessState == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("Process %s (PID %d) is running: %t", p.Name, p.Pid(), p.IsRunning())
+}
 func (p *ManagedProcess[T]) Start() error {
 	if p == nil {
 		return nil
@@ -72,16 +89,16 @@ func (p *ManagedProcess[T]) Start() error {
 	}
 
 	if p.CustomFunc != nil {
-		l.InfoCtx(fmt.Sprintf("Executing custom function for process %s", p.Name), nil)
+		l.Info(fmt.Sprintf("Executing custom function for process %s", p.Name), nil)
 		go func() {
-			if err := p.CustomFunc(); err != nil {
-				l.ErrorCtx(fmt.Sprintf("Error in custom execution of process %s: %v", p.Name, err), nil)
+			if err := p.CustomFunc.Func(nil); err != nil {
+				l.Error(fmt.Sprintf("Error in custom execution of process %s: %v", p.Name, err), nil)
 			}
 		}()
 		return nil
 	}
 	if p.Command != "" {
-		l.InfoCtx(fmt.Sprintf("Starting process %s with command %s", p.Name, p.Command), nil)
+		l.Info(fmt.Sprintf("Starting process %s with command %s", p.Name, p.Command), nil)
 		p.Cmd = exec.Command(p.Command, p.Args...)
 		if p.WaitFor {
 			return p.Cmd.Run()
@@ -94,7 +111,7 @@ func (p *ManagedProcess[T]) Start() error {
 			return p.Cmd.Process.Release()
 		}
 	} else {
-		l.WarnCtx(fmt.Sprintf("No command defined for process %s", p.Name), nil)
+		l.Warn(fmt.Sprintf("No command defined for process %s", p.Name), nil)
 		return nil
 	}
 }
@@ -183,13 +200,14 @@ func (p *ManagedProcess[T]) SetCmd(cmd *exec.Cmd) {
 
 	p.Cmd = cmd
 }
-func (p *ManagedProcess[T]) SetCustomFunc(customFunc func() error) {
+func (p *ManagedProcess[T]) SetCustomFunc(customFunc *p.ValidationFunc[any]) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+
 	p.CustomFunc = customFunc
 }
 
-func NewManagedProcess[T any](name string, command string, args []string, wait bool, customFunc func() error) IManagedProcess[T] {
+func NewManagedProcess[T any](name string, command string, args []string, wait bool, customFunc *p.ValidationFunc[any]) IManagedProcess[T] {
 	envs := os.Environ()
 	envPath := os.Getenv("PATH")
 	envs = append(envs, fmt.Sprintf("PATH=%s", envPath))
@@ -215,5 +233,6 @@ func NewManagedProcess[T any](name string, command string, args []string, wait b
 		CustomFunc: customFunc,
 		mu:         sync.Mutex{},
 	}
+
 	return &mgrProc
 }

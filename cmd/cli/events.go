@@ -29,8 +29,8 @@ func triggerCmd() *cobra.Command {
 			stage = args[0]
 			event = args[1]
 			data = args[2]
-			manager.Trigger(stage, event, data)
-			l.InfoCtx(fmt.Sprintf("Event %s triggered in stage %s with data: %s", event, stage, data), map[string]interface{}{})
+			//manager.Trigger(stage, event, data)
+			l.Info(fmt.Sprintf("Event %s triggered in stage %s with data: %s", event, stage, data), map[string]interface{}{})
 		},
 	}
 
@@ -55,13 +55,13 @@ func registerEventCmd() *cobra.Command {
 			stage = args[0]
 			event = args[1]
 			regEvErr := manager.RegisterEvent(stage, event, func(data interface{}) {
-				manager.Trigger(stage, event, data)
+				//manager.Trigger(stage, event, data)
 			})
 			if regEvErr != nil {
-				l.ErrorCtx(fmt.Sprintf("ErrorCtx registering event: %s", regEvErr.Error()), map[string]interface{}{})
+				l.Error(fmt.Sprintf("ErrorCtx registering event: %s", regEvErr.Error()), map[string]interface{}{})
 				return
 			}
-			l.InfoCtx("Event registered successfully", map[string]interface{}{})
+			l.Info("Event registered successfully", map[string]interface{}{})
 		},
 	}
 
@@ -84,12 +84,12 @@ func removeEventCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			stage = args[0]
 			event = args[1]
-			err := manager.RemoveEvent(stage, event)
+			err := manager.RemoveEvent( /*stage, */ event)
 			if err != nil {
-				l.ErrorCtx(fmt.Sprintf("ErrorCtx removing event: %s", err.Error()), map[string]interface{}{})
+				l.Error(fmt.Sprintf("ErrorCtx removing event: %s", err.Error()), map[string]interface{}{})
 				return
 			}
-			l.InfoCtx("Event removed successfully", map[string]interface{}{})
+			l.Info("Event removed successfully", map[string]interface{}{})
 		},
 	}
 
@@ -110,10 +110,10 @@ func stopEventsCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			err := manager.StopEvents()
 			if err != nil {
-				l.ErrorCtx(fmt.Sprintf("ErrorCtx stopping events: %s", err.Error()), map[string]interface{}{})
+				l.Error(fmt.Sprintf("ErrorCtx stopping events: %s", err.Error()), map[string]interface{}{})
 				return
 			}
-			l.InfoCtx("Events stopped successfully", map[string]interface{}{})
+			l.Info("Events stopped successfully", map[string]interface{}{})
 		},
 	}
 

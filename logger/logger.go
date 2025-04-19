@@ -1,42 +1,160 @@
 package logger
 
 import (
-	"github.com/faelmori/logz"
-	lgz "github.com/faelmori/logz/logger"
+	"fmt"
+	l "github.com/faelmori/logz"
+	"reflect"
+	"runtime"
+	"strings"
 )
 
-type Log struct{ lgz.Logger }
-
-func (l *Log) Trace(msg string, fields map[string]interface{}) { logz.TraceCtx(msg, fields) }
-
-func (l *Log) Success(msg string, fields map[string]interface{}) {
-	logz.SuccessCtx(msg, fields)
+type gLog struct {
+	l.Logger
+	gLogLevel LogType
 }
 
-func (l *Log) Notice(msg string, fields map[string]interface{}) {
-	logz.NoticeCtx(msg, fields)
-}
+var (
+	// debug is a boolean that indicates whether to log debug messages.
+	debug bool
+	// g is the global logger instance.
+	g *gLog = &gLog{
+		Logger:    l.GetLogger("GoLife - Test"),
+		gLogLevel: LogTypeInfo,
+	}
+)
 
-func (l *Log) Info(msg string, fields map[string]interface{}) { logz.InfoCtx(msg, fields) }
-
-func (l *Log) Error(msg string, fields map[string]interface{}) { logz.ErrorCtx(msg, fields) }
-
-func (l *Log) Warn(msg string, fields map[string]interface{}) { logz.WarnCtx(msg, fields) }
-
-func (l *Log) Debug(msg string, fields map[string]interface{}) { logz.DebugCtx(msg, fields) }
-
-var logger lgz.LogzLogger = lgz.NewLogger("GoLife")
-
-func SetLogger(customLogger lgz.LogzLogger) {
-	if customLogger != nil {
-		logger = customLogger
+func init() {
+	// Set the debug flag to true for testing purposes.
+	debug = false
+	// Initialize the global logger instance with a default logger.
+	if g.Logger == nil {
+		g = &gLog{
+			Logger:    l.GetLogger("GoLife - Test"),
+			gLogLevel: LogTypeInfo,
+		}
 	}
 }
 
-func GetLogger() lgz.LogzLogger {
-	if logger == nil {
-		lll := logz.NewLogger("GoLife")
-		return lll
+type LogType string
+
+const (
+	LogTypeNotice  LogType = "Notice"
+	LogTypeInfo    LogType = "Info"
+	LogTypeDebug   LogType = "Debug"
+	LogTypeError   LogType = "Error"
+	LogTypeWarn    LogType = "Warn"
+	LogTypeFatal   LogType = "Fatal"
+	LogTypePanic   LogType = "Panic"
+	LogTypeSuccess LogType = "Success"
+)
+
+// SetDebug is a function that sets the debug flag for logging.
+func SetDebug(d bool) { debug = d }
+
+// LogObjLogger is a function that logs messages with the specified log type.
+func LogObjLogger[T any](obj *T, logType string, messages ...string) {
+	if obj == nil {
+		g.Error(fmt.Sprintf("log object (%s) is nil", reflect.TypeFor[T]()), map[string]any{
+			"context":  "Log",
+			"logType":  logType,
+			"object":   obj,
+			"msg":      messages,
+			"showData": false,
+		})
+		return
 	}
-	return logger
+	// Check if the object has a logger field with reflection
+	objValueLogger := reflect.ValueOf(obj).Elem().FieldByName("Logger")
+	if !objValueLogger.IsValid() {
+		g.Error(fmt.Sprintf("log object (%s) does not have a logger field", reflect.TypeFor[T]()), map[string]any{
+			"context":  "Log",
+			"logType":  logType,
+			"object":   obj,
+			"msg":      messages,
+			"showData": false,
+		})
+		return
+	} else {
+		var lgr l.Logger
+		objValueLogger = objValueLogger.Convert(reflect.TypeFor[l.Logger]())
+		lgr = objValueLogger.Interface().(l.Logger)
+		pc, file, line, ok := runtime.Caller(1)
+		if !ok {
+			lgr.Error("Log: unable to get caller information", nil)
+			return
+		}
+		funcName := runtime.FuncForPC(pc).Name()
+		ctxMessageMap := map[string]any{
+			"context":  funcName,
+			"file":     file,
+			"line":     line,
+			"showData": debug,
+		}
+		fullMessage := strings.Join(messages, " ")
+		logType = strings.ToLower(logType)
+		if logType != "" {
+			if reflect.TypeOf(logType).ConvertibleTo(reflect.TypeFor[LogType]()) {
+				lType := LogType(logType)
+				ctxMessageMap["logType"] = logType
+				logging(lgr, lType, fullMessage, ctxMessageMap)
+			} else {
+				lgr.Error(fmt.Sprintf("logType (%s) is not valid", logType), ctxMessageMap)
+			}
+		} else {
+			lgr.Info(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
+		}
+	}
+}
+
+// Log is a function that logs messages with the specified log type and caller information.
+func Log(logType string, messages ...string) {
+	pc, file, line, ok := runtime.Caller(1)
+	if !ok {
+		g.Error("Log: unable to get caller information", nil)
+		return
+	}
+	funcName := runtime.FuncForPC(pc).Name()
+	ctxMessageMap := map[string]any{
+		"context":  funcName,
+		"file":     file,
+		"line":     line,
+		"showData": debug,
+	}
+	fullMessage := strings.Join(messages, " ")
+	logType = strings.ToLower(logType)
+	if logType != "" {
+		if reflect.TypeOf(logType).ConvertibleTo(reflect.TypeFor[LogType]()) {
+			lType := LogType(logType)
+			ctxMessageMap["logType"] = logType
+			logging(g.Logger, lType, fullMessage, ctxMessageMap)
+		} else {
+			g.Error(fmt.Sprintf("logType (%s) is not valid", logType), ctxMessageMap)
+		}
+	} else {
+		g.Info(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
+	}
+}
+
+// logging is a helper function that logs messages with the specified log type.
+func logging(lgr l.Logger, lType LogType, fullMessage string, ctxMessageMap map[string]interface{}) {
+	switch lType {
+	case LogTypeInfo:
+		lgr.Info(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
+	case LogTypeDebug:
+		lgr.Debug(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
+	case LogTypeError:
+		lgr.Error(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
+	case LogTypeWarn:
+		lgr.Warn(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
+	case LogTypeNotice:
+		lgr.Notice(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
+	case LogTypeSuccess:
+		lgr.Success(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
+	case LogTypeFatal:
+		lgr.FatalC(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
+	case LogTypePanic:
+		lgr.Panic(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
+	default:
+		lgr.Info(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
+	}
 }

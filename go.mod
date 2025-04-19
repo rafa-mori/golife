@@ -5,7 +5,6 @@ go 1.24.2
 require (
 	github.com/emersion/go-imap v1.2.1
 	github.com/emersion/go-message v0.18.2
-	github.com/faelmori/gastype v1.1.3
 	github.com/faelmori/logz v1.1.8
 	github.com/fatih/color v1.18.0
 	github.com/goccy/go-json v0.10.5
@@ -16,6 +15,7 @@ require (
 )
 
 require (
+	github.com/faelmori/kubex-interfaces v1.0.0 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
@@ -35,9 +35,9 @@ require (
 	golang.org/x/text v0.24.0 // indirect
 )
 
-replace github.com/faelmori/kbxutils => ../kbxutils
+//replace github.com/faelmori/kbxutils => ../kbxutils
 
-replace github.com/faelmori/gastype => ../gastype
+//replace github.com/faelmori/gastype => ../gastype
 
 //replace github.com/faelmori/kubex-interfaces => ../kubex-interfaces
 
@@ -45,6 +45,6 @@ replace github.com/faelmori/gastype => ../gastype
 
 //replace github.com/faelmori/gospider => ../gospider
 
-replace github.com/faelmori/golife => ../golife
+//replace github.com/faelmori/golife => ../golife
 
-replace github.com/faelmori/logz => ../logz
+//replace github.com/faelmori/logz => ../logz

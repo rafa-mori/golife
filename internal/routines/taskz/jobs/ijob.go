@@ -136,7 +136,7 @@ func (jb *Job[T]) CanExecute() bool {
 //   - error: An error if the job is already running or cannot be executed, nil otherwise.
 func (jb *Job[T]) Execute() error {
 	if jb.Running {
-		jb.logger.ErrorCtx("Job is already running", map[string]interface{}{"job_id": jb.ID})
+		jb.logger.Error("Job is already running", map[string]interface{}{"job_id": jb.ID})
 		return nil
 	}
 	if jb.Action.CanExecute() {
@@ -144,7 +144,7 @@ func (jb *Job[T]) Execute() error {
 			return err
 		}
 	} else {
-		jb.logger.ErrorCtx("Job cannot be executed", map[string]interface{}{"job_id": jb.ID})
+		jb.logger.Error("Job cannot be executed", map[string]interface{}{"job_id": jb.ID})
 		return nil
 	}
 	return nil
@@ -182,7 +182,7 @@ func (jb *Job[T]) GetResultsChannel() chan T { return jb.Action.GetResultChannel
 func (jb *Job[T]) GetCreateTime() time.Time {
 	createTime, err := time.Parse(time.RFC3339, jb.CreateTime)
 	if err != nil {
-		jb.logger.ErrorCtx("Error parsing create time", map[string]interface{}{"job_id": jb.ID, "error": err})
+		jb.logger.Error("Error parsing create time", map[string]interface{}{"job_id": jb.ID, "error": err})
 		return time.Time{}
 	}
 	return createTime
@@ -228,10 +228,10 @@ func (jb *Job[T]) Cancel() error {
 		}
 		jb.Running = false
 		jb.CancelTime = time.Now()
-		jb.logger.InfoCtx("Job cancelled", map[string]interface{}{"job_id": jb.ID})
+		jb.logger.Info("Job cancelled", map[string]interface{}{"job_id": jb.ID})
 		return nil
 	} else {
-		jb.logger.ErrorCtx("Job is not running", map[string]interface{}{"job_id": jb.ID})
+		jb.logger.Error("Job is not running", map[string]interface{}{"job_id": jb.ID})
 		return fmt.Errorf("job is not running")
 	}
 }

@@ -36,7 +36,7 @@ type ManagerConfig struct {
 	// Manager Stages
 	StagesConfigMap map[string]*StageConfig
 	// Manager Processes
-	ProcessConfigMap map[string]*ProcessConfig
+	ProcessConfigMap map[string]*ProcessConfig[property.KubexProperty[any]]
 	// Manager Events
 	EventsConfigMap map[string]*EventsConfig
 	// Manager Stages
@@ -53,13 +53,13 @@ func NewManagerConfig() *ManagerConfig {
 
 		RoutineConfigMap: make(map[string]*RoutineConfig),
 		StagesConfigMap:  make(map[string]*StageConfig),
-		ProcessConfigMap: make(map[string]*ProcessConfig),
+		ProcessConfigMap: make(map[string]*ProcessConfig[property.KubexProperty[any]]),
 		EventsConfigMap:  make(map[string]*EventsConfig),
 		StageConfigMap:   make(map[string]*StageConfig),
 	}
 }
 
-func RegisterProcess(manager *ManagerConfig, process *ProcessConfig) {
+func RegisterProcess(manager *ManagerConfig, process *ProcessConfig[property.KubexProperty[any]]) {
 	manager.ProcessConfigMap[process.Name] = process
 }
 

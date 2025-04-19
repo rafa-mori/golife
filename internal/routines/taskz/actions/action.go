@@ -2,16 +2,18 @@ package actions
 
 import (
 	"fmt"
-	t "github.com/faelmori/gastype/types"
 	"github.com/faelmori/golife/internal/property"
+	f "github.com/faelmori/golife/internal/property"
 	c "github.com/faelmori/golife/internal/routines/agents"
-	"github.com/faelmori/golife/internal/utils"
-	"github.com/faelmori/golife/services"
+	t "github.com/faelmori/golife/internal/types"
+
 	"github.com/google/uuid"
 	"reflect"
 	"sync"
 	"time"
 )
+
+type ChangeListener[T any] interface{ f.ChangeListener[T] }
 
 // IAction defines the interface for an action with methods for execution, cancellation, and status retrieval.
 type IAction[T any] interface {
@@ -29,13 +31,13 @@ type IAction[T any] interface {
 	GetResultChannel() chan T
 	GetDoneChannel() chan any
 	GetCancelChannel() chan any
-	GetProperties() map[string]property.Property[any]
-	GetProperty(name string) property.Property[any]
-	SetProperty(name string, value any) error
+	GetProperties() map[string]f.Property[T]
+	GetProperty(string) f.Property[T]
+	SetProperty(string, any) error
 	GetTask() func(T) error
-	SetTask(task func(T) error)
-	SafeSend(channel string, value any) error
-	SafeReceive(channel string) (any, error)
+	SetTask(func(T) error)
+	SafeSend(string, any) error
+	SafeReceive(string) (any, error)
 }
 
 // Action is a common struct that implements the IAction interface.
@@ -49,12 +51,13 @@ type Action[T any] struct {
 	isRunning bool         // Indicates whether the action is currently running.
 
 	// New Fields - Let's do it the insane (moderate) way! hehehehe
-	Errors     []error                                // List of errors associated with the action.
-	Results    map[string]t.IResult                   // Map of results associated with the action.
-	mapChan    map[string]services.IChannel[any, int] // Map of channels associated with the action.
-	Properties map[string]property.Property[any]      // Map of properties associated with the action.
-	task       func(T) error                          // Task associated with the action. .
-	data       T                                      // Data associated with the action.
+	Errors     []error                         // List of errors associated with the action.
+	Results    map[string]t.IResult            // Map of results associated with the action.
+	mapChan    map[string]c.IChannel[any, int] // Map of channels associated with the action.
+	Properties map[string]property.Property[T] // Map of properties associated with the action.
+	properties map[string]interface{}          // Map of properties associated with the action.
+	task       func(T) error                   // Task associated with the action. .
+	data       T                               // Data associated with the action.
 }
 
 // NewAction creates a new action with the specified type.
@@ -64,51 +67,42 @@ type Action[T any] struct {
 // Returns:
 //   - IAction: A new instance of the Action struct.
 func NewAction[T any](identifier string, actionType string, data *T, ev func(T) error) IAction[T] {
-	actA := &Action[T]{
-		IAction: &Action[T]{
-			// Old Fields - Good logic, without bugs until now
-			mu:        sync.RWMutex{},
-			ref:       uuid.New(),
-			ID:        identifier,
-			Type:      actionType,
-			isRunning: false,
+	uid, uidErr := uuid.NewUUID()
+	if uidErr != nil {
+		fmt.Printf("Error generating UUID: %v\n", uidErr)
+		return nil
+	}
+	status := "Pending"
 
-			// New Fields - Let's do it the insane (moderate) way! hehehehe
-			Errors:     make([]error, 0),
-			Results:    make(map[string]t.IResult),
-			mapChan:    make(map[string]services.IChannel[any, int]),
-			Properties: make(map[string]property.Property[any]),
-			task: func(data T) error {
-				if ev != nil {
-					return ev(data)
-				}
-				return nil
-			},
+	actA := &Action[T]{
+		ref:       uid,
+		ID:        identifier,
+		Type:      actionType,
+		isRunning: false,
+		Errors:    make([]error, 0),
+		Results:   make(map[string]t.IResult),
+
+		mapChan:    make(map[string]c.IChannel[any, int]),
+		Properties: make(map[string]property.Property[T]),
+		properties: map[string]interface{}{
+			"status":     property.NewProperty[string]("status", &status),
+			"identifier": property.NewProperty[string]("identifier", &identifier),
+			"actionType": property.NewProperty[string]("actionType", &actionType),
+			"data":       property.NewProperty[T]("data", data),
 		},
+
+		task: ev,
+		data: *data,
 	}
 
 	// Initialize the map of channels
+
 	actA.mapChan["cancel"] = c.NewChannel[struct{}, int](actA.ref.String(), nil, 10)
 	actA.mapChan["result"] = c.NewChannel[t.IResult, int](actA.ref.String(), nil, 10)
 	actA.mapChan["error"] = c.NewChannel[any, int](actA.ref.String(), nil, 10)
 	actA.mapChan["done"] = c.NewChannel[struct{}, int](actA.ref.String(), nil, 10)
 
 	// Initialize the map of properties
-	actA.Properties["status"] = utils.NewProperty[string]("status", nil)
-	_ = actA.Properties["status"].SetValue("Pending", nil)
-	actA.Properties["type"] = utils.NewProperty[string]("type", nil)
-	_ = actA.Properties["type"].SetValue(actionType, nil)
-	actA.Properties["id"] = utils.NewProperty[string]("id", nil)
-	_ = actA.Properties["id"].SetValue(identifier, nil)
-	actA.Properties["data"] = utils.NewProperty[T]("data", nil)
-	_ = actA.Properties["data"].SetValue(*data, nil)
-
-	if err := actA.Properties["status"].AddListener("onStatusChange", func(oldValue, newValue any, metadata utils.EventMetadata) utils.ListenerResponse {
-		fmt.Printf("Action %s changed status: %v -> %v\n", actA.ID, oldValue, newValue)
-		return utils.ListenerResponse{Success: true}
-	}); err != nil {
-		fmt.Printf("Error adding listener: %v\n", err)
-	}
 
 	return actA
 }
@@ -125,6 +119,7 @@ func (ac *Action[T]) GetRef() uuid.UUID {
 // GetID retrieves the unique identifier of the action.
 // Returns:
 //   - string: The unique identifier of the action.
+
 func (ac *Action[T]) GetID() string {
 	ac.mu.RLock()
 	defer ac.mu.RUnlock()
@@ -158,7 +153,7 @@ func (ac *Action[T]) GetStatus() string {
 	if ac.Properties["status"] == nil {
 		return "Unknown"
 	}
-	return ac.Properties["status"].GetValue().(string)
+	return fmt.Sprintf("%v", ac.Properties["status"].GetValue())
 }
 
 // GetErrors retrieves a list of errors associated with the action.
@@ -201,7 +196,9 @@ func (ac *Action[T]) Execute() error {
 	ac.isRunning = true
 	ac.mu.Unlock()
 
-	err := ac.task(*ac.Properties["data"].GetValue().(*T))
+	val := ac.Properties["data"].GetValue()
+	valT := reflect.ValueOf(val).Interface().(T)
+	err := ac.task(valT)
 	duration := time.Since(start)
 
 	if err != nil {
@@ -287,7 +284,7 @@ func (ac *Action[T]) GetCancelChannel() chan any {
 // GetProperties retrieves a map of properties associated with the action.
 // Returns:
 //   - map[string]types.Property[any]: The map of properties.
-func (ac *Action[T]) GetProperties() map[string]property.Property[any] {
+func (ac *Action[T]) GetProperties() map[string]f.Property[T] {
 	ac.mu.RLock()
 	defer ac.mu.RUnlock()
 	return ac.Properties
@@ -299,11 +296,26 @@ func (ac *Action[T]) GetProperties() map[string]property.Property[any] {
 //
 // Returns:
 //   - types.Property[any]: The property associated with the specified name.
-func (ac *Action[T]) GetProperty(name string) property.Property[any] {
+func (ac *Action[T]) GetProperty(name string) f.Property[T] {
 	ac.mu.RLock()
 	defer ac.mu.RUnlock()
+
 	if prop, ok := ac.Properties[name]; ok {
-		return prop
+		var fn f.ChangeListener[T] = property.NewListener[T]("status", func(oldValue *T, newValue T, metadata *property.EventMetadata) property.ListenerResponse {
+			fmt.Printf("Action %s changed status: %v -> %v\n", ac.ID, oldValue, newValue)
+			return property.ListenerResponse{
+				Success:  true,
+				Metadata: metadata,
+				ErrorMsg: "",
+			}
+		}).N
+		if prop != nil {
+			err := prop.AddListener("status", &fn)
+			if err != nil {
+				return nil
+			}
+			return prop
+		}
 	}
 	return nil
 }
@@ -319,7 +331,8 @@ func (ac *Action[T]) SetProperty(name string, value any) error {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
 	if prop, ok := ac.Properties[name]; ok {
-		return prop.SetValue(value, nil)
+		valueT := reflect.ValueOf(value).Interface().(T)
+		return prop.SetValue(valueT, nil)
 	}
 	return nil
 }

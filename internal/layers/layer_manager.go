@@ -83,8 +83,8 @@ func (lm *LayerManager) ExecuteLayerEvent(layerName, eventName string, args ...a
 		return l.ExecuteEvent(eventName, args...)
 	case *StageLayer:
 		return l.ExecuteStageEvent(eventName, args...)
-	case *AccessLayer:
-		return l.ExecuteAccessEvent(eventName, args...)
+	case *Layer:
+		return l.ExecuteLayerEvent(eventName, args...)
 	default:
 		return fmt.Errorf("tipo de camada desconhecido para %s", layerName)
 	}

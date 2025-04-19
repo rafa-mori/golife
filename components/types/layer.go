@@ -1,8 +1,7 @@
-package layers
+package types
 
 import (
 	"fmt"
-	p "github.com/faelmori/golife/components/types"
 	"reflect"
 	"sort"
 	"sync"
@@ -11,35 +10,36 @@ import (
 // Layer is a struct that holds the layer information.
 type Layer[T any] struct {
 	// Mu is the mutexes for this layer.
-	Mu *p.Mutexes
+	Mu *Mutexes
 	// Scope is the scope of this layer.
-	Scope *p.Reference
+	Scope *Reference
 	// Events is a map of access events.
-	Events map[string]map[int]p.ValidationFunc[any]
+	Events map[string]map[int]ValidationFunc[any]
 	// Listeners is a map of access listeners.
-	Listeners map[int]p.ValidationFunc[any]
+	Listeners map[int]ValidationFunc[any]
 	// State is the state of this layer.
-	State *p.ValidationResult
+	State *ValidationResult
 	// Object is the object of this layer.
 	Object *T
 }
 
 // NewLayer creates a new Layer instance with the provided scope.
-func NewLayer[T any](scope string) *Layer[T] {
+func NewLayer[T any](scope string, object *T) *Layer[T] {
 	// Create a new Reference instance based on the provided scope
-	ref := p.NewReference(scope)
+	ref := NewReference(scope)
 	// Create a new Mutexes instance
-	mu := p.NewMutexes()
+	mu := NewMutexes()
 	// Create a new Layer instance
 	return &Layer[T]{
 		Mu:     mu,
 		Scope:  ref,
-		Events: make(map[string]map[int]p.ValidationFunc[any]),
-		State: &p.ValidationResult{
+		Events: make(map[string]map[int]ValidationFunc[any]),
+		State: &ValidationResult{
 			IsValid: true,
 			Message: "Access layer initialized successfully",
 			Error:   nil,
 		},
+		Object: object,
 	}
 }
 
@@ -56,7 +56,7 @@ func (a *Layer[T]) LayerObject() *T {
 }
 
 // AddLayerEvent adds an event to the Layer.
-func (a *Layer[T]) AddLayerEvent(name string, event *p.ValidationFunc[any]) {
+func (a *Layer[T]) AddLayerEvent(name string, event *ValidationFunc[any]) {
 	if event == nil {
 		return
 	}
@@ -66,7 +66,7 @@ func (a *Layer[T]) AddLayerEvent(name string, event *p.ValidationFunc[any]) {
 
 	// Check if the event already exists
 	if _, exists := a.Events[name]; !exists {
-		a.Events[name] = make(map[int]p.ValidationFunc[any])
+		a.Events[name] = make(map[int]ValidationFunc[any])
 	}
 	// Check if the event already exists
 	if _, exists := a.Events[name][event.Priority]; exists {
@@ -79,7 +79,7 @@ func (a *Layer[T]) AddLayerEvent(name string, event *p.ValidationFunc[any]) {
 }
 
 // GetLayerEvents returns the events for the given name.
-func (a *Layer[T]) GetLayerEvents(name string) map[int]p.ValidationFunc[any] {
+func (a *Layer[T]) GetLayerEvents(name string) map[int]ValidationFunc[any] {
 	a.Mu.RLock()
 	defer a.Mu.RUnlock()
 
@@ -112,11 +112,11 @@ func (a *Layer[T]) RemoveLayerEvent(name string, priority int) {
 }
 
 // ExecuteLayerEvent executes the event with the given name and arguments.
-func (a *Layer[T]) ExecuteLayerEvent(name string, args ...any) (bool, *p.ValidationResult) {
+func (a *Layer[T]) ExecuteLayerEvent(name string, args ...any) (bool, *ValidationResult) {
 	// Sort the events by priority
 	sortedEvents := sortByPriority(a.Events[name], a.Mu.MuCtxM)
 	if sortedEvents == nil {
-		return false, &p.ValidationResult{
+		return false, &ValidationResult{
 			Error:   fmt.Errorf("error sorting events for %s", name),
 			IsValid: false,
 			Message: fmt.Sprintf("Error sorting events for %s", name),
@@ -125,7 +125,7 @@ func (a *Layer[T]) ExecuteLayerEvent(name string, args ...any) (bool, *p.Validat
 
 	accessEvents := a.GetLayerEvents(name)
 	if accessEvents == nil {
-		return false, &p.ValidationResult{
+		return false, &ValidationResult{
 			Error:   fmt.Errorf("access event %s not found", name),
 			IsValid: false,
 			Message: fmt.Sprintf("Access events for %s not found", name),
@@ -151,7 +151,7 @@ func (a *Layer[T]) ExecuteLayerEvent(name string, args ...any) (bool, *p.Validat
 }
 
 // AddLayerListener adds a listener to the Layer.
-func (a *Layer[T]) AddLayerListener(listener *p.ValidationFunc[any]) {
+func (a *Layer[T]) AddLayerListener(listener *ValidationFunc[any]) {
 	if listener == nil {
 		return
 	}
@@ -165,7 +165,7 @@ func (a *Layer[T]) AddLayerListener(listener *p.ValidationFunc[any]) {
 }
 
 // GetLayerListeners returns the listeners for the Layer.
-func (a *Layer[T]) GetLayerListeners() map[int]p.ValidationFunc[any] {
+func (a *Layer[T]) GetLayerListeners() map[int]ValidationFunc[any] {
 	a.Mu.RLock()
 	defer a.Mu.RUnlock()
 	return a.Listeners
@@ -186,13 +186,13 @@ func (a *Layer[T]) RemoveLayerListener(priority int) {
 }
 
 // ExecuteLayerListener executes the listener with the given priority and arguments.
-func (a *Layer[T]) ExecuteLayerListener(priority int, args ...any) (bool, *p.ValidationResult) {
+func (a *Layer[T]) ExecuteLayerListener(priority int, args ...any) (bool, *ValidationResult) {
 	a.Mu.Lock()
 	defer a.Mu.Unlock()
 
 	// Check if the listener exists
 	if _, exists := a.Listeners[priority]; !exists {
-		return false, &p.ValidationResult{
+		return false, &ValidationResult{
 			Error:   fmt.Errorf("access listener with priority %d not found", priority),
 			IsValid: false,
 			Message: fmt.Sprintf("Access listener with priority %d not found", priority),
@@ -223,7 +223,7 @@ func (a *Layer[T]) NotifyLayerListeners(args ...any) {
 	}
 
 	// Notify all access listeners
-	for priority, _ := range sortedListeners {
+	for priority := range sortedListeners {
 		if ok, err := a.ExecuteLayerListener(priority, args...); err != nil {
 			fmt.Printf("Error executing access listener with priority %d: %v\n", priority, err)
 		} else if !ok {
@@ -235,7 +235,7 @@ func (a *Layer[T]) NotifyLayerListeners(args ...any) {
 }
 
 // GetLayerState returns the state of the Layer.
-func (a *Layer[T]) GetLayerState() *p.ValidationResult {
+func (a *Layer[T]) GetLayerState() *ValidationResult {
 	a.Mu.RLock()
 	defer a.Mu.RUnlock()
 
@@ -256,12 +256,12 @@ func (a *Layer[T]) Snapshot() string {
 }
 
 // sortByPriority sorts the given slice of ValidationFunc by priority.
-func sortByPriority(funcMap map[int]p.ValidationFunc[any], mutex *sync.RWMutex) map[int]p.ValidationFunc[any] {
+func sortByPriority(funcMap map[int]ValidationFunc[any], mutex *sync.RWMutex) map[int]ValidationFunc[any] {
 	mutex.RLock()
 	defer mutex.RUnlock()
 
 	// Sort the events by priority
-	sortedEvents := make([]p.ValidationFunc[any], 0)
+	sortedEvents := make([]ValidationFunc[any], 0)
 	for _, v := range funcMap {
 		sortedEvents = append(sortedEvents, v)
 	}
@@ -272,7 +272,7 @@ func sortByPriority(funcMap map[int]p.ValidationFunc[any], mutex *sync.RWMutex) 
 	})
 
 	// Create a new map with the sorted events
-	sortedEventsMap := make(map[int]p.ValidationFunc[any])
+	sortedEventsMap := make(map[int]ValidationFunc[any])
 	for _, v := range sortedEvents {
 		sortedEventsMap[v.Priority] = v
 	}

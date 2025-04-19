@@ -9,7 +9,7 @@ import (
 	"syscall"
 )
 
-type ProcessParameters struct {
+type ProcessParameters[T f.KubexProperty[any]] struct {
 	Name string
 	Args []string
 	Env  []string
@@ -20,7 +20,7 @@ type ProcessParameters struct {
 	User string
 }
 
-type ProcessConfig struct {
+type ProcessConfig[T f.KubexProperty[any]] struct {
 	// Telemetry configuration
 	Telemetry
 
@@ -36,7 +36,7 @@ type ProcessConfig struct {
 	// Name of the process
 	Name string
 	// Basic process properties
-	ProcessProperties map[string]f.Property[any]
+	ProcessProperties map[string]any
 	// Process Agents
 	ProcessAgents map[string]c.IChannel[any, int]
 	// Process Stages
@@ -45,38 +45,38 @@ type ProcessConfig struct {
 	ProcessEventsMap map[string]EventsConfig
 }
 
-func (pc *ProcessConfig) InitDefaults(args *ProcessParameters) {
+func (pc *ProcessConfig[T]) InitDefaults(args *ProcessParameters[f.KubexProperty[any]]) {
 	if args == nil {
-		args = &ProcessParameters{}
+		args = &ProcessParameters[f.KubexProperty[any]]{}
 	}
 
-	pc.ProcessProperties["name"] = f.NewProperty[any]("name", nil)
-	_ = pc.ProcessProperties["name"].SetValue(args.Name, nil)
+	pc.ProcessProperties = make(map[string]any)
 
+	name := f.NewProperty[string]("name", nil)
+	pid := f.NewProperty[int]("pid", nil)
+
+	pc.ProcessProperties["name"] = name
+	pc.ProcessProperties["pid"] = pid
 	pc.ProcessProperties["cwd"] = f.NewProperty[any]("cwd", nil)
-	_ = pc.ProcessProperties["cwd"].SetValue(args.CWD, nil)
-
 	pc.ProcessProperties["args"] = f.NewProperty[any]("args", nil)
-	_ = pc.ProcessProperties["args"].SetValue(args.Args, nil)
-
 	pc.ProcessProperties["env"] = f.NewProperty[any]("env", nil)
-	_ = pc.ProcessProperties["env"].SetValue(args.Env, nil)
+	//_ = pc.ProcessProperties["env"].SetValue(args.Env, nil)
 
 	pc.ProcessProperties["host"] = f.NewProperty[any]("host", nil)
-	_ = pc.ProcessProperties["host"].SetValue(args.Host, nil)
+	//_ = pc.ProcessProperties["host"].SetValue(args.Host, nil)
 
 	pc.ProcessProperties["port"] = f.NewProperty[any]("port", nil)
-	_ = pc.ProcessProperties["port"].SetValue(args.Port, nil)
+	//_ = pc.ProcessProperties["port"].SetValue(args.Port, nil)
 
 	pc.ProcessProperties["user"] = f.NewProperty[any]("user", nil)
-	_ = pc.ProcessProperties["user"].SetValue(args.User, nil)
+	//_ = pc.ProcessProperties["user"].SetValue(args.User, nil)
 
 	pc.ProcessProperties["pid"] = f.NewProperty[any]("pid", nil)
-	_ = pc.ProcessProperties["pid"].SetValue(pc.Pid, nil)
+	//_ = pc.ProcessProperties["pid"].SetValue(pc.Pid, nil)
 
 }
 
-func (pc *ProcessConfig) GetProcessSysPid() int {
+func (pc *ProcessConfig[T]) GetProcessSysPid() int {
 	var pidA, pidB, pidC int
 	var err error
 	pidA = os.Getpid()
@@ -94,18 +94,23 @@ func (pc *ProcessConfig) GetProcessSysPid() int {
 	return pidC
 }
 
-func NewProcessConfig(args ProcessParameters) *ProcessConfig {
-	mc := &ProcessConfig{
+func NewProcessConfig[T any](args ProcessParameters[f.KubexProperty[any]]) *ProcessConfig[f.KubexProperty[any]] {
+	mc := ProcessConfig[f.KubexProperty[any]]{
 		Telemetry:         *NewTelemetry(),
 		ThreadingConfig:   *u.NewThreadingConfig(),
 		ID:                uuid.New(),
-		ProcessProperties: make(map[string]f.Property[any]),
+		ProcessProperties: make(map[string]any),
 	}
 
 	mc.Type = args.Type
 	mc.Pid = mc.GetProcessSysPid()
 
-	mc.InitDefaults(&args)
+	mc.InitDefaults(nil)
 
-	return mc
+	return &mc
+}
+
+func (pc *ProcessConfig[T]) GetID() uuid.UUID {
+	pc.Telemetry.logger.Info("GetID", nil)
+	return pc.ID
 }

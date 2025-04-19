@@ -2,14 +2,14 @@ package workers
 
 import (
 	"fmt"
-	"github.com/faelmori/golife/internal/property"
-	c "github.com/faelmori/golife/internal/routines/agents"
+	f "github.com/faelmori/golife/internal/property"
+	//c "github.com/faelmori/golife/internal/routines/agents"
 	t "github.com/faelmori/golife/internal/types"
-	"github.com/faelmori/golife/internal/utils"
+	//"github.com/faelmori/golife/internal/utils"
+	//p "github.com/faelmori/golife/life/types"
 	l "github.com/faelmori/logz"
 	"github.com/google/uuid"
 	"sync"
-	"time"
 )
 
 type WorkerManager[T any] struct {
@@ -22,7 +22,7 @@ type WorkerManager[T any] struct {
 
 	logger l.Logger
 
-	Properties map[string]property.Property[any]
+	Properties map[string]f.Property[any]
 
 	workerPool t.IWorkerPool //t.IWorkerPool
 }
@@ -41,44 +41,44 @@ func NewWorkerManager[T any](pool t.IWorkerPool, logger l.Logger) t.IWorkerManag
 		wg:   sync.WaitGroup{},
 		cond: sync.NewCond(&sync.Mutex{}),
 
-		Properties: make(map[string]property.Property[any]),
+		Properties: make(map[string]f.Property[any]),
 
 		workerPool: pool,
 	}
 
-	// Propriedades de controle
-	wm.Properties["status"] = utils.NewProperty[string]("status", nil)
-	wm.Properties["status"].SetValue("Stopped", nil)
-	wm.Properties["workerCount"] = utils.NewProperty[int]("workerCount", nil)
-	wm.Properties["workerCount"].SetValue(0, nil)
-	wm.Properties["monitorInterval"] = utils.NewProperty[int]("monitorInterval", nil)
-	wm.Properties["monitorInterval"].SetValue(500, nil)
+	//// Propriedades de controle
+	//wm.Properties["status"] = f.NewProperty[string]("status", nil)
+	////wm.Properties["status"].SetValue("Stopped", nil)
+	//wm.Properties["workerCount"] = f.NewProperty[int]("workerCount", nil)
+	////wm.Properties["workerCount"].SetValue(0, nil)
+	//wm.Properties["monitorInterval"] = f.NewProperty[int]("monitorInterval", nil)
+	////wm.Properties["monitorInterval"].SetValue(500, nil)
 
 	return wm
 }
 
 // AddWorker adiciona um worker ao pool
-func (wm *WorkerManager[T]) AddWorker() (t.IWorker, error) {
+func (wm *WorkerManager[T]) AddWorker(w t.IWorker) error {
 	wm.mu.Lock()
 	defer wm.mu.Unlock()
 
-	if wm.workerPool.GetWorkerPool() == nil {
-		if err := wm.workerPool.SetWorkerPool(make([]t.IWorker, 0)); err != nil {
-			return nil, err
-		}
-	}
-	if len(wm.workerPool.GetWorkerPool()) >= wm.Properties["workerLimit"].GetValue().(int) {
-		return nil, fmt.Errorf("worker limit reached")
-	}
-
-	worker := NewWorker(wm.Properties["workerCount"].GetValue().(int), wm.logger)
-	if err := wm.workerPool.AddWorker(wm.Properties["workerCount"].GetValue().(int), worker); err != nil {
-		return nil, err
-	}
-	if setValErr := wm.Properties["workerCount"].SetValue(len(wm.workerPool.(*WorkerPool).workers), nil); setValErr != nil {
-		return nil, setValErr
-	}
-	return worker, nil
+	//if wm.workerPool.GetWorkerPool() == nil {
+	//	if err := wm.workerPool.SetWorkerPool(make([]t.IWorker, 0)); err != nil {
+	//		return nil, err
+	//	}
+	//}
+	//if len(wm.workerPool.GetWorkerPool()) >= wm.Properties["workerLimit"].GetValue().(int) {
+	//	return nil, fmt.Errorf("worker limit reached")
+	//}
+	//
+	//worker := NewWorker(wm.Properties["workerCount"].GetValue().(int), wm.logger)
+	//if err := wm.workerPool.AddWorker(wm.Properties["workerCount"].GetValue().(int), worker); err != nil {
+	//	return nil, err
+	//}
+	//if setValErr := wm.Properties["workerCount"].SetValue(len(wm.workerPool.(*WorkerPool).workers), nil); setValErr != nil {
+	//	return nil, setValErr
+	//}
+	return fmt.Errorf("not implemented")
 }
 
 // AddWorkerObj adiciona um worker ao pool
@@ -86,24 +86,24 @@ func (wm *WorkerManager[T]) AddWorkerObj(worker t.IWorker) error {
 	wm.mu.Lock()
 	defer wm.mu.Unlock()
 
-	if wm.workerPool.GetWorkerPool() == nil {
-		if err := wm.workerPool.SetWorkerPool(make([]t.IWorker, 0)); err != nil {
-			return err
-		}
-	}
-	if worker == nil {
-		return fmt.Errorf("worker cannot be nil")
-	}
-
-	if len(wm.workerPool.GetWorkerPool()) >= wm.Properties["workerLimit"].GetValue().(int) {
-		return fmt.Errorf("worker limit reached")
-	}
-	if err := wm.workerPool.SetWorkerPool(append(wm.workerPool.GetWorkerPool(), worker)); err != nil {
-		return err
-	}
-	if setValErr := wm.Properties["workerCount"].SetValue(len(wm.workerPool.(*WorkerPool).workers), nil); setValErr != nil {
-		return setValErr
-	}
+	//if wm.workerPool.GetWorkerPool() == nil {
+	//	if err := wm.workerPool.SetWorkerPool(make([]t.IWorker, 0)); err != nil {
+	//		return err
+	//	}
+	//}
+	//if worker == nil {
+	//	return fmt.Errorf("worker cannot be nil")
+	//}
+	//
+	//if len(wm.workerPool.GetWorkerPool()) >= wm.Properties["workerLimit"].GetValue().(int) {
+	//	return fmt.Errorf("worker limit reached")
+	//}
+	//if err := wm.workerPool.SetWorkerPool(append(wm.workerPool.GetWorkerPool(), worker)); err != nil {
+	//	return err
+	//}
+	//if setValErr := wm.Properties["workerCount"].SetValue(len(wm.workerPool.(*WorkerPool).workers), nil); setValErr != nil {
+	//	return setValErr
+	//}
 	return nil
 }
 
@@ -152,108 +152,108 @@ func (wm *WorkerManager[T]) SetWorkerLimit(workerLimit int) error {
 
 // MonitorWorkers monitora os workers do pool
 func (wm *WorkerManager[T]) MonitorWorkers() {
-	interval := wm.Properties["monitorInterval"].GetValue().(int)
-	go func() {
-		for {
-			if wm.Properties["status"].GetValue().(string) != "Running" {
-				fmt.Println("Worker monitoring stopped.")
-				break
-			}
-			for _, worker := range wm.workerPool.(*WorkerPool).workers {
-				fmt.Printf("Worker ID: %d | Status: %v | Jobs: %d\n",
-					worker.GetWorkerID(), worker.GetStatus(), worker.GetWorkerID())
-			}
-			time.Sleep(time.Duration(interval) * time.Millisecond)
-		}
-	}()
+	//interval := wm.Properties["monitorInterval"].GetValue().(int)
+	//go func() {
+	//	for {
+	//		if wm.Properties["status"].GetValue().(string) != "Running" {
+	//			fmt.Println("Worker monitoring stopped.")
+	//			break
+	//		}
+	//		for _, worker := range wm.workerPool.(*WorkerPool).workers {
+	//			fmt.Printf("Worker ID: %d | Status: %v | Jobs: %d\n",
+	//				worker.GetWorkerID(), worker.GetStatus(), worker.GetWorkerID())
+	//		}
+	//		time.Sleep(time.Duration(interval) * time.Millisecond)
+	//	}
+	//}()
 }
 
 // MonitorPool inicia um monitoramento do pool de workers
 func (wm *WorkerManager[T]) MonitorPool() chan interface{} {
-	if _, exists := wm.Properties["monitorCtl"]; !exists {
-		wm.Properties["monitorCtl"] = utils.NewProperty[string]("monitorCtl", nil)
-		if setValErr := wm.Properties["monitorCtl"].SetValue("Stopped", nil); setValErr != nil {
-			wm.logger.ErrorCtx("Failed to set monitor control value", map[string]any{
-				"context":  "WorkerManager",
-				"action":   "SetValue",
-				"error":    setValErr,
-				"showData": true,
-			})
-			return nil
-		}
-		wm.Properties["monitorCtl"].SetChannel(c.NewChannel[string]("monitorCtl", nil, 5))
-	}
-
-	iChanCtl := wm.Properties["monitorCtl"].GetChannel()
-	chanCtl, _ := iChanCtl.GetChan()
-
-	commands := map[t.MonitorCommand]func(){
-		t.Start: func() {
-			fmt.Println("Starting monitor")
-			if setValErr := wm.Properties["monitorCtl"].SetValue("Running", nil); setValErr != nil {
-				wm.logger.ErrorCtx("Failed to set monitor control value", map[string]any{
-					"context":  "WorkerManager",
-					"action":   "SetValue",
-					"error":    setValErr,
-					"showData": true,
-				})
-				return
-			}
-			wm.MonitorWorkers()
-		},
-		t.Restart: func() {
-			fmt.Println("Restarting monitor")
-			if setValErr := wm.Properties["monitorCtl"].SetValue("Stopping", nil); setValErr != nil {
-				wm.logger.ErrorCtx("Failed to set monitor control value", map[string]any{
-					"context":  "WorkerManager",
-					"action":   "SetValue",
-					"error":    setValErr,
-					"showData": true,
-				})
-				return
-			}
-			wm.MonitorWorkers()
-		},
-		t.Stop: func() {
-			fmt.Println("Stopping monitor")
-			if setValErr := wm.Properties["monitorCtl"].SetValue("Stopped", nil); setValErr != nil {
-				wm.logger.ErrorCtx("Failed to set monitor control value", map[string]any{
-					"context":  "WorkerManager",
-					"action":   "SetValue",
-					"error":    setValErr,
-					"showData": true,
-				})
-				return
-			}
-		},
-	}
-
-	go func(chanCtl chan any) {
-		interval := wm.Properties["monitorInterval"].GetValue().(int)
-		for {
-			fmt.Printf("Pool Info | WorkerCount: %d | Limit: %d\n",
-				len(wm.workerPool.(*WorkerPool).workers),
-				wm.Properties["workerLimit"].GetValue().(int))
-
-			select {
-			case <-time.After(time.Duration(interval) * time.Millisecond):
-				interval = wm.Properties["monitorInterval"].GetValue().(int)
-			case msg := <-chanCtl:
-				if cmd, ok := commands[t.MonitorCommand(msg.(string))]; ok {
-					cmd()
-				} else {
-					fmt.Printf("Unknown command: %v\n", msg)
-				}
-			}
-		}
-	}(chanCtl)
+	//if _, exists := wm.Properties["monitorCtl"]; !exists {
+	//	wm.Properties["monitorCtl"] = utils.NewProperty[string]("monitorCtl", nil)
+	//	if setValErr := wm.Properties["monitorCtl"].SetValue("Stopped", nil); setValErr != nil {
+	//		wm.logger.ErrorCtx("Failed to set monitor control value", map[string]any{
+	//			"context":  "WorkerManager",
+	//			"action":   "SetValue",
+	//			"error":    setValErr,
+	//			"showData": true,
+	//		})
+	//		return nil
+	//	}
+	//	wm.Properties["monitorCtl"].SetChannel(c.NewChannel[string]("monitorCtl", nil, 5))
+	//}
+	//
+	//iChanCtl := wm.Properties["monitorCtl"].GetChannel()
+	//chanCtl, _ := iChanCtl.GetChan()
+	//
+	//commands := map[t.MonitorCommand]func(){
+	//	t.Start: func() {
+	//		fmt.Println("Starting monitor")
+	//		if setValErr := wm.Properties["monitorCtl"].SetValue("Running", nil); setValErr != nil {
+	//			wm.logger.ErrorCtx("Failed to set monitor control value", map[string]any{
+	//				"context":  "WorkerManager",
+	//				"action":   "SetValue",
+	//				"error":    setValErr,
+	//				"showData": true,
+	//			})
+	//			return
+	//		}
+	//		wm.MonitorWorkers()
+	//	},
+	//	t.Restart: func() {
+	//		fmt.Println("Restarting monitor")
+	//		if setValErr := wm.Properties["monitorCtl"].SetValue("Stopping", nil); setValErr != nil {
+	//			wm.logger.ErrorCtx("Failed to set monitor control value", map[string]any{
+	//				"context":  "WorkerManager",
+	//				"action":   "SetValue",
+	//				"error":    setValErr,
+	//				"showData": true,
+	//			})
+	//			return
+	//		}
+	//		wm.MonitorWorkers()
+	//	},
+	//	t.Stop: func() {
+	//		fmt.Println("Stopping monitor")
+	//		if setValErr := wm.Properties["monitorCtl"].SetValue("Stopped", nil); setValErr != nil {
+	//			wm.logger.ErrorCtx("Failed to set monitor control value", map[string]any{
+	//				"context":  "WorkerManager",
+	//				"action":   "SetValue",
+	//				"error":    setValErr,
+	//				"showData": true,
+	//			})
+	//			return
+	//		}
+	//	},
+	//}
+	//
+	//go func(chanCtl chan any) {
+	//	interval := wm.Properties["monitorInterval"].GetValue().(int)
+	//	for {
+	//		fmt.Printf("Pool Info | WorkerCount: %d | Limit: %d\n",
+	//			len(wm.workerPool.(*WorkerPool).workers),
+	//			wm.Properties["workerLimit"].GetValue().(int))
+	//
+	//		select {
+	//		case <-time.After(time.Duration(interval) * time.Millisecond):
+	//			interval = wm.Properties["monitorInterval"].GetValue().(int)
+	//		case msg := <-chanCtl:
+	//			if cmd, ok := commands[t.MonitorCommand(msg.(string))]; ok {
+	//				cmd()
+	//			} else {
+	//				fmt.Printf("Unknown command: %v\n", msg)
+	//			}
+	//		}
+	//	}
+	//}(chanCtl)
 
 	return nil
 }
 
 func (wm *WorkerManager[T]) ValidatePool() error {
-	if len(wm.workerPool.(*WorkerPool).workers) > wm.workerPool.(*WorkerPool).Properties["workerLimit"].GetValue().(int) {
-		return fmt.Errorf("worker count exceeds worker limit")
-	}
+	//if len(wm.workerPool.(*WorkerPool).workers) > wm.workerPool.(*WorkerPool).Properties["workerLimit"].GetValue().(int) {
+	//	return fmt.Errorf("worker count exceeds worker limit")
+	//}
 	return nil
 }

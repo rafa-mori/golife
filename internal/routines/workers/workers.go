@@ -5,7 +5,9 @@ import (
 	"github.com/faelmori/golife/internal/property"
 	"github.com/faelmori/golife/internal/routines/agents"
 	t "github.com/faelmori/golife/internal/types"
-	"github.com/faelmori/golife/internal/utils"
+	"reflect"
+
+	//"github.com/faelmori/golife/internal/utils"
 	"github.com/faelmori/golife/services"
 	l "github.com/faelmori/logz"
 	"sync"
@@ -64,8 +66,8 @@ func NewWorker(workerID int, logger l.Logger) t.IWorker {
 		return &wb.muL
 	}(w))
 
-	w.properties["status"] = utils.NewProperty[string]("status", nil)
-	_ = w.properties["status"].SetValue("Stopped", nil)
+	//w.properties["status"] = property.NewProperty[string]("status", nil)
+	//_ = w.properties["status"].SetValue("Stopped", nil)
 
 	return w
 }
@@ -80,7 +82,7 @@ func (w *Worker) GetStatus() string {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 	if status, ok := w.properties["status"]; ok {
-		return status.GetValue().(string)
+		return reflect.ValueOf(status).Elem().FieldByName("value").String()
 	} else {
 		return "Unknown"
 	}
@@ -100,10 +102,10 @@ func (w *Worker) StartWorkers() {
 
 		defer func(wkk t.IWorker) {
 			if r := recover(); r != nil {
-				wkk.Logger().ErrorCtx(fmt.Sprintf("Recovered from panic: %v", r), nil)
+				wkk.Logger().Error(fmt.Sprintf("Recovered from panic: %v", r), nil)
 				_ = w.properties["status"].SetValue("Stopped", nil)
 			} else {
-				w.logger.InfoCtx("Worker stopped", nil)
+				w.logger.Info("Worker stopped", nil)
 
 				w.jobChannel.StopSysMonitor()
 				w.resultChannel.StopSysMonitor()
@@ -126,34 +128,34 @@ func (w *Worker) StartWorkers() {
 			select {
 			case job := <-iJob:
 				if job == nil {
-					w.logger.ErrorCtx("Job channel closed", nil)
+					w.logger.Error("Job channel closed", nil)
 					continue
 				} else {
 					jj := job.(t.IJob[any])
 					if err := w.HandleJob(jj); err != nil {
-						w.logger.ErrorCtx(fmt.Sprintf("Error handling job: %v", err), nil)
+						w.logger.Error(fmt.Sprintf("Error handling job: %v", err), nil)
 					}
 					if jj.CanExecute() {
 						if err := jj.Execute(); err != nil {
-							w.logger.ErrorCtx(fmt.Sprintf("Error executing job: %v", err), nil)
+							w.logger.Error(fmt.Sprintf("Error executing job: %v", err), nil)
 						}
 					} else {
-						w.logger.ErrorCtx("Job cannot be executed", nil)
+						w.logger.Error("Job cannot be executed", nil)
 					}
 
 				}
 			case result := <-iRes:
 				if result == nil {
-					w.logger.ErrorCtx("Result channel closed", nil)
+					w.logger.Error("Result channel closed", nil)
 					continue
 				}
 				res := result.(t.IResult)
 				if err := w.HandleResult(res); err != nil {
-					w.logger.ErrorCtx(fmt.Sprintf("Error handling result: %v", err), nil)
+					w.logger.Error(fmt.Sprintf("Error handling result: %v", err), nil)
 				}
 				//if res
 			case <-w.stopChannel:
-				w.logger.InfoCtx("Worker stopped", nil)
+				w.logger.Info("Worker stopped", nil)
 				_ = w.properties["status"].SetValue("Stopped", nil)
 				w.wg.Done()
 

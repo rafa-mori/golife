@@ -6,9 +6,11 @@ import (
 	"github.com/faelmori/golife/internal/routines/agents"
 	t "github.com/faelmori/golife/internal/types"
 	u "github.com/faelmori/golife/internal/utils"
+	//p "github.com/faelmori/golife/life/types"
 	"github.com/faelmori/golife/services"
 	l "github.com/faelmori/logz"
 	"github.com/google/uuid"
+	"reflect"
 	"sync"
 )
 
@@ -51,25 +53,25 @@ func NewWorkerPool(workerLimit int, logger l.Logger) t.IWorkerPool {
 	}
 
 	// Control
-	wp.Properties["workerLimit"] = u.NewProperty[int]("workerLimit", nil)
-	wp.Properties["workerLimit"].SetValue(workerLimit, nil)
-
-	wp.Properties["workerCount"] = u.NewProperty[int]("workerCount", nil)
-	wp.Properties["workerCount"].SetValue(0, nil)
-
-	wp.Properties["buffers"] = u.NewProperty[int]("buffers", nil) // Tamanho do buffer para os canais (Max 100)
-	_ = wp.Properties["buffers"].SetValue(100, nil)
+	//wp.Properties["workerLimit"] = p.NewProperty[int]("workerLimit", nil)
+	//wp.Properties["workerLimit"].SetValue(workerLimit, nil)
+	//
+	//wp.Properties["workerCount"] = u.NewProperty[int]("workerCount", nil)
+	//wp.Properties["workerCount"].SetValue(0, nil)
+	//
+	//wp.Properties["buffers"] = u.NewProperty[int]("buffers", nil) // Tamanho do buffer para os canais (Max 100)
+	//_ = wp.Properties["buffers"].SetValue(100, nil)
 
 	// Validator
 	if addValidatorErr := wp.Properties["workerLimit"].AddValidator("workerLimit", u.ValidateWorkerLimit); addValidatorErr != nil {
-		wp.logger.ErrorCtx("Erro ao adicionar validador para workerLimit", map[string]any{
+		wp.logger.Error("Erro ao adicionar validador para workerLimit", map[string]any{
 			"context":  "WorkerPool",
 			"action":   "AddValidator",
 			"error":    addValidatorErr,
 			"showData": true,
 		})
 		if setValErr := wp.Properties["workerLimit"].SetValue(0, nil); setValErr != nil {
-			wp.logger.ErrorCtx("Erro ao definir o valor padrão para workerLimit", map[string]any{
+			wp.logger.Error("Erro ao definir o valor padrão para workerLimit", map[string]any{
 				"context":  "WorkerPool",
 				"action":   "SetValue",
 				"error":    setValErr,
@@ -156,7 +158,11 @@ func (wp *WorkerPool) GetDoneChannel() (chan struct{}, error) {
 func (wp *WorkerPool) GetWorkerLimit() int {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
-	return wp.Properties["workerLimit"].GetValue().(int)
+	valInt := reflect.ValueOf(wp.Properties["workerLimit"].GetValue()).Int()
+	if valInt == 0 {
+		return 1
+	}
+	return int(valInt)
 }
 
 // GetWorker retorna um worker específico do pool
@@ -237,22 +243,22 @@ func (wp *WorkerPool) Report() string {
 }
 
 // AddListener adiciona um listener a um evento específico
-func (wp *WorkerPool) AddListener(event string, listener u.ChangeListener[any]) error {
+func (wp *WorkerPool) AddListener(event string, listener property.ChangeListener[any]) error {
 	wp.mu.Lock()
 	defer wp.mu.Unlock()
-	if property, ok := wp.Properties[event]; ok {
-		var ltn property.ChangeListener[any] = func(oldValue, newValue any, metadata property.EventMetadata) property.ListenerResponse {
-			return listener(oldValue, newValue, metadata)
-		}
-		if err := property.AddListener(event, ltn); err != nil {
-			return err
-		}
-	} else {
-		wp.logger.ErrorCtx("Event not found", map[string]any{
-			"context": "WorkerPool",
-			"event":   event,
-		})
-	}
+	//if property, ok := wp.Properties[event]; ok {
+	//var ltn property.ChangeListener[any] = func(oldValue, newValue any, metadata property.EventMetadata) property.ListenerResponse {
+	//	return listener(oldValue, newValue, metadata)
+	//}
+	//if err := property.AddListener(event, ltn); err != nil {
+	//	return err
+	//}
+	//} else {
+	//	wp.logger.ErrorCtx("Event not found", map[string]any{
+	//		"context": "WorkerPool",
+	//		"event":   event,
+	//	})
+	//}
 	return fmt.Errorf("event %s not found", event)
 }
 
@@ -260,16 +266,16 @@ func (wp *WorkerPool) AddListener(event string, listener u.ChangeListener[any]) 
 func (wp *WorkerPool) RemoveListener(event string) error {
 	wp.mu.Lock()
 	defer wp.mu.Unlock()
-	if property, ok := wp.Properties[event]; ok {
-		if err := property.RemoveListener(event); err != nil {
-			return err
-		}
-	} else {
-		wp.logger.ErrorCtx("Event not found", map[string]any{
-			"context": "WorkerPool",
-			"event":   event,
-		})
-	}
+	//if property, ok := wp.Properties[event]; ok {
+	//	if err := property.RemoveListener(event); err != nil {
+	//		return err
+	//	}
+	//} else {
+	//	wp.logger.ErrorCtx("Event not found", map[string]any{
+	//		"context": "WorkerPool",
+	//		"event":   event,
+	//	})
+	//}
 	return fmt.Errorf("event %s not found", event)
 }
 
@@ -304,7 +310,7 @@ func (wp *WorkerPool) SetWorkerPool(workerPool []t.IWorker) error {
 	if workerPool == nil {
 		return fmt.Errorf("worker pool cannot be nil")
 	}
-	if len(workerPool) > wp.Properties["workerLimit"].GetValue().(int) {
+	if len(workerPool) > reflect.ValueOf(wp.Properties["workerLimit"].GetValue()).Interface().(int) {
 		return fmt.Errorf("worker pool exceeds worker limit")
 	}
 	wp.workers = workerPool
@@ -315,9 +321,8 @@ func (wp *WorkerPool) SetWorkerPool(workerPool []t.IWorker) error {
 func (wp *WorkerPool) getChannel(key string) (any, error) {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
-	if ch, ok := wp.Properties[key].GetValue().(chan any); ok {
-		return ch, nil
-	}
+	chanAny := reflect.ValueOf(wp.Properties[key].GetValue()).Interface().(chan any)
+	return chanAny, nil
 	return nil, fmt.Errorf("failed to get channel %s", key)
 }
 

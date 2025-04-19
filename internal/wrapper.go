@@ -24,7 +24,7 @@ func taskzHandler(cmd *cobra.Command, args []string) error {
 
 	_, err := runner.Result()
 	if err != nil {
-		l.ErrorCtx(fmt.Sprintf("Taskz error: %s", err.Error()), nil)
+		l.Error(fmt.Sprintf("Taskz error: %s", err.Error()), nil)
 		return err
 	}
 
@@ -35,7 +35,7 @@ func regTimeLog(start time.Time) {
 	duration := time.Since(start).Round(time.Millisecond)
 	// Só registra o tempo de execução se for maior que 1 segundo
 	if duration > 1*time.Second {
-		l.DebugCtx("Tempo de execução ("+strings.Join(os.Args, " ")+"): "+duration.String(), nil)
+		l.Debug("Tempo de execução ("+strings.Join(os.Args, " ")+"): "+duration.String(), nil)
 	}
 }
 

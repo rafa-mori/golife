@@ -42,7 +42,7 @@ func (m *GoLife) Module() string {
 func (m *GoLife) Execute() error { return m.Command().Execute() }
 func (m *GoLife) Command() *cobra.Command {
 	l.GetLogger("GoLife")
-	l.InfoCtx("Starting GoLife...", map[string]interface{}{
+	l.Info("Starting GoLife...", map[string]interface{}{
 		"context":  "main",
 		"action":   "start",
 		"version":  vs.GetVersion(),

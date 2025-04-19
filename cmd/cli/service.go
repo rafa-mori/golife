@@ -13,7 +13,7 @@ import (
 	"syscall"
 )
 
-var manager LifeCycleManager
+var manager ILifeCycle[any]
 
 func ServiceCmdList() []*cobra.Command {
 	return []*cobra.Command{
@@ -44,7 +44,7 @@ func lifeCycleManagerCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			mgr, mgrErr := createManager(processName, processCmd, stages, processEvents, triggers, processArgs, processWait, restart)
 			if mgrErr != nil {
-				l.ErrorCtx(fmt.Sprintf("Fail to create manager: %s", mgrErr), map[string]interface{}{})
+				l.Error(fmt.Sprintf("Fail to create manager: %s", mgrErr), map[string]interface{}{})
 			} else {
 				manager = mgr
 			}
@@ -79,7 +79,7 @@ func startCommand() *cobra.Command {
 			if processWait {
 				mgr, mgrErr := createManager(processName, processCmd, stages, processEvents, triggers, processArgs, processWait, restart)
 				if mgrErr != nil {
-					l.ErrorCtx(fmt.Sprintf("Fail to create manager: %s", mgrErr), map[string]interface{}{})
+					l.Error(fmt.Sprintf("Fail to create manager: %s", mgrErr), map[string]interface{}{})
 					return
 				} else {
 					manager = mgr
@@ -88,7 +88,7 @@ func startCommand() *cobra.Command {
 			} else {
 				appFullPath, appFullPathErr := exec.LookPath("golife")
 				if appFullPathErr != nil {
-					l.ErrorCtx(fmt.Sprintf("Fail to find golife binary: %s", appFullPathErr), map[string]interface{}{})
+					l.Error(fmt.Sprintf("Fail to find golife binary: %s", appFullPathErr), map[string]interface{}{})
 					return
 				}
 				argsStr, waitFlag, restartFlag, stagesStr, triggersStr := getFlagsAsSliceStr(processWait, restart, processArgs, stages, triggers)
@@ -99,12 +99,12 @@ func startCommand() *cobra.Command {
 				mgrCmd.Stdin = os.Stdin
 				mgrCmdErr := mgrCmd.Start()
 				if mgrCmdErr != nil {
-					l.ErrorCtx(fmt.Sprintf("Fail to start manager command: %s", mgrCmdErr), map[string]interface{}{})
+					l.Error(fmt.Sprintf("Fail to start manager command: %s", mgrCmdErr), map[string]interface{}{})
 					return
 				} else {
 					releaseErr := mgrCmd.Process.Release()
 					if releaseErr != nil {
-						l.ErrorCtx(fmt.Sprintf("Fail to release process: %s", releaseErr), map[string]interface{}{})
+						l.Error(fmt.Sprintf("Fail to release process: %s", releaseErr), map[string]interface{}{})
 						return
 					}
 					return
@@ -133,11 +133,11 @@ func stopCommand() *cobra.Command {
 		}, false),
 		Run: func(cmd *cobra.Command, args []string) {
 			if manager == nil {
-				l.ErrorCtx("no manager found", map[string]interface{}{})
+				l.Error("no manager found", map[string]interface{}{})
 			} else {
 				stopErr := manager.Stop()
 				if stopErr != nil {
-					l.ErrorCtx(fmt.Sprintf("Fail to stop process: %s", stopErr), map[string]interface{}{})
+					l.Error(fmt.Sprintf("Fail to stop process: %s", stopErr), map[string]interface{}{})
 				}
 			}
 		},
@@ -156,9 +156,9 @@ func statusCommand() *cobra.Command {
 		}, false),
 		Run: func(cmd *cobra.Command, args []string) {
 			if manager == nil {
-				l.ErrorCtx("no manager found", map[string]interface{}{})
+				l.Error("no manager found", map[string]interface{}{})
 			} else {
-				l.InfoCtx(manager.Status(), map[string]interface{}{})
+				l.Info(manager.Status(), map[string]interface{}{})
 			}
 		},
 	}
@@ -174,12 +174,12 @@ func restartCommand() *cobra.Command {
 		}, false),
 		Run: func(cmd *cobra.Command, args []string) {
 			if manager == nil {
-				l.ErrorCtx("no manager found", map[string]interface{}{})
+				l.Error("no manager found", map[string]interface{}{})
 			} else {
 				if err := manager.Restart(); err != nil {
-					l.ErrorCtx(fmt.Sprintf("Fail to restart process: %s", err), map[string]interface{}{})
+					l.Error(fmt.Sprintf("Fail to restart process: %s", err), map[string]interface{}{})
 				} else {
-					l.InfoCtx("Process restarted successfully", map[string]interface{}{})
+					l.Info("Process restarted successfully", map[string]interface{}{})
 				}
 			}
 		},
@@ -205,13 +205,13 @@ func serviceCommand() *cobra.Command {
 			usrEnvs = append(usrEnvs, fmt.Sprintf("PATH=%s", envPath))
 			appBinPath, appBinPathErr := exec.LookPath("golife")
 			if appBinPathErr != nil {
-				l.ErrorCtx(fmt.Sprintf("Fail to find golife binary: %s", appBinPathErr), map[string]interface{}{})
+				l.Error(fmt.Sprintf("Fail to find golife binary: %s", appBinPathErr), map[string]interface{}{})
 				return
 			}
 			cmdStartSpawner := fmt.Sprintf("%s service start -n %s -c %s -a %s -w %t -e %s", appBinPath, processName, processCmd, processArgs, processWait, processEvents)
 			cmdStartErr := syscall.Exec("/bin/sh", []string{"-c", cmdStartSpawner}, os.Environ())
 			if cmdStartErr != nil {
-				l.ErrorCtx(fmt.Sprintf("Fail to start service: %s", cmdStartErr), map[string]interface{}{})
+				l.Error(fmt.Sprintf("Fail to start service: %s", cmdStartErr), map[string]interface{}{})
 			}
 		},
 	}
@@ -225,7 +225,7 @@ func serviceCommand() *cobra.Command {
 	return serviceCmd
 }
 
-func createManager(processName, processCmd string, stages []string, processEvents map[string]func(interface{}), triggers []string, processArgs []string, processWait, restart bool) (LifeCycleManager, error) {
+func createManager(processName, processCmd string, stages []string, processEvents map[string]func(interface{}), triggers []string, processArgs []string, processWait, restart bool) (ILifeCycle[any], error) {
 	if processName == "" {
 		return nil, fmt.Errorf("no process name provided")
 	}
@@ -238,30 +238,30 @@ func createManager(processName, processCmd string, stages []string, processEvent
 	if len(processEvents) == 0 {
 		processEvents = make(map[string]func(interface{}))
 	} else {
-		for _, trigger := range triggers {
-			for _, stage := range stages {
-				processEvents[trigger] = func(data interface{}) {
-					manager.Trigger(stage, trigger, data)
-				}
-			}
-		}
+		//for _, trigger := range triggers {
+		//	for _, stage := range stages {
+		//		processEvents[trigger] = func(data interface{}) {
+		//			//manager.Trigger(stage, trigger, data)
+		//		}
+		//	}
+		//}
 	}
 
-	var events []IManagedProcessEvents
-	var processes = make(map[string]IManagedProcess)
-	var iStages = make(map[string]IStage)
-	var sigChan = make(chan os.Signal, 1)
-	var doneChan = make(chan struct{}, 1)
+	var events []IManagedProcessEvents[any]
+	var processes = make(map[string]IManagedProcess[any])
+	var iStages = make(map[string]IStage[any])
+	//var sigChan = make(chan os.Signal, 1)
+	//var doneChan = make(chan struct{}, 1)
 	var eventsChan = make(chan interface{}, 1)
-	var eventsCh = make(chan IManagedProcessEvents, 1)
+	//var eventsCh = make(chan IManagedProcessEvents[any], 1)
 
 	for _, stage := range stages {
-		iStage := stage.NewStage(stage, stage, "stage")
+		iStage := NewStage[any](stage, stage, "stage", nil)
 		iStages[stage] = iStage
 	}
 
 	for _, trigger := range triggers {
-		iStage := NewStage(trigger, trigger, "trigger")
+		iStage := NewStage[any](trigger, trigger, "trigger", nil)
 		iStages[trigger] = iStage
 	}
 
@@ -273,32 +273,32 @@ func createManager(processName, processCmd string, stages []string, processEvent
 		}
 	}
 
-	processes[processName] = NewManagedProcess(processName, processCmd, processArgs, processWait, nil)
+	processes[processName] = NewManagedProcess[any](processName, processCmd, processArgs, processWait, nil)
 	if processEvents != nil {
-		iEvent := NewManagedProcessEvents(processEvents, eventsChan)
+		iEvent := NewManagedProcessEvents[any]() //(processEvents, eventsChan)
 		events = append(events, iEvent)
 	}
 
-	manager = NewLifecycleManager(
-		processes,
-		iStages,
-		sigChan,
-		doneChan,
-		events,
-		eventsCh,
-	)
+	//manager = NewLifeCycle[any](
+	//	processes,
+	//	iStages,
+	//	sigChan,
+	//	doneChan,
+	//	events,
+	//	eventsCh,
+	//)
 
 	regProcErr := manager.RegisterProcess(processName, processCmd, processArgs, restart, nil)
 	if regProcErr != nil {
 		return nil, regProcErr
 	}
 
-	for _, stage := range iStages {
-		defStageErr := manager.DefineStage(stage.Name())
-		if defStageErr != nil {
-			return nil, defStageErr
-		}
-	}
+	//for _, stage := range iStages {
+	//	defStageErr := manager.DefineStage(stage.Name())
+	//	if defStageErr != nil {
+	//		return nil, defStageErr
+	//	}
+	//}
 
 	startAllErr := manager.Start()
 	if startAllErr != nil {

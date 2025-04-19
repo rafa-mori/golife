@@ -78,14 +78,14 @@ func (s *Stage[T]) OnEvent(event string, fn func(interface{})) IStage[T] {
 // AutoScale sets the worker pool size for the stage.
 func (s *Stage[T]) AutoScale(size int) IStage[T] {
 	if s.workerPool == nil {
-		l.ErrorCtx(fmt.Sprintf("WorkerPool not initialized for stage %s", s.Name()), nil)
+		l.Error(fmt.Sprintf("WorkerPool not initialized for stage %s", s.Name()), nil)
 		return s
 	}
 
 	wkrId := s.workerPool.GetWorkerCount() + 1
 	wkr := w.NewWorker(wkrId, s.workerPool.Logger())
 	if err := s.workerPool.AddWorker(wkrId, wkr); err != nil {
-		l.ErrorCtx(fmt.Sprintf("Error adding worker %d to pool: %v", wkrId, err), nil)
+		l.Error(fmt.Sprintf("Error adding worker %d to pool: %v", wkrId, err), nil)
 		return s
 	}
 
@@ -95,11 +95,11 @@ func (s *Stage[T]) AutoScale(size int) IStage[T] {
 // Dispatch sends a task to the worker pool.
 func (s *Stage[T]) Dispatch(task func()) error {
 	if s.workerPool == nil {
-		l.ErrorCtx(fmt.Sprintf("WorkerPool not initialized for stage %s", s.Name()), nil)
+		l.Error(fmt.Sprintf("WorkerPool not initialized for stage %s", s.Name()), nil)
 		return fmt.Errorf("WorkerPool not initialized for stage %s", s.Name())
 	}
 	//s.workerPool.Tasks <- task
-	l.InfoCtx(fmt.Sprintf("Task dispatched to stage %s", s.Name()), nil)
+	l.Info(fmt.Sprintf("Task dispatched to stage %s", s.Name()), nil)
 	return nil
 }
 
@@ -166,6 +166,6 @@ func NewStage[T any](name, desc, stageType string, data *T) IStage[T] {
 		EventFns:   make(map[string]func(interface{})), // Event functions
 		workerPool: nil,
 	}
-	l.GetLogger("GoLife").InfoCtx(fmt.Sprintf("New stage created: %s", name), nil)
+	l.GetLogger("GoLife").Info(fmt.Sprintf("New stage created: %s", name), nil)
 	return stg
 }
