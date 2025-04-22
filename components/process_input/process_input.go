@@ -1,11 +1,8 @@
 package process_input
 
 import (
-	"fmt"
 	t "github.com/faelmori/golife/components/types"
-	gl "github.com/faelmori/golife/logger"
 	l "github.com/faelmori/logz"
-	"reflect"
 )
 
 // ProcessInput is a struct that holds the input for the process.
@@ -20,65 +17,41 @@ type ProcessInput[T any] struct {
 	*t.Mutexes
 
 	// ProcessSystemBase is the system information for the process
-	*ProcessSystemBase[T]
+	*ProcessSystemBase[ProcessInput[T], T]
 
 	// ProcessRuntimeBase is the runtime information for the process
-	*ProcessRuntimeBase[T]
+	*ProcessRuntimeBase[ProcessInput[T], T]
 
 	// ProcessConfig is the configuration for the process
 	*ProcessConfig[T]
 }
 
-// NewProcessInput creates a new ProcessInput instance from the provided config data and Logger.
-func NewProcessInput[T any](name string, logger l.Logger, debug bool) *ProcessInput[T] {
-	if logger == nil {
-		logger = l.GetLogger("GoLife")
+// NewProcessRuntimeBase creates a new ProcessRuntimeBase instance.
+func NewProcessRuntimeBase[T any](name string, object *T, function *t.ValidationFunc[ProcessInput[T]], waitFor, restart bool, logger l.Logger, debug bool) *ProcessInput[T] {
+	npi := newProcessRuntimeBase[ProcessInput[T], T](name, object, function, waitFor, restart, logger, debug)
+	npr := newSystemProcessInput[ProcessInput[T], T](name, "", nil, false, false, nil, logger, debug)
+	return &ProcessInput[T]{
+		Reference:          npi.Reference,
+		Logger:             npi.Logger,
+		Mutexes:            npi.Mutexes,
+		ProcessRuntimeBase: npi,
+		ProcessSystemBase:  npr,
+		ProcessConfig:      npi.ProcessConfig,
 	}
-	if debug {
-		gl.SetDebug(debug)
+}
+
+// NewSystemProcessInput creates a new ProcessInput instance with the provided Logger.
+func NewSystemProcessInput[T any](name, command string, args []string, waitFor bool, restart bool, function *t.ValidationFunc[ProcessInput[T]], logger l.Logger, debug bool) *ProcessInput[T] {
+	npi := newSystemProcessInput[ProcessInput[T], T](name, command, args, waitFor, restart, function, logger, debug)
+	npr := newProcessRuntimeBase[ProcessInput[T], T](name, new(T), function, waitFor, restart, logger, debug)
+	return &ProcessInput[T]{
+		Reference:          npi.Reference,
+		Logger:             npi.Logger,
+		Mutexes:            npi.Mutexes,
+		ProcessSystemBase:  npi,
+		ProcessRuntimeBase: npr,
+		ProcessConfig:      npi.ProcessConfig,
 	}
-	ref := t.NewReference(name)
-	mu := t.NewMutexes()
-	npi := &ProcessInput[T]{
-		Logger:    logger,
-		Mutexes:   mu,
-		Reference: ref,
-		ProcessSystemBase: &ProcessSystemBase[T]{
-			Command:     "",
-			Args:        nil,
-			Path:        "",
-			ProcPid:     0,
-			ProcPidFile: "",
-			ProcPointer: 0,
-		},
-		ProcessRuntimeBase: &ProcessRuntimeBase[T]{
-			Mutexes: mu,
-			Object:  *new(T),
-			Function: &t.ValidationFunc[T]{
-				Priority: 0,
-				Func: func(obj T, args ...any) *t.ValidationResult {
-					objT := reflect.ValueOf(obj).Interface().(T)
-					if len(args) > 0 {
-						for _, arg := range args {
-							if reflect.TypeOf(arg) == reflect.TypeFor[func(T, ...any) *t.ValidationResult]() {
-								return arg.(func(T, ...any) *t.ValidationResult)(objT, args...)
-							}
-						}
-						return nil
-					}
-					return nil
-				},
-				Result: nil,
-			},
-		},
-		ProcessConfig: &ProcessConfig[T]{
-			IsRunning:   false,
-			WaitFor:     false,
-			Restart:     false,
-			ProcessType: "",
-		},
-	}
-	return npi
 }
 
 // Serialize serializes the ProcessInput instance to the specified format.
@@ -107,6 +80,14 @@ func (pi *ProcessInput[T]) GetReference() *t.Reference {
 	defer pi.Mutexes.RUnlock()
 
 	return pi.Reference
+}
+
+// GetName returns the name of the process.
+func (pi *ProcessInput[T]) GetName() string {
+	pi.Mutexes.RLock()
+	defer pi.Mutexes.RUnlock()
+
+	return pi.Reference.Name
 }
 
 // Validate validates the ProcessInput instance.
@@ -183,46 +164,19 @@ func (pi *ProcessInput[T]) Validate() *t.ValidationResult {
 func NewProcessInputFromConfig[T any](name string, data []byte, format string) (*ProcessInput[T], error) {
 	mapper := t.NewMapper[ProcessInput[T]]()
 	logger := l.GetLogger("GoLife")
-	mu := t.NewMutexes()
-	ref := t.NewReference(name)
-	npi := &ProcessInput[T]{
-		Logger:    logger,
-		Mutexes:   mu,
-		Reference: ref,
-		ProcessSystemBase: &ProcessSystemBase[T]{
-			Mutexes: mu,
-			Command: "",
-			Args:    nil,
-		},
-		ProcessRuntimeBase: &ProcessRuntimeBase[T]{
-			Mutexes:    mu,
-			ObjectType: reflect.TypeOf((*T)(nil)).Elem(),
-			Object:     *new(T),
-			Function: &t.ValidationFunc[T]{
-				Priority: 0,
-				Func: func(obj T, args ...any) *t.ValidationResult {
-					objT := reflect.ValueOf(obj).Interface().(T)
-					if len(args) > 0 {
-						for _, arg := range args {
-							if reflect.TypeOf(arg) == reflect.TypeFor[func(T, ...any) *t.ValidationResult]() {
-								return arg.(func(T, ...any) *t.ValidationResult)(objT, args...)
-							}
-						}
-						return nil
-					}
-					return nil
-				},
-			},
-		},
+	npi := newSystemProcessInput[ProcessInput[T], T](name, "", nil, false, false, nil, logger, false)
+	npr := newProcessRuntimeBase[ProcessInput[T], T](name, new(T), nil, false, false, logger, false)
+	np := &ProcessInput[T]{
+		Reference:          npr.Reference,
+		Logger:             npr.Logger,
+		Mutexes:            npr.Mutexes,
+		ProcessSystemBase:  npi,
+		ProcessRuntimeBase: npr,
+		ProcessConfig:      npr.ProcessConfig,
 	}
-	err := mapper.Deserialize(data, npi, format)
+	err := mapper.Deserialize(data, np, format)
 	if err != nil {
 		return nil, err
 	}
-	// This method is used to initialize the cmd field with right and more robust way
-	if npi.BuildCmd() == nil {
-		gl.LogObjLogger[ProcessInput[T]](npi, "error", "Command is nil")
-		return nil, fmt.Errorf("command is nil")
-	}
-	return npi, nil
+	return np, nil
 }

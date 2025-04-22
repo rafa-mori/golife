@@ -10,21 +10,29 @@ import (
 )
 
 // ProcessSystemBase is a struct that holds the system process information.
-type ProcessSystemBase[T any] struct {
+type ProcessSystemBase[T any, P any] struct {
 	// Logger is the logger for the process
 	Logger l.Logger
 	// Reference is the reference for the process with ID and Name
 	*t.Reference
 	// Mutexes is the mutex for the process
 	*t.Mutexes
+
+	// Object is the object to pass to the command
+	Object *P `json:"object" yaml:"object" xml:"object" gorm:"object"`
+
 	// Command is the command to run
 	Command string `json:"command" yaml:"command" xml:"command" gorm:"command"`
 	// Args is the arguments to pass to the command
 	Args []string `json:"args" yaml:"args" xml:"args" gorm:"args"`
 	// Path is the env path to pass to the command
 	Path string
+	// Function is a custom function to wrap the command
+	Function *t.ValidationFunc[ProcessInput[P]] `json:"function" yaml:"function" xml:"function" gorm:"function"`
 	// Cmd is the command to run
 	cmd *exec.Cmd
+	// ProcPointer is the process handle
+	ProcPointer uintptr `json:"proc_pointer" yaml:"proc_pointer" xml:"proc_pointer" gorm:"proc_pointer"`
 
 	PropertiesSystemProc map[string]interface{}
 
@@ -37,34 +45,35 @@ type ProcessSystemBase[T any] struct {
 	//// Path is the path to the command
 	//Path string `json:"path" yaml:"path" xml:"path" gorm:"path"`
 
+	*ProcessConfig[P]
 }
 
-// NewSystemProcessInput creates a new ProcessInput instance with the provided Logger.
-func NewSystemProcessInput[T any](name, command string, args []string, waitFor bool, restart bool, customFn func(obj T, args ...any) *t.ValidationResult, logger l.Logger) *ProcessSystemBase[T] {
-	if logger == nil {
-		logger = l.GetLogger("GoLife")
-	}
-	ref := t.NewReference(name)
-	mu := t.NewMutexes()
-	npi := &ProcessSystemBase[T]{
-		Reference:            ref,
-		Logger:               logger,
-		Mutexes:              mu,
+// newSystemProcessInput creates a new ProcessInput instance with the provided Logger.
+func newSystemProcessInput[T ProcessInput[P], P any](name, command string, args []string, waitFor bool, restart bool, function *t.ValidationFunc[ProcessInput[P]], logger l.Logger, debug bool) *ProcessSystemBase[T, P] {
+	cfg := NewProcessConfig[P](name, waitFor, restart, "system", nil, logger, debug)
+	npi := &ProcessSystemBase[T, P]{
+		Reference:            cfg.Reference,
+		Logger:               cfg.Logger,
+		Mutexes:              cfg.Mutexes,
 		Command:              command,
 		Args:                 args,
 		PropertiesSystemProc: make(map[string]interface{}),
+		ProcessConfig:        cfg,
 	}
-	// This method is used to initialize the cmd field with right and more robust way
+	npi.Function = function
+	npi.Object = new(P)
 	if npi.BuildCmd() == nil {
-		gl.LogObjLogger[ProcessSystemBase[T]](npi, "error", "Command is nil")
+		gl.LogObjLogger[ProcessSystemBase[T, P]](npi, "error", "Command is nil")
 		return nil
 	}
-
 	return npi
 }
 
 // GetCommand returns the command to run.
-func (pi *ProcessSystemBase[T]) GetCommand() string {
+func (pi *ProcessSystemBase[T, P]) GetCommand() string {
+	if pi == nil {
+		return ""
+	}
 	pi.Mutexes.RLock()
 	defer pi.Mutexes.RUnlock()
 
@@ -72,7 +81,10 @@ func (pi *ProcessSystemBase[T]) GetCommand() string {
 }
 
 // GetArgs returns the arguments to pass to the command.
-func (pi *ProcessSystemBase[T]) GetArgs() []string {
+func (pi *ProcessSystemBase[T, P]) GetArgs() []string {
+	if pi == nil {
+		return nil
+	}
 	pi.Mutexes.RLock()
 	defer pi.Mutexes.RUnlock()
 
@@ -80,7 +92,10 @@ func (pi *ProcessSystemBase[T]) GetArgs() []string {
 }
 
 // GetPath returns the path to the command.
-func (pi *ProcessSystemBase[T]) GetPath() string {
+func (pi *ProcessSystemBase[T, P]) GetPath() string {
+	if pi == nil {
+		return ""
+	}
 	pi.Mutexes.RLock()
 	defer pi.Mutexes.RUnlock()
 
@@ -88,7 +103,10 @@ func (pi *ProcessSystemBase[T]) GetPath() string {
 }
 
 // GetCmd returns the command to run.
-func (pi *ProcessSystemBase[T]) GetCmd() *exec.Cmd {
+func (pi *ProcessSystemBase[T, P]) GetCmd() *exec.Cmd {
+	if pi == nil {
+		return nil
+	}
 	pi.Mutexes.RLock()
 	defer pi.Mutexes.RUnlock()
 
@@ -100,7 +118,10 @@ func (pi *ProcessSystemBase[T]) GetCmd() *exec.Cmd {
 }
 
 // BuildCmd builds the command to run.
-func (pi *ProcessSystemBase[T]) BuildCmd() *exec.Cmd {
+func (pi *ProcessSystemBase[T, P]) BuildCmd() *exec.Cmd {
+	if pi == nil {
+		return nil
+	}
 	pi.Mutexes.RLock()
 	defer pi.Mutexes.RUnlock()
 
@@ -187,7 +208,7 @@ func (pi *ProcessSystemBase[T]) BuildCmd() *exec.Cmd {
 }
 
 // GetProperties returns the properties map for the process
-func (pi *ProcessSystemBase[T]) GetProperties() map[string]interface{} {
+func (pi *ProcessSystemBase[T, P]) GetProperties() map[string]interface{} {
 	if pi.PropertiesSystemProc == nil {
 		pi.PropertiesSystemProc = make(map[string]interface{})
 	}
@@ -195,7 +216,7 @@ func (pi *ProcessSystemBase[T]) GetProperties() map[string]interface{} {
 }
 
 // Cmd returns the command to run.
-func (pi *ProcessSystemBase[T]) Cmd() *exec.Cmd {
+func (pi *ProcessSystemBase[T, P]) Cmd() *exec.Cmd {
 	pi.Mutexes.RLock()
 	defer pi.Mutexes.RUnlock()
 

@@ -14,7 +14,7 @@ type ValidationResult struct {
 
 type ValidationFunc[T any] struct {
 	Priority int
-	Func     func(value T, args ...any) *ValidationResult
+	Func     func(value *T, args ...any) *ValidationResult
 	Result   *ValidationResult
 }
 
@@ -51,12 +51,12 @@ func vldtFunc[T any](v *Validation[T]) func(args ...any) bool {
 		v.isValid = true
 		v.validatorMap.Range(func(key, value any) bool {
 			if validator, ok := value.(ValidationFunc[T]); ok {
-				result := validator.Func(valueToValidate, args...)
+				result := validator.Func(&valueToValidate, args...)
 				if !result.IsValid {
 					v.isValid = false
 				}
 				validator.Result = result
-				v.validatorMap.CompareAndSwap(key, value, validator)
+				v.validatorMap.Store(key, validator)
 			}
 			return true
 		})
@@ -184,7 +184,7 @@ func (v *Validation[T]) RemoveValidator(priority int) error {
 }
 
 // GetValidator is a function that gets a validator from the map of validators.
-func (v *Validation[T]) GetValidator(priority int) (*ValidationFunc[T], error) {
+func (v *Validation[T]) GetValidator(priority int) (any, error) {
 	if v == nil {
 		return nil, fmt.Errorf("validation is nil")
 	}
@@ -192,7 +192,7 @@ func (v *Validation[T]) GetValidator(priority int) (*ValidationFunc[T], error) {
 		return nil, fmt.Errorf("validation has no validators")
 	}
 	if validator, ok := v.validatorMap.Load(priority); ok {
-		return validator.(*ValidationFunc[T]), nil
+		return validator, nil
 	}
 	return nil, fmt.Errorf("validator with priority %d does not exist", priority)
 }

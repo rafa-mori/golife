@@ -1,19 +1,21 @@
 package process
 
 import (
-	p "github.com/faelmori/golife/components/types"
-	l "github.com/faelmori/logz"
-
 	"fmt"
+	pi "github.com/faelmori/golife/components/process_input"
+	p "github.com/faelmori/golife/components/types"
+	gl "github.com/faelmori/golife/logger"
+	l "github.com/faelmori/logz"
 	"os"
 	"os/exec"
 	"sync"
+	"syscall"
 )
 
 type IManagedProcess[T any] interface {
 	GetArgs() []string
 	GetCommand() string
-	GetCustomFunc() *p.ValidationFunc[any]
+	GetFunction() *p.ValidationFunc[T]
 	GetName() string
 	GetWaitFor() bool
 	GetProcPid() int
@@ -21,6 +23,8 @@ type IManagedProcess[T any] interface {
 	GetCmd() *exec.Cmd
 	WillRestart() bool
 
+	ExecCmd() error
+	Release() error
 	Status() string
 	Start() error
 	Stop() error
@@ -33,7 +37,7 @@ type IManagedProcess[T any] interface {
 
 	SetArgs(args []string)
 	SetCommand(command string)
-	SetCustomFunc(*p.ValidationFunc[any])
+	SetFunction(*p.ValidationFunc[T])
 	SetName(name string)
 	SetWaitFor(wait bool)
 	SetProcPid(pid int)
@@ -42,9 +46,10 @@ type IManagedProcess[T any] interface {
 }
 
 type ManagedProcess[T any] struct {
+	Logger     l.Logger
 	Args       []string
 	Command    string
-	CustomFunc *p.ValidationFunc[any]
+	Function   *p.ValidationFunc[T]
 	Cmd        *exec.Cmd
 	Name       string
 	WaitFor    bool
@@ -53,15 +58,32 @@ type ManagedProcess[T any] struct {
 	mu         sync.Mutex
 }
 
-func (p *ManagedProcess[T]) GetArgs() []string                     { return p.Args }
-func (p *ManagedProcess[T]) GetCommand() string                    { return p.Command }
-func (p *ManagedProcess[T]) GetCustomFunc() *p.ValidationFunc[any] { return p.CustomFunc }
-func (p *ManagedProcess[T]) GetName() string                       { return p.Name }
-func (p *ManagedProcess[T]) GetWaitFor() bool                      { return p.WaitFor }
-func (p *ManagedProcess[T]) GetProcPid() int                       { return p.ProcPid }
-func (p *ManagedProcess[T]) GetProcHandle() uintptr                { return p.ProcHandle }
-func (p *ManagedProcess[T]) GetCmd() *exec.Cmd                     { return p.Cmd }
-func (p *ManagedProcess[T]) WillRestart() bool                     { return p.Cmd != nil }
+func (p *ManagedProcess[T]) GetArgs() []string                 { return p.Args }
+func (p *ManagedProcess[T]) GetCommand() string                { return p.Command }
+func (p *ManagedProcess[T]) GetFunction() *p.ValidationFunc[T] { return p.Function }
+func (p *ManagedProcess[T]) GetName() string                   { return p.Name }
+func (p *ManagedProcess[T]) GetWaitFor() bool                  { return p.WaitFor }
+func (p *ManagedProcess[T]) GetProcPid() int                   { return p.ProcPid }
+func (p *ManagedProcess[T]) GetProcHandle() uintptr            { return p.ProcHandle }
+func (p *ManagedProcess[T]) GetCmd() *exec.Cmd                 { return p.Cmd }
+func (p *ManagedProcess[T]) WillRestart() bool                 { return p.Cmd != nil }
+func (p *ManagedProcess[T]) Release() error {
+	if p == nil {
+		return nil
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.Cmd != nil && p.Cmd.Process != nil {
+		if err := p.Cmd.Process.Release(); err != nil {
+			return err
+		}
+	} else {
+		gl.LogObjLogger(p, "warn", "Process is nil or not running")
+		return fmt.Errorf("process is nil or not running")
+	}
+	return nil
+}
 func (p *ManagedProcess[T]) Status() string {
 	if p == nil {
 		return "nil"
@@ -77,43 +99,89 @@ func (p *ManagedProcess[T]) Status() string {
 	}
 	return fmt.Sprintf("Process %s (PID %d) is running: %t", p.Name, p.Pid(), p.IsRunning())
 }
+func (p *ManagedProcess[T]) ExecCmd() error {
+	if p == nil {
+		gl.LogObjLogger(p, "fatal", "Process is nil")
+		return fmt.Errorf("process is nil")
+	}
+	if p.Command != "" {
+		gl.LogObjLogger(p, "info", fmt.Sprintf("Starting process %s with command %s", p.Name, p.Command))
+		if p.WaitFor {
+			stdout, err := p.Cmd.StdoutPipe()
+			if err != nil {
+				gl.LogObjLogger(p, "error", fmt.Sprintf("Error creating stdout pipe: %v", err))
+				stdout = os.Stdout
+			}
+			stderr, err := p.Cmd.StderrPipe()
+			if err != nil {
+				gl.LogObjLogger(p, "error", fmt.Sprintf("Error creating stderr pipe: %v", err))
+				stderr = os.Stderr
+			}
+
+			defer func() {
+				_ = stdout.Close()
+				_ = stderr.Close()
+			}()
+		} else {
+			p.Cmd.SysProcAttr = &syscall.SysProcAttr{
+				Setsid: true,
+				//Setpgid: true,
+				Pgid: 0,
+				//Foreground: false,
+			}
+		}
+
+		if err := p.Cmd.Start(); err != nil {
+			gl.LogObjLogger(p, "error", fmt.Sprintf("Error starting command: %v", err))
+			return err
+		}
+
+		p.ProcPid = p.Cmd.Process.Pid
+		p.ProcHandle = uintptr(p.Cmd.Process.Pid)
+
+		if waitErr := p.Wait(); waitErr != nil {
+			gl.LogObjLogger(p, "error", fmt.Sprintf("Error waiting for command to finish: %v", waitErr))
+			return waitErr
+		}
+
+		if p.Cmd.ProcessState != nil && p.Cmd.ProcessState.Exited() {
+			gl.LogObjLogger(p, "info", fmt.Sprintf("Process %s exited with code %d", p.Name, p.Cmd.ProcessState.ExitCode()))
+		} else {
+			gl.LogObjLogger(p, "warn", fmt.Sprintf("Process %s running with PID %d", p.Name, p.Pid()))
+		}
+
+		return nil
+	} else {
+		gl.LogObjLogger(p, "error", "Command is empty")
+		return fmt.Errorf("command is empty")
+	}
+}
 func (p *ManagedProcess[T]) Start() error {
 	if p == nil {
-		return nil
+		gl.LogObjLogger(p, "fatal", "Process is nil")
+		return fmt.Errorf("process is nil")
 	}
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
 	if p.IsRunning() {
+		gl.LogObjLogger(p, "warn", fmt.Sprintf("Process %s is already running", p.Name))
 		return fmt.Errorf("process %s is already running", p.Name)
 	}
 
-	if p.CustomFunc != nil {
-		l.Info(fmt.Sprintf("Executing custom function for process %s", p.Name), nil)
+	if p.Function == nil {
+		gl.LogObjLogger(p, "warn", "Custom function is nil, using default execution")
+	} else {
+		gl.LogObjLogger(p, "info", fmt.Sprintf("Starting process %s with custom function", p.Name))
 		go func() {
-			if err := p.CustomFunc.Func(nil); err != nil {
-				l.Error(fmt.Sprintf("Error in custom execution of process %s: %v", p.Name, err), nil)
+			if err := p.Function.Func(nil, nil); err != nil {
+				gl.LogObjLogger(p, "error", fmt.Sprintf("Error executing custom function: %v", err))
 			}
 		}()
-		return nil
 	}
-	if p.Command != "" {
-		l.Info(fmt.Sprintf("Starting process %s with command %s", p.Name, p.Command), nil)
-		p.Cmd = exec.Command(p.Command, p.Args...)
-		if p.WaitFor {
-			return p.Cmd.Run()
-		} else {
-			if err := p.Cmd.Start(); err != nil {
-				return err
-			}
-			p.ProcPid = p.Cmd.Process.Pid
-			p.ProcHandle = uintptr(p.Cmd.Process.Pid)
-			return p.Cmd.Process.Release()
-		}
-	} else {
-		l.Warn(fmt.Sprintf("No command defined for process %s", p.Name), nil)
-		return nil
+	if err := p.ExecCmd(); err != nil {
+		gl.LogObjLogger(p, "error", fmt.Sprintf("Error executing command: %v", err))
+		return err
 	}
+	return nil
+
 }
 func (p *ManagedProcess[T]) Stop() error {
 	if p == nil {
@@ -144,16 +212,28 @@ func (p *ManagedProcess[T]) IsRunning() bool {
 	return p.Cmd.ProcessState == nil
 }
 func (p *ManagedProcess[T]) Pid() int {
-	if p == nil || p.Cmd == nil || p.Cmd.Process == nil {
+	if p == nil || p.ProcPid == 0 {
 		return -1
 	}
-	return p.Cmd.Process.Pid
+	return p.ProcPid
 }
 func (p *ManagedProcess[T]) Wait() error {
-	if p == nil || p.Cmd == nil {
+	if p == nil || p.Cmd == nil || p.Command == "" {
+		gl.LogObjLogger(p, "error", "Process is nil or command is empty")
 		return nil
 	}
-	return p.Cmd.Wait()
+	if p.WaitFor {
+		return p.Cmd.Wait()
+	} else {
+		//defer func() {
+		if releaseErr := p.Release(); releaseErr != nil {
+			gl.LogObjLogger(p, "error", fmt.Sprintf("Error releasing command: %v", releaseErr))
+			return releaseErr
+		}
+		gl.LogObjLogger(p, "success", fmt.Sprintf("Process %s released with PID %d", p.Name, p.Pid()))
+		//}()
+		return nil
+	}
 }
 func (p *ManagedProcess[T]) String() string {
 	return fmt.Sprintf("Process %s (PID %d) is running: %t", p.Name, p.Pid(), p.IsRunning())
@@ -200,14 +280,14 @@ func (p *ManagedProcess[T]) SetCmd(cmd *exec.Cmd) {
 
 	p.Cmd = cmd
 }
-func (p *ManagedProcess[T]) SetCustomFunc(customFunc *p.ValidationFunc[any]) {
+func (p *ManagedProcess[T]) SetFunction(customFunc *p.ValidationFunc[T]) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.CustomFunc = customFunc
+	p.Function = customFunc
 }
 
-func NewManagedProcess[T any](name string, command string, args []string, wait bool, customFunc *p.ValidationFunc[any]) IManagedProcess[T] {
+func NewManagedProcess(name string, command string, args []string, wait bool, function *p.ValidationFunc[pi.ProcessInput[any]]) IManagedProcess[pi.ProcessInput[any]] {
 	envs := os.Environ()
 	envPath := os.Getenv("PATH")
 	envs = append(envs, fmt.Sprintf("PATH=%s", envPath))
@@ -224,15 +304,18 @@ func NewManagedProcess[T any](name string, command string, args []string, wait b
 		}
 	}
 
-	mgrProc := ManagedProcess[T]{
-		Args:       args,
-		Cmd:        cmd,
-		Command:    command,
-		Name:       name,
-		WaitFor:    wait,
-		CustomFunc: customFunc,
-		mu:         sync.Mutex{},
+	mgrProc := ManagedProcess[pi.ProcessInput[any]]{
+		Logger:   l.GetLogger("GoLife"),
+		Args:     args,
+		Cmd:      cmd,
+		Command:  command,
+		Name:     name,
+		WaitFor:  wait,
+		Function: function,
+		mu:       sync.Mutex{},
 	}
+
+	gl.LogObjLogger[ManagedProcess[pi.ProcessInput[any]]](&mgrProc, "success", fmt.Sprintf("Managed process %s created with command %s", name, command))
 
 	return &mgrProc
 }

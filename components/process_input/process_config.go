@@ -2,6 +2,7 @@ package process_input
 
 import (
 	p "github.com/faelmori/golife/components/types"
+	gl "github.com/faelmori/golife/logger"
 	l "github.com/faelmori/logz"
 )
 
@@ -29,6 +30,9 @@ type ProcessConfig[T any] struct {
 func NewProcessConfig[T any](name string, wait, restart bool, typ string, metadata map[string]any, logger l.Logger, debug bool) *ProcessConfig[T] {
 	if logger == nil {
 		logger = l.GetLogger("GoLife")
+	}
+	if debug {
+		gl.SetDebug(debug)
 	}
 	mu := p.NewMutexes()
 	ref := p.NewReference(name)

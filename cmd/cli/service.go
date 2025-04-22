@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	pi "github.com/faelmori/golife/components/process_input"
 	. "github.com/faelmori/golife/internal"
 	. "github.com/faelmori/golife/internal/process"
 	. "github.com/faelmori/golife/internal/routines/taskz/events"
@@ -13,7 +14,7 @@ import (
 	"syscall"
 )
 
-var manager ILifeCycle[any]
+var manager ILifeCycle[pi.ProcessInput[any]]
 
 func ServiceCmdList() []*cobra.Command {
 	return []*cobra.Command{
@@ -135,7 +136,7 @@ func stopCommand() *cobra.Command {
 			if manager == nil {
 				l.Error("no manager found", map[string]interface{}{})
 			} else {
-				stopErr := manager.Stop()
+				stopErr := manager.StopLifecycle()
 				if stopErr != nil {
 					l.Error(fmt.Sprintf("Fail to stop process: %s", stopErr), map[string]interface{}{})
 				}
@@ -225,7 +226,7 @@ func serviceCommand() *cobra.Command {
 	return serviceCmd
 }
 
-func createManager(processName, processCmd string, stages []string, processEvents map[string]func(interface{}), triggers []string, processArgs []string, processWait, restart bool) (ILifeCycle[any], error) {
+func createManager(processName, processCmd string, stages []string, processEvents map[string]func(interface{}), triggers []string, processArgs []string, processWait, restart bool) (ILifeCycle[pi.ProcessInput[any]], error) {
 	if processName == "" {
 		return nil, fmt.Errorf("no process name provided")
 	}
@@ -248,7 +249,7 @@ func createManager(processName, processCmd string, stages []string, processEvent
 	}
 
 	var events []IManagedProcessEvents[any]
-	var processes = make(map[string]IManagedProcess[any])
+	var processes = make(map[string]IManagedProcess[pi.ProcessInput[any]])
 	var iStages = make(map[string]IStage[any])
 	//var sigChan = make(chan os.Signal, 1)
 	//var doneChan = make(chan struct{}, 1)
@@ -273,22 +274,22 @@ func createManager(processName, processCmd string, stages []string, processEvent
 		}
 	}
 
-	processes[processName] = NewManagedProcess[any](processName, processCmd, processArgs, processWait, nil)
+	processes[processName] = NewManagedProcess(processName, processCmd, processArgs, processWait, nil)
 	if processEvents != nil {
 		iEvent := NewManagedProcessEvents[any]() //(processEvents, eventsChan)
 		events = append(events, iEvent)
 	}
 
-	//manager = NewLifeCycle[any](
-	//	processes,
-	//	iStages,
-	//	sigChan,
-	//	doneChan,
-	//	events,
-	//	eventsCh,
-	//)
-
-	regProcErr := manager.RegisterProcess(processName, processCmd, processArgs, restart, nil)
+	regProcErr := manager.AddProcess(processName, pi.NewSystemProcessInput[any](
+		processName,
+		processCmd,
+		processArgs,
+		processWait,
+		restart,
+		nil,
+		nil,
+		false,
+	))
 	if regProcErr != nil {
 		return nil, regProcErr
 	}
@@ -300,7 +301,7 @@ func createManager(processName, processCmd string, stages []string, processEvent
 	//	}
 	//}
 
-	startAllErr := manager.Start()
+	startAllErr := manager.StartLifecycle()
 	if startAllErr != nil {
 		return nil, startAllErr
 	}

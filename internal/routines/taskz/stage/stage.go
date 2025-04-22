@@ -20,6 +20,22 @@ type IStage[T any] interface {
 	OnExit(fn func()) IStage[T]
 	OnEvent(event string, fn func(interface{})) IStage[T]
 	AutoScale(size int) IStage[T]
+	SetMeta(key string, value f.EventMetadata) IStage[T]
+	GetMeta(key string) (*f.EventMetadata, bool)
+	SetTags(tags []string) IStage[T]
+	GetTags() []string
+	SetWorkerPool(pool t.IWorkerPool) IStage[T]
+	GetWorkerPool() t.IWorkerPool
+	GetStageID() uuid.UUID
+	GetStageName() string
+	GetStageType() string
+	GetStageDesc() string
+	GetStageData() *T
+	SetPossibleNext(stages []string) IStage[T]
+	GetPossibleNext() []string
+	SetPossiblePrev(stages []string) IStage[T]
+	GetPossiblePrev() []string
+	GetWorkerCount() int
 	Dispatch(task func()) error
 	Description() string
 	Name() string
@@ -29,7 +45,7 @@ type IStage[T any] interface {
 type BaseStage[T any] struct {
 	StageID   uuid.UUID // Stage identifier
 	StageName string    // Stage name
-	Data      T         // Stage data
+	Data      *T        // Stage data
 	Type      string    // Stage type
 	Desc      string    // Stage description
 }
@@ -46,6 +62,40 @@ type Stage[T any] struct {
 	OnExitFn     func()                       // Function to execute on exiting the stage
 	EventFns     map[string]func(interface{}) // Event functions
 	workerPool   t.IWorkerPool                // Worker pool for the stage
+}
+
+// NewStage creates a new stage with the given name, description, and type.
+func NewStage[T any](name, desc, stageType string, data *T) IStage[T] {
+	var defaultData T
+	// Initialize the default data for the stage
+	if data == nil {
+		defaultData = *new(T)
+	} else {
+		defaultData = *data
+	}
+	// Initialize the worker pool
+	stg := &Stage[T]{
+		BaseStage: BaseStage[T]{
+			StageID:   uuid.New(),
+			StageName: name,
+			Desc:      desc,
+			Data:      &defaultData,
+			Type:      stageType,
+		},
+		Meta:         make(map[string]f.EventMetadata), // Stage metadata
+		Tags:         []string{},                       // Stage tags
+		PossibleNext: []string{},                       // Possible next stages
+		PossiblePrev: []string{},                       // Possible previous stages
+		OnEnterFn: func() {
+
+		}, // Function to execute on entering the stage
+		OnExitFn: func() {
+
+		}, // Function to execute on exiting the stage
+		EventFns:   make(map[string]func(interface{})), // Event functions
+		workerPool: w.NewWorkerPool(1, l.GetLogger("GoLife")),
+	}
+	return stg
 }
 
 // ID returns the stage identifier.
@@ -103,14 +153,98 @@ func (s *Stage[T]) Dispatch(task func()) error {
 	return nil
 }
 
+// SetMeta sets the metadata for the stage.
+func (s *Stage[T]) SetMeta(key string, value f.EventMetadata) IStage[T] {
+	s.Meta[key] = value
+	return s
+}
+
+// GetMeta returns the metadata for the stage.
+func (s *Stage[T]) GetMeta(key string) (*f.EventMetadata, bool) {
+	if meta, ok := s.Meta[key]; ok {
+		return &meta, true
+	}
+	return nil, false
+}
+
+// SetTags sets the tags for the stage.
+func (s *Stage[T]) SetTags(tags []string) IStage[T] {
+	s.Tags = tags
+	return s
+}
+
+// GetTags returns the tags for the stage.
+func (s *Stage[T]) GetTags() []string { return s.Tags }
+
+// SetWorkerPool sets the worker pool for the stage.
+func (s *Stage[T]) SetWorkerPool(pool t.IWorkerPool) IStage[T] {
+	s.workerPool = pool
+	return s
+}
+
+// GetWorkerPool returns the worker pool for the stage.
+func (s *Stage[T]) GetWorkerPool() t.IWorkerPool {
+	if s.workerPool == nil {
+		l.Error(fmt.Sprintf("WorkerPool not initialized for stage %s", s.Name()), nil)
+	}
+	return s.workerPool
+}
+
+// GetStageID returns the stage identifier.
+func (s *Stage[T]) GetStageID() uuid.UUID { return s.StageID }
+
+// GetStageName returns the stage name.
+func (s *Stage[T]) GetStageName() string { return s.StageName }
+
+// GetStageType returns the stage type.
+func (s *Stage[T]) GetStageType() string { return s.Type }
+
+// GetStageDesc returns the stage description.
+func (s *Stage[T]) GetStageDesc() string { return s.Desc }
+
+// GetStageData returns the stage data.
+func (s *Stage[T]) GetStageData() *T { return s.Data }
+
+// GetPossibleNext returns the possible next stages.
+func (s *Stage[T]) GetPossibleNext() []string { return s.PossibleNext }
+
+// SetPossibleNext sets the possible next stages.
+func (s *Stage[T]) SetPossibleNext(stages []string) IStage[T] {
+	s.PossibleNext = stages
+	return s
+}
+
+// GetPossiblePrev returns the possible previous stages.
+func (s *Stage[T]) GetPossiblePrev() []string { return s.PossiblePrev }
+
+// SetPossiblePrev sets the possible previous stages.
+func (s *Stage[T]) SetPossiblePrev(stages []string) IStage[T] {
+	s.PossiblePrev = stages
+	return s
+}
+
 // CanTransitionTo checks if the stage can transition to another stage.
-func (s *Stage[T]) CanTransitionTo(stageID string) bool {
+func (s *Stage[T]) CanTransitionTo(stageName string) bool {
 	for _, next := range s.PossibleNext {
-		if next == stageID {
+		if next == stageName {
+			return true
+		}
+	}
+	for _, prev := range s.PossiblePrev {
+		if prev == stageName {
 			return true
 		}
 	}
 	return false
+}
+
+// GetWorkerCount returns the number of workers in the pool.
+func (s *Stage[T]) GetWorkerCount() int {
+	if s.workerPool == nil {
+		l.Error(fmt.Sprintf("WorkerPool not initialized for stage %s", s.Name()), nil)
+		return 0
+	}
+	return s.workerPool.GetWorkerCount()
 }
 
 // GetEvent returns the function for a specific event.
@@ -133,39 +267,4 @@ func (s *Stage[T]) EventExists(event string) bool {
 		return true
 	}
 	return false
-}
-
-// NewStage creates a new stage with the given name, description, and type.
-func NewStage[T any](name, desc, stageType string, data *T) IStage[T] {
-	var defaultData T
-	// Initialize the default data for the stage
-	if data == nil {
-		defaultData = *new(T)
-	} else {
-		defaultData = *data
-	}
-	// Initialize the worker pool
-	stg := &Stage[T]{
-		BaseStage: BaseStage[T]{
-			StageID:   uuid.New(),
-			StageName: name,
-			Desc:      desc,
-			Data:      defaultData,
-			Type:      stageType,
-		},
-		Meta:         make(map[string]f.EventMetadata), // Stage metadata
-		Tags:         []string{},                       // Stage tags
-		PossibleNext: []string{},                       // Possible next stages
-		PossiblePrev: []string{},                       // Possible previous stages
-		OnEnterFn: func() {
-
-		}, // Function to execute on entering the stage
-		OnExitFn: func() {
-
-		}, // Function to execute on exiting the stage
-		EventFns:   make(map[string]func(interface{})), // Event functions
-		workerPool: nil,
-	}
-	l.GetLogger("GoLife").Info(fmt.Sprintf("New stage created: %s", name), nil)
-	return stg
 }

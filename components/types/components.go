@@ -1,7 +1,7 @@
 package types
 
 import (
-	l "github.com/faelmori/golife/logger"
+	gl "github.com/faelmori/golife/logger"
 	"github.com/google/uuid"
 	"reflect"
 	"sync/atomic"
@@ -59,18 +59,20 @@ func newVal[T any](name string, v *T) *val[T] {
 	// Create a new validation instance
 	validation := NewValidation[T]()
 
-	l.Log("info", "Created new val instance for:", name, "ID:", ref.ID.String())
+	gl.Log("debug", "Created new val instance for:", name, "ID:", ref.ID.String())
+
 	return &val[T]{
 		Pointer:    &vv,
 		Validation: validation,
 		Reference:  ref,
+		ChannelCtl: NewChannelCtl[T](name, nil, nil),
 		muCtx:      mu,
 	}
 }
 
 // StartCtl is a method that starts the control channel.
 func (v *val[T]) StartCtl() <-chan string {
-	l.Log("info", "Starting control channel for:", v.Name, "ID:", v.ID.String())
+	gl.Log("info", "Starting control channel for:", v.Name, "ID:", v.ID.String())
 	go monitorRoutine[T](v)
 	return v.ctl
 }
@@ -81,7 +83,7 @@ func (v *val[T]) Type() reflect.Type { return reflect.TypeFor[T]() }
 // Get is a method that returns the value.
 func (v *val[T]) Get(async bool) any {
 	if v == nil {
-		l.Log("error", "Get: property does not exist (", reflect.TypeFor[T]().String(), ")")
+		gl.Log("error", "Get: property does not exist (", reflect.TypeFor[T]().String(), ")")
 		return nil
 	}
 	vl := v.Load()
@@ -89,16 +91,16 @@ func (v *val[T]) Get(async bool) any {
 		if v.ch != nil {
 			if vl == nil {
 				if v.Type().Kind() != reflect.Ptr {
-					l.Log("info", "Creating async value for:", v.Name, "ID:", v.ID.String())
+					gl.Log("debug", "Creating async value for:", v.Name, "ID:", v.ID.String())
 					vl = new(T)
 					v.ch <- *vl
 				}
 			} else {
-				l.Log("info", "Sending async value for:", v.Name, "ID:", v.ID.String())
+				gl.Log("debug", "Sending async value for:", v.Name, "ID:", v.ID.String())
 				v.ch <- *vl
 			}
 		} else {
-			l.Log("warn", "Get: channel is nil, cannot send async value (", reflect.TypeFor[T]().String(), ")")
+			gl.Log("warn", "Get: channel is nil, cannot send async value (", reflect.TypeFor[T]().String(), ")")
 		}
 	}
 	return vl
@@ -107,44 +109,46 @@ func (v *val[T]) Get(async bool) any {
 // Set is a method that sets the value.
 func (v *val[T]) Set(t *T) bool {
 	if v == nil {
-		l.Log("error", "Get: property does not exist (", reflect.TypeFor[T]().String(), ")")
+		gl.Log("error", "Get: property does not exist (", reflect.TypeFor[T]().String(), ")")
 		return false
 	}
 	if t == nil {
-		l.Log("error", "Set: nil is not a valid value (", reflect.TypeFor[T]().String(), ")")
+		gl.Log("error", "Set: nil is not a valid value (", reflect.TypeFor[T]().String(), ")")
 		return false
 	}
 	if v.hasValidation {
 		if !v.Validate(*t) {
-			l.Log("error", "Set: validation failed (", reflect.TypeFor[T]().String(), ")")
+			gl.Log("error", "Set: validation failed (", reflect.TypeFor[T]().String(), ")")
 			return false
 		}
 	}
 	if v.CompareAndSwap(v.Load(), t) {
-		l.Log("info", "Set: changed value for:", v.Name, "ID:", v.ID.String())
-		if v.ch != nil {
+		gl.Log("debug", "Set: changed value for:", v.Name, "ID:", v.ID.String())
+
+		if !reflect.ValueOf(v.ch).IsNil() && reflect.ValueOf(v.ch).IsValid() {
+			gl.Log("debug", "Sending value for:", v.Name, "ID:", v.ID.String())
 			v.ch <- *t
 		}
 		return true
 	}
-	l.Log("error", "Set: value not changed (", reflect.TypeFor[T]().String(), ")")
+	gl.Log("error", "Set: value not changed (", reflect.TypeFor[T]().String(), ")")
 	return false
 }
 
 // Clear is a method that clears the value.
 func (v *val[T]) Clear() {
 	if v == nil {
-		l.Log("error", "Get: property does not exist (", reflect.TypeFor[T]().String(), ")")
+		gl.Log("error", "Get: property does not exist (", reflect.TypeFor[T]().String(), ")")
 		return
 	}
 	if v.Load() != nil {
-		l.Log("info", "Clearing value for:", v.Name, "ID:", v.ID.String())
+		gl.Log("debug", "Clearing value for:", v.Name, "ID:", v.ID.String())
 		vl := *new(T)
 
 		v.Store(&vl)
 
 		if v.ch != nil {
-			l.Log("info", "Sending clear value for:", v.Name, "ID:", v.ID.String())
+			gl.Log("debug", "Sending clear value for:", v.Name, "ID:", v.ID.String())
 			v.ch <- vl
 		}
 	}
@@ -153,7 +157,7 @@ func (v *val[T]) Clear() {
 // IsNil is a method that checks if the value is nil.
 func (v *val[T]) IsNil() bool {
 	if v == nil {
-		l.Log("error", "Get: property does not exist (", reflect.TypeFor[T]().String(), ")")
+		gl.Log("error", "Get: property does not exist (", reflect.TypeFor[T]().String(), ")")
 		return true
 	}
 	return v.Load() == nil

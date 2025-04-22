@@ -142,7 +142,7 @@ func (a *Layer[T]) ExecuteLayerEvent(name string, args ...any) (bool, *Validatio
 			if len(args) > 0 {
 				input = args[0:]
 			}
-			eventResult := event.Func(input)
+			eventResult := event.Func(&input)
 			return eventResult != nil, eventResult
 		}
 	}
@@ -206,7 +206,7 @@ func (a *Layer[T]) ExecuteLayerListener(priority int, args ...any) (bool, *Valid
 		if len(args) > 0 {
 			input = args[0:]
 		}
-		listenerResult := listener.Func(input)
+		listenerResult := listener.Func(&input)
 		return listenerResult != nil, listenerResult
 	}
 

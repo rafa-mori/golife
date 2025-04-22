@@ -216,5 +216,5 @@ import (
 ////}
 ////
 ////func RegisterProcess(lc LifeCycleManager, process ManagedProcess) error {
-////	return lc.RegisterProcess(process.GetName(), process.GetCommand(), process.GetArgs(), process.WillRestart(), process.GetCustomFunc())
+////	return lc.RegisterProcess(process.GetName(), process.GetCommand(), process.GetArgs(), process.WillRestart(), process.GetFunction())
 ////}

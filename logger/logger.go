@@ -38,14 +38,14 @@ func init() {
 type LogType string
 
 const (
-	LogTypeNotice  LogType = "Notice"
-	LogTypeInfo    LogType = "Info"
-	LogTypeDebug   LogType = "Debug"
-	LogTypeError   LogType = "Error"
-	LogTypeWarn    LogType = "Warn"
-	LogTypeFatal   LogType = "Fatal"
-	LogTypePanic   LogType = "Panic"
-	LogTypeSuccess LogType = "Success"
+	LogTypeNotice  LogType = "notice"
+	LogTypeInfo    LogType = "info"
+	LogTypeDebug   LogType = "debug"
+	LogTypeError   LogType = "error"
+	LogTypeWarn    LogType = "warn"
+	LogTypeFatal   LogType = "fatal"
+	LogTypePanic   LogType = "panic"
+	LogTypeSuccess LogType = "success"
 )
 
 // SetDebug is a function that sets the debug flag for logging.
@@ -59,7 +59,7 @@ func LogObjLogger[T any](obj *T, logType string, messages ...string) {
 			"logType":  logType,
 			"object":   obj,
 			"msg":      messages,
-			"showData": false,
+			"showData": true,
 		})
 		return
 	}
@@ -71,13 +71,18 @@ func LogObjLogger[T any](obj *T, logType string, messages ...string) {
 			"logType":  logType,
 			"object":   obj,
 			"msg":      messages,
-			"showData": false,
+			"showData": true,
 		})
 		return
 	} else {
 		var lgr l.Logger
 		objValueLogger = objValueLogger.Convert(reflect.TypeFor[l.Logger]())
-		lgr = objValueLogger.Interface().(l.Logger)
+		if objValueLogger.IsNil() {
+			objValueLogger = reflect.ValueOf(g.Logger)
+		}
+		if lgr = objValueLogger.Interface().(l.Logger); lgr == nil {
+			lgr = g.Logger
+		}
 		pc, file, line, ok := runtime.Caller(1)
 		if !ok {
 			lgr.Error("Log: unable to get caller information", nil)
@@ -137,6 +142,16 @@ func Log(logType string, messages ...string) {
 
 // logging is a helper function that logs messages with the specified log type.
 func logging(lgr l.Logger, lType LogType, fullMessage string, ctxMessageMap map[string]interface{}) {
+	debugCtx := debug
+	if !debugCtx {
+		if lType == "error" || lType == "fatal" || lType == "panic" || lType == "debug" {
+			// If debug is false, set the debug value based on the logType
+			debugCtx = true
+		} else {
+			debugCtx = false
+		}
+	}
+	ctxMessageMap["showData"] = debugCtx
 	switch lType {
 	case LogTypeInfo:
 		lgr.Info(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
@@ -157,4 +172,5 @@ func logging(lgr l.Logger, lType LogType, fullMessage string, ctxMessageMap map[
 	default:
 		lgr.Info(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
 	}
+	debugCtx = debug
 }

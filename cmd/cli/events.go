@@ -52,16 +52,16 @@ func registerEventCmd() *cobra.Command {
 			"Register an event in a stage",
 		}, false),
 		Run: func(cmd *cobra.Command, args []string) {
-			stage = args[0]
-			event = args[1]
-			regEvErr := manager.RegisterEvent(stage, event, func(data interface{}) {
-				//manager.Trigger(stage, event, data)
-			})
-			if regEvErr != nil {
-				l.Error(fmt.Sprintf("ErrorCtx registering event: %s", regEvErr.Error()), map[string]interface{}{})
-				return
-			}
-			l.Info("Event registered successfully", map[string]interface{}{})
+			//stage = args[0]
+			//event = args[1]
+			//regEvErr := manager.AddEvent(event, func(data interface{}) {
+			//	//manager.Trigger(stage, event, data)
+			//})
+			//if regEvErr != nil {
+			//	l.Error(fmt.Sprintf("ErrorCtx registering event: %s", regEvErr.Error()), map[string]interface{}{})
+			//	return
+			//}
+			//l.Info("Event registered successfully", map[string]interface{}{})
 		},
 	}
 
@@ -108,12 +108,12 @@ func stopEventsCmd() *cobra.Command {
 			"Stop all events",
 		}, false),
 		Run: func(cmd *cobra.Command, args []string) {
-			err := manager.StopEvents()
-			if err != nil {
-				l.Error(fmt.Sprintf("ErrorCtx stopping events: %s", err.Error()), map[string]interface{}{})
-				return
-			}
-			l.Info("Events stopped successfully", map[string]interface{}{})
+			//err := manager.StopEvents()
+			//if err != nil {
+			//	l.Error(fmt.Sprintf("ErrorCtx stopping events: %s", err.Error()), map[string]interface{}{})
+			//	return
+			//}
+			//l.Info("Events stopped successfully", map[string]interface{}{})
 		},
 	}
 

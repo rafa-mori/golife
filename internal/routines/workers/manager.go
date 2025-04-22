@@ -144,7 +144,7 @@ func (wm *WorkerManager[T]) SetWorkerLimit(workerLimit int) error {
 	if workerLimit < len(wm.workerPool.(*WorkerPool).workers) {
 		return fmt.Errorf("worker limit cannot be less than current worker count")
 	}
-	if setValueErr := workerPool.Properties["workerLimit"].SetValue(workerLimit, nil); setValueErr != nil {
+	if setValueErr := workerPool.SetWorkerLimit(workerLimit); setValueErr != nil {
 		return setValueErr
 	}
 	return nil

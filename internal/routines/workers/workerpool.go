@@ -2,10 +2,10 @@ package workers
 
 import (
 	"fmt"
+	p "github.com/faelmori/golife/components/types"
 	"github.com/faelmori/golife/internal/property"
 	"github.com/faelmori/golife/internal/routines/agents"
 	t "github.com/faelmori/golife/internal/types"
-	u "github.com/faelmori/golife/internal/utils"
 	//p "github.com/faelmori/golife/life/types"
 	"github.com/faelmori/golife/services"
 	l "github.com/faelmori/logz"
@@ -20,8 +20,8 @@ type WorkerPool struct {
 	wg         sync.WaitGroup
 	logger     l.Logger
 	ID         string
-	Properties map[string]property.Property[any]
-	workers    []t.IWorker // Referência aos workers gerenciados pelo pool
+	Properties map[string]any // Propriedades do WorkerPool
+	workers    []t.IWorker    // Referência aos workers gerenciados pelo pool
 
 	// Channels
 
@@ -44,7 +44,7 @@ func NewWorkerPool(workerLimit int, logger l.Logger) t.IWorkerPool {
 		wg:          sync.WaitGroup{},
 		logger:      logger,
 		ID:          uuid.NewString(),
-		Properties:  make(map[string]property.Property[any]),
+		Properties:  make(map[string]any),
 		workers:     make([]t.IWorker, workerLimit),
 		jobQueue:    agents.NewChannel[t.IAction[any], int]("jobQueue", &iAction, 100),
 		jobChannel:  agents.NewChannel[t.IJob[any], int]("jobChannel", &iJob, 100),
@@ -53,33 +53,56 @@ func NewWorkerPool(workerLimit int, logger l.Logger) t.IWorkerPool {
 	}
 
 	// Control
-	//wp.Properties["workerLimit"] = p.NewProperty[int]("workerLimit", nil)
-	//wp.Properties["workerLimit"].SetValue(workerLimit, nil)
-	//
-	//wp.Properties["workerCount"] = u.NewProperty[int]("workerCount", nil)
-	//wp.Properties["workerCount"].SetValue(0, nil)
-	//
-	//wp.Properties["buffers"] = u.NewProperty[int]("buffers", nil) // Tamanho do buffer para os canais (Max 100)
-	//_ = wp.Properties["buffers"].SetValue(100, nil)
-
+	wkrLimit := p.NewProperty[int]("workerLimit", nil, false, nil)
 	// Validator
-	if addValidatorErr := wp.Properties["workerLimit"].AddValidator("workerLimit", u.ValidateWorkerLimit); addValidatorErr != nil {
+	if addValidatorErr := wkrLimit.Prop.AddValidator(p.ValidationFunc[int]{
+		Priority: 0,
+		Func: func(value *int, args ...any) *p.ValidationResult {
+			if *value < 0 {
+				return &p.ValidationResult{
+					IsValid: false,
+					Message: "workerLimit cannot be negative",
+					Error:   fmt.Errorf("workerLimit cannot be negative"),
+				}
+			}
+			if *value > 50 {
+				return &p.ValidationResult{
+					IsValid: false,
+					Message: "workerLimit cannot be greater than 50",
+					Error:   fmt.Errorf("workerLimit cannot be greater than 50"),
+				}
+			}
+			return &p.ValidationResult{
+				IsValid: true,
+				Message: "workerLimit is valid",
+				Error:   nil,
+			}
+
+		},
+		Result: nil,
+	}); addValidatorErr != nil {
 		wp.logger.Error("Erro ao adicionar validador para workerLimit", map[string]any{
 			"context":  "WorkerPool",
 			"action":   "AddValidator",
 			"error":    addValidatorErr,
 			"showData": true,
 		})
-		if setValErr := wp.Properties["workerLimit"].SetValue(0, nil); setValErr != nil {
-			wp.logger.Error("Erro ao definir o valor padrão para workerLimit", map[string]any{
-				"context":  "WorkerPool",
-				"action":   "SetValue",
-				"error":    setValErr,
-				"showData": true,
-			})
-		}
+		workerLimit = 0
+		wkrLimit.Prop.Set(&workerLimit)
 		return nil
 	}
+	wkrLimit.Prop.Set(&workerLimit)
+	wp.Properties["workerLimit"] = wkrLimit
+
+	zero := 0
+	wkrCount := p.NewProperty[int]("workerCount", nil, false, nil)
+	wkrCount.Prop.Set(&zero)
+	wp.Properties["workerCount"] = wkrCount
+
+	bufferSize := 10
+	wkrBuffer := p.NewProperty[int]("workerBuffer", nil, false, nil)
+	wkrBuffer.Prop.Set(&bufferSize)
+	wp.Properties["buffers"] = wkrBuffer
 
 	return wp
 }
@@ -158,11 +181,13 @@ func (wp *WorkerPool) GetDoneChannel() (chan struct{}, error) {
 func (wp *WorkerPool) GetWorkerLimit() int {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
-	valInt := reflect.ValueOf(wp.Properties["workerLimit"].GetValue()).Int()
-	if valInt == 0 {
-		return 1
+	valInt := 0
+	if wkrLimit, ok := wp.Properties["workerLimit"]; !ok {
+		if wkrLimitValT, ok := reflect.ValueOf(wkrLimit).Interface().(p.Property[int]); ok {
+			valInt = *wkrLimitValT.Prop.Get(false).(*int)
+		}
 	}
-	return int(valInt)
+	return valInt
 }
 
 // GetWorker retorna um worker específico do pool
@@ -206,10 +231,15 @@ func (wp *WorkerPool) GetWorkerPool() []t.IWorker {
 func (wp *WorkerPool) Debug() {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
+	valInt := 0
+	if wkrLimit, ok := wp.Properties["workerLimit"]; !ok {
+		if wkrLimitValT, ok := reflect.ValueOf(wkrLimit).Interface().(p.Property[int]); ok {
+			valInt = *wkrLimitValT.Prop.Get(false).(*int)
+		}
+	}
 
 	fmt.Printf("WorkerPool ID: %s\n", wp.ID)
-	fmt.Printf("WorkerCount: %d | WorkerLimit: %d\n",
-		len(wp.workers), wp.Properties["workerLimit"].GetValue())
+	fmt.Printf("WorkerCount: %d | WorkerLimit: %d\n", len(wp.workers), valInt)
 	for i, worker := range wp.workers {
 		fmt.Printf("Worker %d | Status: %v\n", i, worker.GetStatus())
 	}
@@ -234,8 +264,14 @@ func (wp *WorkerPool) Report() string {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
 
-	report := fmt.Sprintf("WorkerPool Report\nWorkerCount: %d | WorkerLimit: %d\n",
-		len(wp.workers), wp.Properties["workerLimit"].GetValue())
+	valInt := 0
+	if wkrLimit, ok := wp.Properties["workerLimit"]; !ok {
+		if wkrLimitValT, ok := reflect.ValueOf(wkrLimit).Interface().(p.Property[int]); ok {
+			valInt = *wkrLimitValT.Prop.Get(false).(*int)
+		}
+	}
+
+	report := fmt.Sprintf("WorkerPool Report\nWorkerCount: %d | WorkerLimit: %d\n", len(wp.workers), valInt)
 	for i, worker := range wp.workers {
 		report += fmt.Sprintf("Worker %d | Status: %v\n", i, worker.GetStatus())
 	}
@@ -297,8 +333,11 @@ func (wp *WorkerPool) SetWorkerLimit(limit int) error {
 	if limit < 0 {
 		return fmt.Errorf("worker limit cannot be negative")
 	}
-	if err := wp.Properties["workerLimit"].SetValue(limit, nil); err != nil {
-		return err
+	if wkrLimit, ok := wp.Properties["workerLimit"]; !ok {
+		if wkrLimitValT, ok := reflect.ValueOf(wkrLimit).Interface().(p.Property[int]); ok {
+			wkrLimitValT.Prop.Set(&limit)
+			wp.Properties["workerLimit"] = wkrLimitValT
+		}
 	}
 	return nil
 }
@@ -309,8 +348,15 @@ func (wp *WorkerPool) SetWorkerPool(workerPool []t.IWorker) error {
 	defer wp.mu.Unlock()
 	if workerPool == nil {
 		return fmt.Errorf("worker pool cannot be nil")
+
 	}
-	if len(workerPool) > reflect.ValueOf(wp.Properties["workerLimit"].GetValue()).Interface().(int) {
+	valInt := 0
+	if wkrLimit, ok := wp.Properties["workerLimit"]; !ok {
+		if wkrLimitValT, ok := reflect.ValueOf(wkrLimit).Interface().(p.Property[int]); ok {
+			valInt = *wkrLimitValT.Prop.Get(false).(*int)
+		}
+	}
+	if len(workerPool) > valInt {
 		return fmt.Errorf("worker pool exceeds worker limit")
 	}
 	wp.workers = workerPool
@@ -321,8 +367,16 @@ func (wp *WorkerPool) SetWorkerPool(workerPool []t.IWorker) error {
 func (wp *WorkerPool) getChannel(key string) (any, error) {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
-	chanAny := reflect.ValueOf(wp.Properties[key].GetValue()).Interface().(chan any)
-	return chanAny, nil
+	if _, ok := wp.Properties[key]; !ok {
+		return nil, fmt.Errorf("channel %s not found", key)
+	}
+	if wkrProp, ok := wp.Properties[key]; !ok {
+		if wkrPropT, ok := reflect.ValueOf(wkrProp).Interface().(p.Property[any]); ok {
+			return wkrPropT.Prop.Channel(), nil
+		} else {
+			return reflect.ValueOf(wkrProp).Interface().(*p.Property[any]).Prop.Channel(), nil
+		}
+	}
 	return nil, fmt.Errorf("failed to get channel %s", key)
 }
 
