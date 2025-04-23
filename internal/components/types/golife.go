@@ -1,9 +1,9 @@
-package golife
+package types
 
 import (
 	"fmt"
 	ci "github.com/faelmori/golife/internal/components/interfaces"
-	p "github.com/faelmori/golife/internal/components/types"
+	//iu "github.com/faelmori/golife/internal/utils"
 	gl "github.com/faelmori/golife/logger"
 	l "github.com/faelmori/logz"
 	"reflect"
@@ -15,10 +15,10 @@ type GoLife[T any, P ci.ILifeCycle[T, ci.IProperty[ci.IProcessInput[T]]]] struct
 	Logger l.Logger
 	// Reference is the reference ID and name.
 	ci.IReference
-	*p.Reference
+	*Reference
 	// Mutexes is the mutexes for this GoLife instance.
 	ci.IMutexes
-	*p.Mutexes
+	*Mutexes
 	// Object is the object to pass to the command.
 	Object *T
 	// Properties is a map of properties for this GoLife instance.
@@ -35,7 +35,7 @@ func NewGoLife[T any, P ci.ILifeCycle[T, ci.IProperty[ci.IProcessInput[T]]]](inp
 	gl.SetDebug(debug)
 	var lcm ci.ILifeCycle[T, ci.IProperty[ci.IProcessInput[T]]]
 
-	lcm = p.NewLifeCycle[T, ci.IProperty[ci.IProcessInput[T]]](input, logger)
+	lcm = NewLifeCycle[T, ci.IProperty[ci.IProcessInput[T]]](input, logger)
 
 	if inp, ok := lcm.(ci.ILifeCycle[T, ci.IProperty[ci.IProcessInput[T]]]); !ok {
 		l.FatalC(fmt.Sprintf("Lifecycle manager is not of type ILifeCycle[ProcessInput[any]] for test %s", inp.GetName()), nil)
@@ -45,33 +45,33 @@ func NewGoLife[T any, P ci.ILifeCycle[T, ci.IProperty[ci.IProcessInput[T]]]](inp
 		l.FatalC(fmt.Sprintf("Lifecycle manager is not of type %s for test %s", reflect.TypeOf(lcm).String(), lcm.GetName()), nil)
 		return nil
 	} else {
-		chCtl := p.NewChannelCtl[string]("goLife", logger)
-		chMon := p.NewChannelCtl[string]("goLifeMonitor", logger)
+		chCtl := NewChannelCtl[string]("goLife", logger)
+		chMon := NewChannelCtl[string]("goLifeMonitor", logger)
 		ggl := GoLife[T, P]{
 			Logger:    logger,
-			Mutexes:   p.NewMutexesType(),
-			Reference: p.NewReference("GoLife").GetReference(),
+			Mutexes:   NewMutexesType(),
+			Reference: NewReference("GoLife").GetReference(),
 			Object:    &lcmT,
 			properties: map[string]interface{}{
-				"lifeCycle": p.WithProperty(lcm.GetName(), &lcm, true, func(any) (bool, error) {
+				"lifeCycle": WithProperty(lcm.GetName(), &lcm, true, func(any) (bool, error) {
 					// Will create the callback function for the lifecycle manager
 					// This is a placeholder for the actual callback logic
 					gl.Log("debug", "Lifecycle manager callback executed")
 					return true, nil
 				}),
-				"chCtl": p.WithProperty[ci.IChannelCtl[string]]("channel", &chCtl, true, func(any) (bool, error) {
+				"chCtl": WithProperty[ci.IChannelCtl[string]]("channel", &chCtl, true, func(any) (bool, error) {
 					// Will create the callback function for the channel
 					// This is a placeholder for the actual callback logic
 					gl.Log("debug", "Channel callback executed")
 					return true, nil
 				}),
-				"telemetry": p.WithProperty("telemetry", p.NewTelemetry(), true, func(any) (bool, error) {
+				"telemetry": WithProperty("telemetry", NewTelemetry(), true, func(any) (bool, error) {
 					// Will create the callback function for the telemetry
 					// This is a placeholder for the actual callback logic
 					gl.Log("debug", "Telemetry callback executed")
 					return true, nil
 				}),
-				"chMon": p.WithProperty("monitor", &chMon, true, func(any) (bool, error) {
+				"chMon": WithProperty("monitor", &chMon, true, func(any) (bool, error) {
 					// Will create the callback function for the monitor
 					// This is a placeholder for the actual callback logic
 					gl.Log("debug", "Monitor callback executed")
@@ -106,10 +106,10 @@ func (g *GoLife[T, P]) initialize() {
 	}
 	gl.LogObjLogger(g, "notice", "Initializing GoLife instance")
 	if g.Reference == nil {
-		g.Reference = p.NewReference("GoLife").GetReference()
+		g.Reference = NewReference("GoLife").GetReference()
 	}
 	if g.Mutexes == nil {
-		g.Mutexes = p.NewMutexesType()
+		g.Mutexes = NewMutexesType()
 	}
 	arrMap := []map[string]interface{}{g.properties, g.metadata}
 	for key, m := range arrMap {
@@ -122,10 +122,18 @@ func (g *GoLife[T, P]) initialize() {
 		g.properties = make(map[string]interface{})
 	}
 	//obj := reflect.ValueOf(g.Object).Interface().(i.ILifeCycle[pi.ProcessInput[any]])
-	g.properties["lifeCycle"] = p.WithProperty[T, P]("lifeCycle", g.Object, true, func(any) (bool, error) {
+	g.properties["lifeCycle"] = WithProperty[T, P]("lifeCycle", g.Object, true, func(any) (bool, error) {
 		// Will create the callback function for the lifecycle manager
 		// This is a placeholder for the actual callback logic
 		gl.LogObjLogger(g, "debug", "Lifecycle manager callback executed")
 		return true, nil
 	})
+}
+
+// WithProperty creates a new property with the given name, property, and callback function.
+func WithProperty[T any](name string, property *T, withMetrics bool, cb func(any) (bool, error)) ci.IProperty[T] {
+	if property == nil {
+		property = interface{}(nil).(*T)
+	}
+	return NewProperty[T](name, property, withMetrics, cb)
 }

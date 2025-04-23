@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	g "github.com/faelmori/golife"
-	pi "github.com/faelmori/golife/components/process_input"
-	p "github.com/faelmori/golife/components/types"
 	i "github.com/faelmori/golife/internal"
+	pi "github.com/faelmori/golife/internal/components/process_input"
+	p "github.com/faelmori/golife/internal/components/types"
 	gl "github.com/faelmori/golife/logger"
 	l "github.com/faelmori/logz"
 	"os"

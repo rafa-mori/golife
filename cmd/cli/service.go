@@ -2,11 +2,9 @@ package cli
 
 import (
 	"fmt"
-	. "github.com/faelmori/golife/components/process"
-	pi "github.com/faelmori/golife/components/process_input"
-	"github.com/faelmori/golife/components/types"
-	. "github.com/faelmori/golife/internal/routines/taskz/events"
-	. "github.com/faelmori/golife/internal/routines/taskz/stage"
+	. "github.com/faelmori/golife/internal/components/process"
+	pi "github.com/faelmori/golife/internal/components/process_input"
+	"github.com/faelmori/golife/internal/components/types"
 	l "github.com/faelmori/logz"
 	"github.com/spf13/cobra"
 	"os"
