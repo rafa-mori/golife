@@ -6,10 +6,10 @@ import (
 )
 
 type IComponents[T IProperty[IProcessInput[IManagedProcess[any]]]] interface {
-	IProcessManager[T] // Gerencia processos no Lifecycle
-	IStageManager      // Gerencia stages e suas transições
-	IEventManager      // Gerencia eventos
-	ISignalManager     // Gerencia sinais do sistema
+	IProcessManager[T]          // Gerencia processos no Lifecycle
+	IStageManager               // Gerencia stages e suas transições
+	IEventManager               // Gerencia eventos
+	ISignalManager[chan string] // Gerencia sinais do sistema
 	GetComponent(name string) (any, bool)
 }
 
@@ -35,7 +35,7 @@ type IEventManager interface {
 	RemoveEvent(string) error
 }
 
-type ISignalManager interface {
+type ISignalManager[T chan string] interface {
 	ListenForSignals() error
 	StopListening()
 }

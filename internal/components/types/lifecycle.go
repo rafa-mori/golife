@@ -35,15 +35,50 @@ type LifeCycle[T any, P ci.IProperty[ci.IProcessInput[T]]] struct {
 }
 
 func newLifeCycle[T any, P ci.IProperty[ci.IProcessInput[T]]](input *P, logger l.Logger) *LifeCycle[T, P] {
-	return &LifeCycle[T, P]{
+	if input == nil {
+		gl.LogObjLogger(input, "error", "ProcessInput não pode ser nulo")
+		return nil
+	}
+
+	if logger == nil {
+		logger = l.GetLogger("GoLife")
+	}
+
+	channelCtl := NewChannelCtl[T]("LifecycleCtl", logger)
+
+	lc := &LifeCycle[T, P]{
 		Logger:     logger,
 		Mutexes:    NewMutexesType(),
 		Reference:  NewReference("LifeCycle").GetReference(),
 		Object:     input,
-		Components: newComponents[ci.IProperty[ci.IProcessInput[ci.IManagedProcess[any]]]](logger),
 		Metadata:   make(map[string]any),
-		channelCtl: NewChannelCtl[T]("LifecycleCtl", logger),
+		channelCtl: channelCtl,
 	}
+
+	if rawCtl, rawCtlType, rawCtlOk := channelCtl.GetSubChannelByName("ctl"); !rawCtlOk {
+		gl.LogObjLogger(lc, "fatal", fmt.Sprintf("Control channel does not exist: %s", rawCtlType))
+		return nil
+	} else {
+		if rawCtlType != reflect.TypeFor[string]() {
+			gl.LogObjLogger(lc, "fatal", fmt.Sprintf("Control channel type is not string: %s", rawCtlType))
+			return nil
+		} else {
+			chCtlR := reflect.ValueOf(rawCtl).Interface().(ci.IChannelBase[string])
+			chCtlT, chCtlType := chCtlR.GetChannel()
+			if reflect.ValueOf(chCtlT).Kind() != reflect.Chan {
+				gl.LogObjLogger(lc, "fatal", fmt.Sprintf("Control channel type is not chan: %s", chCtlType))
+				return nil
+			} else {
+				if chCtl, ok := reflect.ValueOf(chCtlT).Interface().(chan string); ok {
+					lc.Components = newComponents[ci.IProperty[ci.IProcessInput[ci.IManagedProcess[any]]]](chCtl, logger)
+				} else {
+					gl.LogObjLogger(lc, "fatal", fmt.Sprintf("Control channel type is not string: %s", chCtlType))
+					return nil
+				}
+			}
+		}
+	}
+	return lc
 }
 
 func NewLifeCycle[T any, P ci.IProperty[ci.IProcessInput[T]]](input *P, logger l.Logger) ci.ILifeCycle[T, P] {
@@ -52,8 +87,13 @@ func NewLifeCycle[T any, P ci.IProperty[ci.IProcessInput[T]]](input *P, logger l
 
 // GetConfig returns the configuration of the lifecycle.
 func (lc *LifeCycle[T, P]) GetConfig() *P {
-	lc.MuRLock()
-	defer lc.MuRUnlock()
+	if lc == nil {
+		gl.LogObjLogger(lc, "fatal", "Lifecycle não pode ser nulo")
+		return nil
+	}
+
+	lc.Mutexes.MuRLock()
+	defer lc.Mutexes.MuRUnlock()
 
 	obj := *lc.Object
 	if err := obj.LoadFromFile("config.json", "json"); err != nil {
@@ -65,8 +105,12 @@ func (lc *LifeCycle[T, P]) GetConfig() *P {
 
 // SetConfig sets the configuration of the lifecycle.
 func (lc *LifeCycle[T, P]) SetConfig(processInput P) {
-	lc.MuLock()
-	defer lc.MuUnlock()
+	if lc == nil {
+		gl.LogObjLogger(lc, "fatal", "Lifecycle não pode ser nulo")
+		return
+	}
+	lc.Mutexes.MuLock()
+	defer lc.Mutexes.MuUnlock()
 
 	// Use reflection to check if processInput is nil or something else invalid. Check directly may cause panic with first class types.
 	if !reflect.ValueOf(processInput).IsValid() {
@@ -84,8 +128,13 @@ func (lc *LifeCycle[T, P]) SetConfig(processInput P) {
 
 // GetComponent retrieves a component from the lifecycle.
 func (lc *LifeCycle[T, P]) GetComponent(name string) (any, bool) {
-	lc.MuRLock()
-	defer lc.MuRUnlock()
+	if lc == nil {
+		gl.LogObjLogger(lc, "fatal", "Lifecycle não pode ser nulo")
+		return nil, false
+	}
+
+	lc.Mutexes.MuRLock()
+	defer lc.Mutexes.MuRUnlock()
 
 	if lc.Components == nil {
 		return nil, false
@@ -100,15 +149,23 @@ func (lc *LifeCycle[T, P]) GetComponent(name string) (any, bool) {
 
 // GetLogger returns the logger of the lifecycle.
 func (lc *LifeCycle[T, P]) GetLogger() l.Logger {
-	lc.MuRLock()
-	defer lc.MuRUnlock()
+	if lc == nil {
+		gl.LogObjLogger(lc, "fatal", "Lifecycle não pode ser nulo")
+		return nil
+	}
+	lc.Mutexes.MuRLock()
+	defer lc.Mutexes.MuRUnlock()
 	return lc.Logger
 }
 
 // SetLogger sets the logger of the lifecycle.
 func (lc *LifeCycle[T, P]) SetLogger(logger l.Logger) {
-	lc.MuLock()
-	defer lc.MuUnlock()
+	if lc == nil {
+		gl.LogObjLogger(lc, "fatal", "Lifecycle não pode ser nulo")
+		return
+	}
+	lc.Mutexes.MuLock()
+	defer lc.Mutexes.MuUnlock()
 	if logger == nil {
 		lc.Logger = l.GetLogger("GoLife")
 		return
@@ -123,7 +180,12 @@ func (lc *LifeCycle[T, P]) SetLogger(logger l.Logger) {
 
 // Initialize initializes the lifecycle.
 func (lc *LifeCycle[T, P]) Initialize() error {
-	if lc.Object == nil {
+	if lc == nil {
+		gl.LogObjLogger(lc, "fatal", "Lifecycle não pode ser nulo")
+		return fmt.Errorf("erro: Lifecycle não pode ser nulo")
+	}
+
+	if !reflect.ValueOf(lc.Object).IsValid() {
 		return fmt.Errorf("erro: O ProcessInput está vazio")
 	}
 
@@ -132,8 +194,8 @@ func (lc *LifeCycle[T, P]) Initialize() error {
 		return vResult.GetError()
 	}
 
-	lc.MuLock()
-	defer lc.MuUnlock()
+	lc.Mutexes.MuLock()
+	defer lc.Mutexes.MuUnlock()
 
 	if lc.Logger == nil {
 		lc.Logger = l.GetLogger("GoLife")
@@ -150,23 +212,42 @@ func (lc *LifeCycle[T, P]) Initialize() error {
 
 // Shutdown shuts down the lifecycle.
 func (lc *LifeCycle[T, P]) Shutdown() error {
+	if lc == nil {
+		gl.LogObjLogger(lc, "fatal", "Lifecycle não pode ser nulo")
+		return fmt.Errorf("erro: Lifecycle não pode ser nulo")
+	}
+
 	gl.LogObjLogger(&lc, "info", "Desligando Lifecycle...")
 
 	// Os mutexes serão usados dentro dos responsáveis, aqui seria lock só de leitura
-	//lc.MuRLock()
-	//defer lc.MuRUnlock()
+	//lc.Mutexes.MuRLock()
+	//defer lc.Mutexes.MuRUnlock()
 
 	// Depois vou separar essas etapas designando cada uma ao seu responsável (Manager)
 
 	// Só de exemplo, remove o processo "processName". Pra encher linguiça.. hahaha
-	if rawProp, ok := lc.GetComponent("processManager"); ok {
+	if rawProp, ok := lc.GetComponent("processManager"); !ok {
+		gl.LogObjLogger(&lc, "error", "Erro ao encerrar processos: %s", "ProcessManager não encontrado")
+		return fmt.Errorf("erro: ProcessManager não encontrado")
+	} else {
 		if propPtr, ok := rawProp.(ci.IProperty[ci.IProcessInput[T]]); ok {
 			gl.LogObjLogger(&lc, "Encerrando processos...")
 			propWrpr := propPtr.GetValue()
 			if prop, ok := propWrpr.(ci.IProcessInput[T]); ok {
-				if err := prop.Send("stop", func(msg string) {
-					if chCtlWrp, chCtlWrpType, chCtlWrpOk := lc.channelCtl.GetSubChannelByName("ctl"); chCtlWrpOk && chCtlWrpType == reflect.TypeOf(new(string)) {
-						chCtlWrp.GetChannel() <- fmt.Sprintf("{\"context\":\"%s\", \"message\":\"%s\"}", lc.GetName(), msg)
+				if err := prop.Send("stop", func(msg T) {
+					if chCtlWrp, chCtlWrpType, chCtlWrpOk := lc.channelCtl.GetSubChannelByName("ctl"); chCtlWrpOk && chCtlWrpType == reflect.TypeFor[string]() {
+						if chCtlWrpObj, chCtlWrpObjOk := reflect.ValueOf(chCtlWrp).Interface().(ci.IChannelBase[string]); !chCtlWrpObjOk {
+							gl.LogObjLogger(&lc, "error", "Erro ao enviar callback para control channel do Lifecycle")
+							return
+						} else {
+							chCtlWrpChan, _ := chCtlWrpObj.GetChannel()
+							if reflect.ValueOf(chCtlWrpChan).Kind() != reflect.Chan {
+								gl.LogObjLogger(&lc, "error", "Erro ao enviar callback para control channel do Lifecycle")
+								return
+							} else {
+								chCtlWrpChan.(chan T) <- msg
+							}
+						}
 					} else {
 						gl.LogObjLogger(&lc, "error", "Erro ao enviar callback para control channel do Lifecycle")
 					}
@@ -176,14 +257,20 @@ func (lc *LifeCycle[T, P]) Shutdown() error {
 			}
 		}
 	}
-	if rawProp, ok := lc.GetComponent("stageManager"); ok {
+	if rawProp, ok := lc.GetComponent("stageManager"); !ok {
+		gl.LogObjLogger(&lc, "error", "Erro ao encerrar stages: %s", "StageManager não encontrado")
+		return fmt.Errorf("erro: StageManager não encontrado")
+	} else {
 		if prop, ok := rawProp.(ci.IStageManager); ok {
 			gl.LogObjLogger(&lc, "Encerrando stages...")
 			// Enchendo linguiça de novo, remove o stage "stageName"
 			_ = prop.RemoveStage("stageName")
 		}
 	}
-	if rawProp, ok := lc.GetComponent("eventManager"); ok {
+	if rawProp, ok := lc.GetComponent("eventManager"); !ok {
+		gl.LogObjLogger(&lc, "error", "Erro ao encerrar eventos: %s", "EventManager não encontrado")
+		return fmt.Errorf("erro: EventManager não encontrado")
+	} else {
 		if prop, ok := rawProp.(ci.IEventManager); ok {
 			gl.LogObjLogger(&lc, "Encerrando eventos...")
 			// Deee novo, enchendo linguiça, remove o evento "eventName"
@@ -196,8 +283,13 @@ func (lc *LifeCycle[T, P]) Shutdown() error {
 
 // ValidateLifecycle validates the lifecycle.
 func (lc *LifeCycle[T, P]) ValidateLifecycle() ci.IValidationResult {
-	lc.MuRLock()
-	defer lc.MuRUnlock()
+	if lc == nil {
+		gl.LogObjLogger(lc, "fatal", "Lifecycle não pode ser nulo")
+		return nil
+	}
+
+	lc.Mutexes.MuRLock()
+	defer lc.Mutexes.MuRUnlock()
 
 	validations := map[string]func() bool{
 		// Critical objects
@@ -250,6 +342,11 @@ func (lc *LifeCycle[T, P]) ValidateLifecycle() ci.IValidationResult {
 
 // StartLifecycle starts the lifecycle.
 func (lc *LifeCycle[T, P]) StartLifecycle() error {
+	if lc == nil {
+		gl.LogObjLogger(lc, "fatal", "Lifecycle não pode ser nulo")
+		return fmt.Errorf("erro: Lifecycle não pode ser nulo")
+	}
+
 	gl.LogObjLogger(lc, "success", "Iniciando Lifecycle...")
 
 	if err := lc.Initialize(); err != nil {
@@ -261,9 +358,20 @@ func (lc *LifeCycle[T, P]) StartLifecycle() error {
 			gl.LogObjLogger(lc, "info", "Iniciando processos...")
 			propWrpr := propPtr.GetValue()
 			if prop, ok := propWrpr.(ci.IProcessInput[T]); ok {
-				if err := prop.Send("start", func(msg string) {
-					if chCtlWrp, chCtlWrpType, chCtlWrpOk := lc.channelCtl.GetSubChannelByName("ctl"); chCtlWrpOk && chCtlWrpType == reflect.TypeOf(new(string)) {
-						chCtlWrp.GetChannel() <- fmt.Sprintf("{\"context\":\"%s\", \"message\":\"%s\"}", lc.GetName(), msg)
+				if err := prop.Send("start", func(msg T) {
+					if chCtlWrp, chCtlWrpType, chCtlWrpOk := lc.channelCtl.GetSubChannelByName("ctl"); chCtlWrpOk && chCtlWrpType == reflect.TypeFor[string]() {
+						if chCtlWrpObj, chCtlWrpObjOk := reflect.ValueOf(chCtlWrp).Interface().(ci.IChannelBase[string]); !chCtlWrpObjOk {
+							gl.LogObjLogger(lc, "error", "Erro ao enviar callback para control channel do Lifecycle")
+							return
+						} else {
+							chCtlWrpChan, _ := chCtlWrpObj.GetChannel()
+							if reflect.ValueOf(chCtlWrpChan).Kind() != reflect.Chan {
+								gl.LogObjLogger(lc, "error", "Erro ao enviar callback para control channel do Lifecycle")
+								return
+							} else {
+								chCtlWrpChan.(chan T) <- msg
+							}
+						}
 					} else {
 						gl.LogObjLogger(lc, "error", "Erro ao enviar callback para control channel do Lifecycle")
 					}
@@ -279,6 +387,11 @@ func (lc *LifeCycle[T, P]) StartLifecycle() error {
 
 // StopLifecycle stops the lifecycle.
 func (lc *LifeCycle[T, P]) StopLifecycle() error {
+	if lc == nil {
+		gl.LogObjLogger(lc, "fatal", "Lifecycle não pode ser nulo")
+		return fmt.Errorf("erro: Lifecycle não pode ser nulo")
+	}
+
 	gl.LogObjLogger(lc, "warning", "Parando Lifecycle...")
 
 	return lc.Shutdown()
@@ -286,6 +399,11 @@ func (lc *LifeCycle[T, P]) StopLifecycle() error {
 
 // RestartLifecycle restarts the lifecycle.
 func (lc *LifeCycle[T, P]) RestartLifecycle() error {
+	if lc == nil {
+		gl.LogObjLogger(lc, "fatal", "Lifecycle não pode ser nulo")
+		return fmt.Errorf("erro: Lifecycle não pode ser nulo")
+	}
+
 	gl.LogObjLogger(lc, "info", "Reiniciando Lifecycle...")
 
 	if err := lc.StopLifecycle(); err != nil {
@@ -297,6 +415,11 @@ func (lc *LifeCycle[T, P]) RestartLifecycle() error {
 
 // StatusLifecycle returns the status of the lifecycle.
 func (lc *LifeCycle[T, P]) StatusLifecycle() string {
+	if lc == nil {
+		gl.LogObjLogger(lc, "fatal", "Lifecycle não pode ser nulo")
+		return ""
+	}
+
 	if lc.Object == nil {
 		return "Lifecycle não está inicializado"
 	}
@@ -306,6 +429,11 @@ func (lc *LifeCycle[T, P]) StatusLifecycle() string {
 
 // ValidateConfig validates the configuration of the lifecycle.
 func (lc *LifeCycle[T, P]) ValidateConfig() error {
+	if lc == nil {
+		gl.LogObjLogger(lc, "fatal", "Lifecycle não pode ser nulo")
+		return fmt.Errorf("erro: Lifecycle não pode ser nulo")
+	}
+
 	if lc.Object == nil {
 		return fmt.Errorf("erro: configuração do Lifecycle não pode estar vazia")
 	}
@@ -319,8 +447,8 @@ func (lc *LifeCycle[T, P]) ValidateConfig() error {
 
 //// RemoveComponent removes a component from the lifecycle.
 //func (lc *LifeCycle[T, P]) RemoveComponent(name string) error {
-//	lc.MuLock()
-//	defer lc.MuUnlock()
+//	lc.Mutexes.MuLock()
+//	defer lc.Mutexes.MuUnlock()
 //
 //	if _, exists := lc.Components[name]; exists {
 //		delete(lc.Components, name)

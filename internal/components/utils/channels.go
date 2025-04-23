@@ -105,7 +105,8 @@ func chanRoutineWrapper[T any](v ci.IChannelCtl[T]) {
 			return
 		}
 		chCtl := reflect.ValueOf(rawChCtl).Interface().(chan string)
-		ch := v.GetMainChannel()
+		rawCh := v.GetMainChannel()
+		ch := reflect.ValueOf(rawCh).Interface().(chan T)
 
 		defer chanRoutineDefer[T](v, chCtl, ch)
 		for {

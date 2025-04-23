@@ -122,7 +122,7 @@ func (g *GoLife[T, P]) initialize() {
 		g.properties = make(map[string]interface{})
 	}
 	//obj := reflect.ValueOf(g.Object).Interface().(i.ILifeCycle[pi.ProcessInput[any]])
-	g.properties["lifeCycle"] = WithProperty[T, P]("lifeCycle", g.Object, true, func(any) (bool, error) {
+	g.properties["lifeCycle"] = WithProperty[T]("lifeCycle", g.Object, true, func(any) (bool, error) {
 		// Will create the callback function for the lifecycle manager
 		// This is a placeholder for the actual callback logic
 		gl.LogObjLogger(g, "debug", "Lifecycle manager callback executed")

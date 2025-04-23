@@ -35,6 +35,15 @@ type Mutexes struct {
 	// muCtx is the mutex context map
 	*muCtx
 
+	// MuCtxM is a mutex for the ctx map.
+	MuCtxM *sync.RWMutex
+	// MuCtxL is a mutex for sync.Cond in the ctx map.
+	MuCtxL *sync.RWMutex
+	// MuCtxCond is a condition variable for the ctx map.
+	MuCtxCond *sync.Cond
+	// MuCtxWg is a wait group for the ctx map.
+	MuCtxWg *sync.WaitGroup
+
 	// muSharedM is a mutex for the shared context.
 	muSharedM *sync.RWMutex
 	// muSharedCtx is the shared context for Cond. This is used to synchronize states across multiple goroutines.
@@ -46,11 +55,15 @@ type Mutexes struct {
 // NewMutexesType creates a new mutex context map struct pointer.
 func NewMutexesType() *Mutexes {
 	mu := &Mutexes{
+		MuCtxM:              &sync.RWMutex{},
+		MuCtxL:              &sync.RWMutex{},
+		MuCtxWg:             &sync.WaitGroup{},
 		muSharedM:           &sync.RWMutex{},
 		muSharedCtx:         nil,
 		muSharedCtxValidate: nil,
 	}
 	mu.muCtx = newMuCtx(mu.muSharedM)
+	mu.MuCtxCond = sync.NewCond(mu.muSharedM)
 	return mu
 }
 

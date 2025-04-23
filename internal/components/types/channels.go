@@ -1,6 +1,7 @@
 package types
 
 import (
+	"fmt"
 	ci "github.com/faelmori/golife/internal/components/interfaces"
 	tu "github.com/faelmori/golife/internal/components/utils"
 	gl "github.com/faelmori/golife/logger"
@@ -17,14 +18,14 @@ var (
 type ChannelBase[T any] struct {
 	*Mutexes              // Mutexes for this Channel instance
 	Name     string       // The name of the channel.
-	Channel  chan T       // The channel for the value. Main channel for this struct.
+	Channel  any          // The channel for the value. Main channel for this struct.
 	Type     reflect.Type // The type of the channel.
 	Buffers  int          // The number of buffers for the channel.
 	Shared   interface{}  // Shared data for many purposes
 }
 
 // NewChannelBase creates a new ChannelBase instance with the provided name and type.
-func NewChannelBase[T any](name string, buffers int, logger l.Logger) ci.IChannelBase[T] {
+func NewChannelBase[T any](name string, buffers int, logger l.Logger) ci.IChannelBase[any] {
 	if logger == nil {
 		logger = l.GetLogger("GoLife")
 	}
@@ -32,7 +33,7 @@ func NewChannelBase[T any](name string, buffers int, logger l.Logger) ci.IChanne
 	if buffers <= 0 {
 		buffers = lgBuf
 	}
-	return &ChannelBase[T]{
+	return &ChannelBase[any]{
 		Mutexes: mu,
 		Name:    name,
 		Channel: make(chan T, buffers),
@@ -46,10 +47,10 @@ func (cb *ChannelBase[T]) GetName() string {
 	defer cb.MuRUnlock()
 	return cb.Name
 }
-func (cb *ChannelBase[T]) GetChannel() chan T {
+func (cb *ChannelBase[T]) GetChannel() (any, reflect.Type) {
 	cb.MuRLock()
 	defer cb.MuRUnlock()
-	return cb.Channel
+	return cb.Channel, reflect.TypeOf(cb.Channel)
 }
 func (cb *ChannelBase[T]) GetType() reflect.Type {
 	cb.MuRLock()
@@ -67,10 +68,10 @@ func (cb *ChannelBase[T]) SetName(name string) string {
 	cb.Name = name
 	return cb.Name
 }
-func (cb *ChannelBase[T]) SetChannel(chan T) chan T {
+func (cb *ChannelBase[T]) SetChannel(typE reflect.Type, bufferSize int) any {
 	cb.MuLock()
 	defer cb.MuUnlock()
-	cb.Channel = make(chan T, cb.Buffers)
+	cb.Channel = reflect.MakeChan(typE, bufferSize)
 	return cb.Channel
 }
 func (cb *ChannelBase[T]) SetBuffers(buffers int) int {
@@ -85,7 +86,7 @@ func (cb *ChannelBase[T]) Close() error {
 	defer cb.MuUnlock()
 	if cb.Channel != nil {
 		gl.LogObjLogger(cb, "info", "Closing channel for:", cb.Name)
-		close(cb.Channel)
+		close(cb.Channel.(chan T))
 	}
 	return nil
 }
@@ -94,7 +95,7 @@ func (cb *ChannelBase[T]) Clear() error {
 	defer cb.MuUnlock()
 	if cb.Channel != nil {
 		gl.LogObjLogger(cb, "info", "Clearing channel for:", cb.Name)
-		close(cb.Channel)
+		close(cb.Channel.(chan T))
 		cb.Channel = make(chan T, cb.Buffers)
 	}
 	return nil
@@ -144,9 +145,9 @@ func NewChannelCtl[T any](name string, logger l.Logger) ci.IChannelCtl[T] {
 		Reference: ref.GetReference(),
 		Mutexes:   mu,
 		ch:        make(chan T, lgBuf),
-		Channels:  getDefaultChannelsMap(false, logger),
+		Channels:  make(map[string]any),
 	}
-
+	channelCtl.Channels = getDefaultChannelsMap(false, logger)
 	return channelCtl
 }
 
@@ -161,15 +162,17 @@ func NewChannelCtlWithProperty[T any, P ci.IProperty[T]](name string, buffers *i
 	if buffers != nil {
 		buf = *buffers
 	}
-
-	return &ChannelCtl[T]{
+	channelCtl := &ChannelCtl[T]{
 		Logger:    logger,
 		Reference: ref.GetReference(),
 		Mutexes:   mu,
 		ch:        make(chan T, buf),
-		Channels:  getDefaultChannelsMap(withMetrics, logger),
+		Channels:  make(map[string]any),
 		property:  property,
 	}
+	channelCtl.Channels = getDefaultChannelsMap(withMetrics, logger)
+
+	return channelCtl
 }
 
 func (cCtl *ChannelCtl[T]) GetID() uuid.UUID {
@@ -219,20 +222,25 @@ func (cCtl *ChannelCtl[T]) SetSubChannels(channels map[string]interface{}) map[s
 	}
 	return cCtl.Channels
 }
-func (cCtl *ChannelCtl[T]) GetSubChannelByName(name string) (ci.IChannelBase[any], reflect.Type, bool) {
+func (cCtl *ChannelCtl[T]) GetSubChannelByName(name string) (any, reflect.Type, bool) {
 	if cCtl.Channels == nil {
+		gl.LogObjLogger(cCtl, "info", "Creating channels map for:", cCtl.Name, "ID:", cCtl.ID.String())
 		cCtl.Channels = initChannelsMap(cCtl)
 	}
 	cCtl.MuRLock()
 	defer cCtl.MuRUnlock()
 	if rawChannel, ok := cCtl.Channels[name]; ok {
-		if channel, ok := rawChannel.(ci.IChannelBase[any]); ok {
+		if channel, ok := rawChannel.(ci.IChannelBase[T]); ok {
 			return channel, channel.GetType(), true
+		} else {
+			gl.LogObjLogger(cCtl, "error", fmt.Sprintf("Channel %s is not a valid channel type. Expected: %s, receive %s", name, reflect.TypeFor[ci.IChannelBase[T]]().String(), reflect.TypeOf(rawChannel)))
+			return nil, nil, false
 		}
 	}
+	gl.LogObjLogger(cCtl, "error", "Channel not found:", name, "ID:", cCtl.ID.String())
 	return nil, nil, false
 }
-func (cCtl *ChannelCtl[T]) SetSubChannelByName(name string, channel ci.IChannelBase[any]) (ci.IChannelBase[any], error) {
+func (cCtl *ChannelCtl[T]) SetSubChannelByName(name string, channel any) (any, error) {
 	if cCtl.Channels == nil {
 		cCtl.Channels = initChannelsMap(cCtl)
 	}
@@ -279,7 +287,7 @@ func (cCtl *ChannelCtl[T]) SetSubChannelBuffersByName(name string, buffers int) 
 	}
 	return 0, nil
 }
-func (cCtl *ChannelCtl[T]) GetMainChannel() chan T {
+func (cCtl *ChannelCtl[T]) GetMainChannel() any {
 	if cCtl.Channels == nil {
 		cCtl.Channels = initChannelsMap(cCtl)
 	}
@@ -396,12 +404,16 @@ func initChannelsMap[T any](v *ChannelCtl[T]) map[string]interface{} {
 		defer v.MuUnlock()
 		gl.LogObjLogger(v, "info", "Creating channels map for:", v.Name, "ID:", v.ID.String())
 		v.Channels = make(map[string]interface{})
-		v.Channels["done"] = &ChannelBase[bool]{Name: "done", Channel: make(chan bool, 1), Type: reflect.TypeFor[bool](), Buffers: smBuf}
-		v.Channels["ctl"] = &ChannelBase[string]{Name: "ctl", Channel: make(chan string, mdBuf), Type: reflect.TypeFor[string](), Buffers: mdBuf}
-		v.Channels["condition"] = &ChannelBase[string]{Name: "condition", Channel: make(chan string, smBuf), Type: reflect.TypeFor[string](), Buffers: smBuf}
+		// done is a channel for the done signal.
+		v.Channels["done"] = NewChannelBase[bool]("done", smBuf, v.Logger)
+		// ctl is a channel for the internal control channel.
+		v.Channels["ctl"] = NewChannelBase[string]("ctl", mdBuf, v.Logger)
+		// condition is a channel for the condition signal.
+		v.Channels["condition"] = NewChannelBase[string]("cond", smBuf, v.Logger)
+
 		if v.withMetrics {
-			v.Channels["telemetry"] = &ChannelBase[string]{Name: "telemetry", Channel: make(chan string, mdBuf), Type: reflect.TypeFor[string](), Buffers: mdBuf}
-			v.Channels["monitor"] = &ChannelBase[string]{Name: "monitor", Channel: make(chan string, mdBuf), Type: reflect.TypeFor[string](), Buffers: mdBuf}
+			v.Channels["telemetry"] = NewChannelBase[string]("telemetry", mdBuf, v.Logger)
+			v.Channels["monitor"] = NewChannelBase[string]("monitor", mdBuf, v.Logger)
 		}
 	}
 	return v.Channels

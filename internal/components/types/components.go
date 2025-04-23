@@ -28,12 +28,12 @@ type Components[T ci.IProperty[ci.IProcessInput[ci.IManagedProcess[any]]]] struc
 	//eventManager ci.IEventManager
 
 	// SignalManager is the signal manager for this GoLife instance.
-	*SignalManager `json:"signal_manager" yaml:"signal_manager" xml:"signal_manager" toml:"signal_manager" gorm:"signal_manager"`
+	*SignalManager[chan string] `json:"signal_manager" yaml:"signal_manager" xml:"signal_manager" toml:"signal_manager" gorm:"signal_manager"`
 	// ISignalManager is the signal manager interface for this GoLife instance.
-	//signalManager ci.ISignalManager
+	//signalManager ci.ISignalManager[chan string]
 }
 
-func newComponents[T ci.IProperty[ci.IProcessInput[ci.IManagedProcess[any]]]](logger l.Logger) *Components[T] {
+func newComponents[T ci.IProperty[ci.IProcessInput[ci.IManagedProcess[any]]]](channelCtl chan string, logger l.Logger) *Components[T] {
 	return &Components[T]{
 		Logger: logger,
 
@@ -47,22 +47,25 @@ func newComponents[T ci.IProperty[ci.IProcessInput[ci.IManagedProcess[any]]]](lo
 
 		EventManager: newEventManager(),
 		//eventManager: NewEventManager(),
+
+		SignalManager: newSignalManager[chan string](channelCtl, logger),
+		//signalManager: NewSignalManager(channelCtl, logger),
 	}
 }
 
-func NewComponents[T ci.IProperty[ci.IProcessInput[ci.IManagedProcess[any]]]](logger l.Logger) ci.IComponents[T] {
-	return newComponents[T](logger)
+func NewComponents[T ci.IProperty[ci.IProcessInput[ci.IManagedProcess[any]]]](channelCtl chan string, logger l.Logger) ci.IComponents[T] {
+	return newComponents[T](channelCtl, logger)
 }
 
 func (c *Components[T]) GetComponent(name string) (any, bool) {
 	switch name {
-	case "process_manager":
+	case "process_manager", "process":
 		return c.ProcessManager, true
-	case "stage_manager":
+	case "stage_manager", "stage":
 		return c.StageManager, true
-	case "event_manager":
+	case "event_manager", "event":
 		return c.EventManager, true
-	case "signal_manager":
+	case "signal_manager", "signal":
 		return c.SignalManager, true
 	default:
 		return nil, false

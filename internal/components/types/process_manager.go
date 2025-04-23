@@ -1,8 +1,11 @@
 package types
 
 import (
+	"context"
 	"fmt"
 	ci "github.com/faelmori/golife/internal/components/interfaces"
+	gl "github.com/faelmori/golife/logger"
+	"reflect"
 )
 
 type ProcessManager[T ci.IProperty[ci.IProcessInput[ci.IManagedProcess[any]]]] struct {
@@ -18,7 +21,14 @@ func NewProcessManager[T ci.IProperty[ci.IProcessInput[ci.IManagedProcess[any]]]
 }
 
 func (pm *ProcessManager[T]) AddProcess(s string, t T) error {
-	pm.processes[s] = t.GetValue()
+	if !reflect.ValueOf(t).IsValid() {
+		return fmt.Errorf("erro: ProcessInput não pode ser nulo ao adicionar um processo")
+	}
+	vl := t.GetValue()
+	if vl == nil {
+		return fmt.Errorf("erro: ProcessInput não pode ser nulo ao adicionar um processo")
+	}
+	pm.processes[s] = vl
 	return nil
 }
 
@@ -38,5 +48,31 @@ func (pm *ProcessManager[T]) CurrentProcess() ci.IProcessInput[ci.IManagedProces
 
 func (pm *ProcessManager[T]) RemoveProcess(name string) error {
 	delete(pm.processes, name)
+	return nil
+}
+
+func (pm *ProcessManager[T]) StartProcess(name string) error {
+	process, err := pm.GetProcess(name)
+	if err != nil {
+		return err
+	}
+	if process == nil {
+		return fmt.Errorf("process %s not found", name)
+	}
+	if sendErr := process.Send("start", nil); sendErr != nil {
+		gl.Log("error", "Error starting process:", name, sendErr.Error())
+	} else {
+		ctx := context.Background()
+
+		if obj, receiveErr := process.Receive(ctx, func(msg string) {
+			gl.Log("info", "Received message from process:", name, msg)
+		}); receiveErr != nil {
+			gl.Log("error", "Error receiving process:", name, receiveErr.Error())
+		} else if obj != nil {
+			gl.Log("info", "Received object from process:", name, obj.(string))
+		} else {
+			gl.Log("info", "No object received from process:", name)
+		}
+	}
 	return nil
 }

@@ -43,9 +43,9 @@ type ProcessInputSystemBase[T any, P any] struct {
 }
 
 // newProcessInputSystemBase creates a new ProcessInput instance with the provided Logger.
-func newProcessInputSystemBase[T any, P ci.IProcessInput[T]](name, command string, args []string, waitFor bool, restart bool, function ci.IValidationFunc[T], logger l.Logger, debug bool) *ProcessInputSystemBase[T, P] {
-	cfg := newProcessConfig[P](name, waitFor, restart, "system", nil, logger, debug)
-	nps := &ProcessInputSystemBase[T, P]{
+func newProcessInputSystemBase[T any](name, command string, args []string, waitFor bool, restart bool, function ci.IValidationFunc[T], logger l.Logger, debug bool) *ProcessInputSystemBase[T, ci.IProcessInput[T]] {
+	cfg := newProcessConfig(name, waitFor, restart, "system", nil, logger, debug)
+	nps := &ProcessInputSystemBase[T, ci.IProcessInput[T]]{
 		Logger:               logger,
 		Mutexes:              NewMutexesType(),
 		Command:              command,
@@ -63,8 +63,8 @@ func newProcessInputSystemBase[T any, P ci.IProcessInput[T]](name, command strin
 }
 
 // NewProcessInputSystemBase creates a new ProcessInput instance with the provided Logger.
-func NewProcessInputSystemBase[T any, P ci.IProcessInput[T]](name, command string, args []string, waitFor bool, restart bool, function ci.IValidationFunc[T], logger l.Logger, debug bool) ci.IProcessInputRuntimeBase[T, P] {
-	return newProcessInputSystemBase[T, P](name, command, args, waitFor, restart, function, logger, debug)
+func NewProcessInputSystemBase[T any](name, command string, args []string, waitFor bool, restart bool, function ci.IValidationFunc[T], logger l.Logger, debug bool) ci.IProcessInputRuntimeBase[T, ci.IProcessInput[T]] {
+	return newProcessInputSystemBase[T](name, command, args, waitFor, restart, function, logger, debug)
 }
 
 // GetCommand returns the command to run.
