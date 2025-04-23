@@ -364,8 +364,10 @@ func (lc *LifeCycle[T, P]) StartLifecycle() error {
 							gl.LogObjLogger(lc, "error", "Erro ao enviar callback para control channel do Lifecycle")
 							return
 						} else {
+
 							chCtlWrpChan, _ := chCtlWrpObj.GetChannel()
-							if reflect.ValueOf(chCtlWrpChan).Kind() != reflect.Chan {
+							vlCtlWrpChan := reflect.ValueOf(chCtlWrpChan)
+							if vlCtlWrpChan.Kind() != reflect.Chan || !vlCtlWrpChan.IsValid() {
 								gl.LogObjLogger(lc, "error", "Erro ao enviar callback para control channel do Lifecycle")
 								return
 							} else {

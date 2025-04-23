@@ -2,6 +2,8 @@ package types
 
 import (
 	ci "github.com/faelmori/golife/internal/components/interfaces"
+	"github.com/google/uuid"
+	"reflect"
 
 	"fmt"
 	"sort"
@@ -9,10 +11,13 @@ import (
 )
 
 type ValidationResult struct {
+	*Mutexes
+	*Reference
 	IsValid  bool
 	Message  string
 	Error    error
 	Metadata map[string]any
+	Callback func(result *ValidationResult)
 }
 
 func newValidationResult(isValid bool, message string, metadata map[string]any, err error) *ValidationResult {
@@ -20,10 +25,12 @@ func newValidationResult(isValid bool, message string, metadata map[string]any, 
 		metadata = make(map[string]any)
 	}
 	return &ValidationResult{
-		IsValid:  isValid,
-		Message:  message,
-		Error:    err,
-		Metadata: metadata,
+		Mutexes:   NewMutexesType(),
+		Reference: newReference("ValidationResult"),
+		IsValid:   isValid,
+		Message:   message,
+		Error:     err,
+		Metadata:  metadata,
 	}
 }
 func NewValidationResult(isValid bool, message string, metadata map[string]any, err error) ci.IValidationResult {
@@ -34,6 +41,8 @@ func (vr *ValidationResult) String() string {
 	if vr == nil {
 		return ""
 	}
+	vr.Mutexes.MuRLock()
+	defer vr.Mutexes.MuRUnlock()
 	if vr.IsValid {
 		return "Validation is valid"
 	}
@@ -42,17 +51,95 @@ func (vr *ValidationResult) String() string {
 	}
 	return fmt.Sprintf("Validation is invalid: %s", vr.Message)
 }
+func (vr *ValidationResult) GetID() uuid.UUID {
+	if vr == nil {
+		return uuid.Nil
+	}
+	return vr.Reference.GetID()
+}
+func (vr *ValidationResult) GetName() string {
+	if !reflect.ValueOf(vr).IsValid() {
+		return ""
+	}
+	vr.Mutexes.MuRLock()
+	defer vr.Mutexes.MuRUnlock()
+	return vr.Reference.GetName()
+}
 func (vr *ValidationResult) GetIsValid() bool {
 	if vr == nil {
 		return false
 	}
+	vr.Mutexes.MuRLock()
+	defer vr.Mutexes.MuRUnlock()
 	return vr.IsValid
 }
 func (vr *ValidationResult) GetMessage() string {
 	if vr == nil {
 		return ""
 	}
+	vr.Mutexes.MuRLock()
+	defer vr.Mutexes.MuRUnlock()
 	return vr.Message
+}
+func (vr *ValidationResult) GetMetadata(key string) (any, bool) {
+	if !reflect.ValueOf(vr.Metadata).IsValid() {
+		vr.Mutexes.MuLock()
+		defer vr.Mutexes.MuUnlock()
+
+		vr.Metadata = make(map[string]any)
+		return nil, false
+	}
+
+	vr.Mutexes.MuRLock()
+	defer vr.Mutexes.MuRUnlock()
+
+	if key == "" {
+		return vr.Metadata, true
+	}
+	value, exists := vr.Metadata[key]
+
+	return value, exists
+}
+func (vr *ValidationResult) SetMetadata(key string, value any) {
+	if vr == nil {
+		return
+	}
+	vr.Mutexes.MuLock()
+	defer vr.Mutexes.MuUnlock()
+
+	if vr.Metadata == nil {
+		vr.Metadata = make(map[string]any)
+	}
+	if !reflect.ValueOf(value).IsValid() {
+		return
+	}
+	if key == "" {
+		return
+	} else if key == "all" {
+		if vl, ok := value.(map[string]any); ok {
+			vr.Metadata = vl
+			return
+		} else if vl, ok := value.(ValidationResult); ok {
+			vr.Metadata = vl.Metadata
+			return
+		}
+	}
+
+	vr.Metadata[key] = value
+}
+func (vr *ValidationResult) GetAllMetadataKeys() []string {
+	if vr == nil || vr.Metadata == nil {
+		return nil
+	}
+
+	vr.Mutexes.MuRLock()
+	defer vr.Mutexes.MuRUnlock()
+
+	keys := make([]string, 0, len(vr.Metadata))
+	for key := range vr.Metadata {
+		keys = append(keys, key)
+	}
+	return keys
 }
 func (vr *ValidationResult) GetError() error {
 	if vr == nil {

@@ -1,11 +1,11 @@
 package types
 
 import (
-	gl "github.com/faelmori/golife/logger"
-
 	"fmt"
+	gl "github.com/faelmori/golife/logger"
 	"github.com/google/uuid"
 	"reflect"
+	"runtime"
 )
 
 type IReference interface {
@@ -26,6 +26,15 @@ type Reference struct {
 
 // newReference is a function that creates a new Reference instance.
 func newReference(name string) *Reference {
+	if name == "" {
+		pc, _, line, ok := runtime.Caller(1)
+		if ok {
+			fn := runtime.FuncForPC(pc)
+			name = fmt.Sprintf("%s:%d", fn.Name(), line)
+		} else {
+			name = "unknown"
+		}
+	}
 	return &Reference{
 		ID:   uuid.New(),
 		Name: name,

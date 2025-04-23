@@ -2,9 +2,7 @@ package workers
 
 import (
 	ci "github.com/faelmori/golife/internal/components/interfaces"
-	//t "github.com/faelmori/golife/internal/components/types"
-	a "github.com/faelmori/golife/internal/routines/agents"
-	s "github.com/faelmori/golife/services"
+	t "github.com/faelmori/golife/internal/components/types"
 	l "github.com/faelmori/logz"
 
 	"reflect"
@@ -30,7 +28,7 @@ type Worker struct {
 	//		IChannel[T - chan Type, N - buffer size]
 	//
 	//jobChannel    s.IChannel[ci.IJob[any], int]    // Canal de trabalho do worker,
-	resultChannel s.IChannel[ci.IResult, int] // Canal de resultados do worker
+	resultChannel ci.IChannelCtl[ci.IResult] // Canal de resultados do worker
 	//jobQueue      s.IChannel[ci.IAction[any], int] // Canal de trabalho do worker
 
 	stopChannel chan struct{} // Canal de parada do worker
@@ -54,7 +52,7 @@ func NewWorker(workerID int, logger l.Logger) ci.IWorker {
 
 		properties: make(map[string]ci.IProperty[any]),
 		//jobChannel:    a.NewChannel[ci.IJob[any], int]("jobChannel", nil, 100),
-		resultChannel: a.NewChannel[ci.IResult, int]("resultChannel", nil, 100),
+		resultChannel: t.NewChannelCtl[ci.IResult]("resultChannel", nil),
 		//jobQueue:      a.NewChannel[ci.IAction[any], int]("jobQueue", nil, 100),
 		stopChannel: make(chan struct{}, 2),
 	}

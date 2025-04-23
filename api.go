@@ -1,8 +1,8 @@
 package golife
 
-import (
-	_ "github.com/faelmori/golife/internal/routines/taskz"
-)
+//import (
+//	_ "github.com/faelmori/golife/internal/routines/taskz"
+//)
 
 //// Action is a generic type that represents an action of type T.
 //type Action[T any] interface{ t.IAction[T] }
@@ -85,7 +85,7 @@ import (
 //type Stage interface {
 //	GetName() string
 //	GetDescription() string
-//	GetType() string
+//	GetStageType() string
 //}
 //
 //func NewStage(name, desc, stageType string) Stage {

@@ -24,6 +24,39 @@ type ManagedProcess[T any] struct {
 	mu         sync.Mutex
 }
 
+func NewManagedProcess[T any](name string, command string, args []string, wait bool, function func(T, ...any) (bool, error)) ci.IManagedProcess[T] {
+	envs := os.Environ()
+	envPath := os.Getenv("PATH")
+	envs = append(envs, fmt.Sprintf("PATH=%s", envPath))
+
+	if args == nil {
+		args = make([]string, 0)
+	}
+
+	var cmd *exec.Cmd
+	if command != "" {
+		realCmd, realCmdErr := exec.LookPath(command)
+		if realCmdErr == nil {
+			cmd = exec.Command(realCmd, args...)
+		}
+	}
+
+	mgrProc := ManagedProcess[T]{
+		Logger:   l.GetLogger("GoLife"),
+		Args:     args,
+		Cmd:      cmd,
+		Command:  command,
+		Name:     name,
+		WaitFor:  wait,
+		Function: function,
+		mu:       sync.Mutex{},
+	}
+
+	gl.LogObjLogger[ManagedProcess[T]](&mgrProc, "success", fmt.Sprintf("Managed process %s created with command %s", name, command))
+
+	return &mgrProc
+}
+
 func (p *ManagedProcess[T]) GetArgs() []string                          { return p.Args }
 func (p *ManagedProcess[T]) GetCommand() string                         { return p.Command }
 func (p *ManagedProcess[T]) GetFunction() func(T, ...any) (bool, error) { return p.Function }
@@ -254,37 +287,4 @@ func (p *ManagedProcess[T]) SetFunction(customFunc func(T, ...any) (bool, error)
 	defer p.mu.Unlock()
 
 	p.Function = customFunc
-}
-
-func NewManagedProcess[T any](name string, command string, args []string, wait bool, function func(T, ...any) (bool, error)) ci.IManagedProcess[T] {
-	envs := os.Environ()
-	envPath := os.Getenv("PATH")
-	envs = append(envs, fmt.Sprintf("PATH=%s", envPath))
-
-	if args == nil {
-		args = make([]string, 0)
-	}
-
-	var cmd *exec.Cmd
-	if command != "" {
-		realCmd, realCmdErr := exec.LookPath(command)
-		if realCmdErr == nil {
-			cmd = exec.Command(realCmd, args...)
-		}
-	}
-
-	mgrProc := ManagedProcess[T]{
-		Logger:   l.GetLogger("GoLife"),
-		Args:     args,
-		Cmd:      cmd,
-		Command:  command,
-		Name:     name,
-		WaitFor:  wait,
-		Function: function,
-		mu:       sync.Mutex{},
-	}
-
-	gl.LogObjLogger[ManagedProcess[T]](&mgrProc, "success", fmt.Sprintf("Managed process %s created with command %s", name, command))
-
-	return &mgrProc
 }

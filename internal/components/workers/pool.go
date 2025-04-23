@@ -4,8 +4,7 @@ import (
 	"fmt"
 	ci "github.com/faelmori/golife/internal/components/interfaces"
 	t "github.com/faelmori/golife/internal/components/types"
-	"github.com/faelmori/golife/internal/property"
-	"github.com/faelmori/golife/services"
+
 	l "github.com/faelmori/logz"
 	"github.com/google/uuid"
 	"reflect"
@@ -23,9 +22,9 @@ type WorkerPool struct {
 
 	// Channels
 
-	//jobChannel  services.IChannel[ci.IJob[any], int]    // Canal de trabalho do pool
-	//jobQueue    services.IChannel[ci.IAction[any], int] // Canal de trabalho do pool
-	//resultQueue services.IChannel[ci.IResult, int]      // Canal de resultados do pool
+	//jobChannel  t.IChannel[ci.IJob[any], int]    // Canal de trabalho do pool
+	//jobQueue    t.IChannel[ci.IAction[any], int] // Canal de trabalho do pool
+	//resultQueue t.IChannel[ci.IResult, int]      // Canal de resultados do pool
 	doneChannel chan struct{} // Canal de resultados do pool
 }
 
@@ -130,7 +129,7 @@ func (wp *WorkerPool) GetWorkerCount() int {
 }
 
 // GetPoolJobChannel retorna o canal de trabalho do pool
-func (wp *WorkerPool) GetPoolJobChannel() (services.IChannel[any, int], error) {
+func (wp *WorkerPool) GetPoolJobChannel() (ci.IChannelCtl[any], error) {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
 	//if wp.jobChannel != nil {
@@ -140,7 +139,7 @@ func (wp *WorkerPool) GetPoolJobChannel() (services.IChannel[any, int], error) {
 }
 
 // GetPoolResultChannel retorna o canal de resultados do pool
-func (wp *WorkerPool) GetPoolResultChannel() (services.IChannel[ci.IResult, int], error) {
+func (wp *WorkerPool) GetPoolResultChannel() (ci.IChannelCtl[any], error) {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
 	//if wp.resultQueue != nil {
@@ -150,7 +149,7 @@ func (wp *WorkerPool) GetPoolResultChannel() (services.IChannel[ci.IResult, int]
 }
 
 // GetJobQueue retorna o canal de trabalho do pool
-func (wp *WorkerPool) GetJobQueue(workerID int) (services.IChannel[any /*ci.IAction[any]*/, int], error) {
+func (wp *WorkerPool) GetJobQueue(workerID int) (ci.IChannelCtl[any], error) {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
 	if workerID < 0 || workerID >= len(wp.workers) {
@@ -199,7 +198,7 @@ func (wp *WorkerPool) GetWorker(workerID int) (ci.IWorker, error) {
 }
 
 // GetWorkerChannel retorna o canal de trabalho de um worker específico
-func (wp *WorkerPool) GetWorkerChannel(workerID int) (services.IChannel[any /*ci.IJob[any]*/, int], error) {
+func (wp *WorkerPool) GetWorkerChannel(workerID int) (ci.IChannelCtl[any], error) {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
 	if workerID < 0 || workerID >= len(wp.workers) {
@@ -210,7 +209,7 @@ func (wp *WorkerPool) GetWorkerChannel(workerID int) (services.IChannel[any /*ci
 }
 
 // GetResultChannel retorna o canal de resultados de um worker específico
-func (wp *WorkerPool) GetResultChannel(workerID int) (services.IChannel[ci.IResult, int], error) {
+func (wp *WorkerPool) GetResultChannel(workerID int) (ci.IChannelCtl[any], error) {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
 	if workerID < 0 || workerID >= len(wp.workers) {
@@ -279,7 +278,7 @@ func (wp *WorkerPool) Report() string {
 }
 
 // AddListener adiciona um listener a um evento específico
-func (wp *WorkerPool) AddListener(event string, listener property.ChangeListener[any]) error {
+func (wp *WorkerPool) AddListener(event string /*, listener wp.ChangeListener[any]*/) error {
 	wp.mu.Lock()
 	defer wp.mu.Unlock()
 	//if property, ok := wp.Properties[event]; ok {
@@ -391,7 +390,7 @@ func (wp *WorkerPool) validateWorkerID(workerID int) error {
 }
 
 // getWorkerChannel retorna o canal de um worker específico
-func (wp *WorkerPool) getWorkerChannel(workerID int, channelFunc func(ci.IWorker) services.IChannel[any /*ci.IJob[any]*/, int]) (services.IChannel[any /*ci.IJob[any]*/, int], error) {
+func (wp *WorkerPool) getWorkerChannel(workerID int, channelFunc func(ci.IWorker) ci.IChannelCtl[any]) (ci.IChannelCtl[any], error) {
 	if err := wp.validateWorkerID(workerID); err != nil {
 		return nil, err
 	}

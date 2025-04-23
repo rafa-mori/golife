@@ -7,17 +7,18 @@ import (
 type IStage[T any] interface {
 	GetID() uuid.UUID
 	GetName() string
-	GetType() string
+	GetStageType() string
 	GetDescription() string
 
 	GetData() *T
-	SetData(data *T) IStage[T]
+	WithData(data *T) IStage[T]
 
-	GetChannelCtl() IChannelCtl[T]
-	SetChannelCtl(channelCtl IChannelCtl[T]) IStage[T]
+	GetChannelCtl() chan any
+	WithChannelCtl(channelCtl IChannelCtl[any]) IStage[T]
 
 	EventExists(event string) bool
 	Dispatch(task func()) error
+
 	GetEvents() map[string]func(...any) any
 	GetEvent(event string) func(...any) any
 
@@ -27,15 +28,20 @@ type IStage[T any] interface {
 	CheckTransition(fromStage string, toStage string) (bool, error)
 	RegisterTransition(fromStage string, toStage string) error
 
-	AutoScale(bool, int, func(...any) error) IStage[T]
+	WithAutoScale(enable bool, limit int, f func(...any) error) IStage[T]
 	GetWorkerCount() int
 
 	GetWorkerPool() IWorkerPool
-	SetWorkerPool(pool IWorkerPool) IStage[T]
+	WithWorkerPool(pool IWorkerPool) IStage[T]
 
 	GetTags() []string
 	SetTags(tags []string) IStage[T]
 
 	GetMeta(key string) (any, bool)
 	SetMeta(key string, value any) IStage[T]
+
+	GetEventFns() map[string]func(interface{})
+	CanTransitionTo(stageID string) bool
+
+	Initialize() error
 }

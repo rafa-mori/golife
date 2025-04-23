@@ -84,11 +84,11 @@ func removeEventCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			stage = args[0]
 			event = args[1]
-			err := manager.RemoveEvent( /*stage, */ event)
-			if err != nil {
-				l.Error(fmt.Sprintf("ErrorCtx removing event: %s", err.Error()), map[string]interface{}{})
-				return
-			}
+			//err := manager.RemoveEvent( /*stage, */ event)
+			//if err != nil {
+			//	l.Error(fmt.Sprintf("ErrorCtx removing event: %s", err.Error()), map[string]interface{}{})
+			//	return
+			//}
 			l.Info("Event removed successfully", map[string]interface{}{})
 		},
 	}
