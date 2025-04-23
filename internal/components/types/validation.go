@@ -9,20 +9,25 @@ import (
 )
 
 type ValidationResult struct {
-	IsValid bool
-	Message string
-	Error   error
+	IsValid  bool
+	Message  string
+	Error    error
+	Metadata map[string]any
 }
 
-func newValidationResult(isValid bool, message string, err error) *ValidationResult {
+func newValidationResult(isValid bool, message string, metadata map[string]any, err error) *ValidationResult {
+	if metadata == nil {
+		metadata = make(map[string]any)
+	}
 	return &ValidationResult{
-		IsValid: isValid,
-		Message: message,
-		Error:   err,
+		IsValid:  isValid,
+		Message:  message,
+		Error:    err,
+		Metadata: metadata,
 	}
 }
-func NewValidationResult(isValid bool, message string, err error) ci.IValidationResult {
-	return newValidationResult(isValid, message, err)
+func NewValidationResult(isValid bool, message string, metadata map[string]any, err error) ci.IValidationResult {
+	return newValidationResult(isValid, message, metadata, err)
 }
 
 func (vr *ValidationResult) String() string {
@@ -129,10 +134,10 @@ type Validation[T any] struct {
 func vldtFunc[T any](v *Validation[T]) func(value *T, args ...any) ci.IValidationResult {
 	return func(value *T, args ...any) ci.IValidationResult {
 		if v == nil {
-			return newValidationResult(false, "validation is nil", fmt.Errorf("validation is nil"))
+			return newValidationResult(false, "validation is nil", nil, fmt.Errorf("validation is nil"))
 		}
 		if !v.IsValid() {
-			return newValidationResult(false, "validation is invalid", fmt.Errorf("validation is invalid"))
+			return newValidationResult(false, "validation is invalid", nil, fmt.Errorf("validation is invalid"))
 		}
 
 		for _, arg := range args {
@@ -146,17 +151,17 @@ func vldtFunc[T any](v *Validation[T]) func(value *T, args ...any) ci.IValidatio
 			}
 		}
 
-		return newValidationResult(true, "validation is valid", nil)
+		return newValidationResult(true, "validation is valid", nil, nil)
 	}
 }
 
 func VldtFunc[T any](v ci.IValidation[T]) func(value *T, args ...any) ci.IValidationResult {
 	return func(value *T, args ...any) ci.IValidationResult {
 		if v == nil {
-			return NewValidationResult(false, "validation is nil", fmt.Errorf("validation is nil"))
+			return NewValidationResult(false, "validation is nil", nil, fmt.Errorf("validation is nil"))
 		}
 		if !v.IsValid() {
-			return NewValidationResult(false, "validation is invalid", fmt.Errorf("validation is invalid"))
+			return NewValidationResult(false, "validation is invalid", nil, fmt.Errorf("validation is invalid"))
 		}
 
 		//v.mu.Lock()
@@ -173,7 +178,7 @@ func VldtFunc[T any](v ci.IValidation[T]) func(value *T, args ...any) ci.IValida
 			}
 		}
 
-		return NewValidationResult(true, "validation is valid", nil)
+		return NewValidationResult(true, "validation is valid", nil, nil)
 	}
 }
 
@@ -219,13 +224,13 @@ func (v *Validation[T]) CheckIfWillValidate() bool {
 // Validate is the function that validates the value.
 func (v *Validation[T]) Validate(value *T, args ...any) ci.IValidationResult {
 	if v == nil {
-		return NewValidationResult(false, "validation is nil", fmt.Errorf("validation is nil"))
+		return NewValidationResult(false, "validation is nil", nil, fmt.Errorf("validation is nil"))
 	}
 	if value == nil {
-		return NewValidationResult(false, "value is nil", fmt.Errorf("value is nil"))
+		return NewValidationResult(false, "value is nil", nil, fmt.Errorf("value is nil"))
 	}
 	if !v.hasValidation {
-		return NewValidationResult(false, "validation has no validators", fmt.Errorf("validation has no validators"))
+		return NewValidationResult(false, "validation has no validators", nil, fmt.Errorf("validation has no validators"))
 	}
 
 	v.mu.Lock()
@@ -258,7 +263,7 @@ func (v *Validation[T]) Validate(value *T, args ...any) ci.IValidationResult {
 		}
 	}
 
-	return NewValidationResult(v.isValid, "validation is valid", nil)
+	return NewValidationResult(v.isValid, "validation is valid", nil, nil)
 }
 
 // AddValidator is a function that adds a validator to the map of validators.
