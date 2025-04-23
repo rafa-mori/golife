@@ -3,9 +3,8 @@ package internal
 import (
 	"fmt"
 	ci "github.com/faelmori/golife/components/interfaces"
-	pi "github.com/faelmori/golife/components/process_input"
+	pr "github.com/faelmori/golife/components/process"
 	p "github.com/faelmori/golife/components/types"
-	pr "github.com/faelmori/golife/internal/process"
 	ev "github.com/faelmori/golife/internal/routines/taskz/events"
 	st "github.com/faelmori/golife/internal/routines/taskz/stage"
 	gl "github.com/faelmori/golife/logger"
@@ -16,51 +15,11 @@ import (
 	"syscall"
 )
 
-type ILifeCycle[T pi.ProcessInput[any]] interface {
-	ci.IMutexes
-
-	GetLogger() l.Logger
-
-	Initialize() error
-
-	GetProcess(string) (pr.IManagedProcess[any], error)
-	AddProcess(string, *pi.ProcessInput[any]) error
-	CurrentProcess() pr.IManagedProcess[any]
-	RemoveProcess(string) error
-
-	GetStage(string) (st.IStage[any], error)
-	AddStage(string, st.IStage[any]) error
-	CurrentStage() st.IStage[any]
-	SetCurrentStage(string) (st.IStage[any], error)
-	RemoveStage(string) error
-
-	GetEvent(string) (ev.IManagedProcessEvents[any], error)
-	AddEvent(string, ev.IManagedProcessEvents[any]) error
-	TriggerEvent(string, interface{}) error
-	RemoveEvent(string) error
-
-	StartLifecycle() error
-	StopLifecycle() error
-	RestartLifecycle() error
-	StatusLifecycle() string
-
-	GetChannel(name string) (*p.ChannelCtl[any], error)
-	GetChannels() map[string]p.ChannelCtl[any]
-	AddChannel(name string, channel *p.ChannelCtl[any]) error
-	RemoveChannel(name string) error
-
-	GetSupervisor() *pi.ProcessInput[any]
-	GetSupervisorProcess() pr.IManagedProcess[pi.ProcessInput[any]]
-
-	ListenForSignals() error
-
-	//ListenForTerminalInput() error
-}
-type LifeCycle[T pi.ProcessInput[any]] struct {
+type LifeCycle[T p.ProcessInput[any]] struct {
 	// supervisor is the supervisor instance for the lifecycle manager
-	supervisor *pi.ProcessInput[any]
+	supervisor *p.ProcessInput[any]
 	// supervisorProcess is the supervisor process
-	supervisorProcess pr.IManagedProcess[pi.ProcessInput[any]]
+	supervisorProcess pr.IManagedProcess[p.ProcessInput[any]]
 
 	// Logger is the Logger instance for the lifecycle manager
 	Logger l.Logger
@@ -81,13 +40,13 @@ type LifeCycle[T pi.ProcessInput[any]] struct {
 	controllers map[string]any
 }
 
-func NewLifeCycle[T pi.ProcessInput[any]](processInput *T) ILifeCycle[T] {
+func NewLifeCycle[T p.ProcessInput[any]](processInput *T) ILifeCycle[T] {
 	if processInput == nil {
 		gl.Log("fatal", "Process input arg is nil")
 		return nil
 	} else {
 		inputT := *processInput
-		input := reflect.ValueOf(inputT).Interface().(pi.ProcessInput[any])
+		input := reflect.ValueOf(inputT).Interface().(p.ProcessInput[any])
 
 		logger := input.Logger
 		if logger == nil {
@@ -212,18 +171,18 @@ func (lm *LifeCycle[T]) GetProcess(name string) (pr.IManagedProcess[any], error)
 		return nil, fmt.Errorf("lifecycle manager is nil")
 	}
 	if process, exists := lm.controllers["processes"].(map[string]any)[name]; exists {
-		return process.(pr.IManagedProcess[any]), nil
+		return process.(process.IManagedProcess[any]), nil
 	}
 	return nil, fmt.Errorf("process '%s' does not exist", name)
 }
-func (lm *LifeCycle[T]) AddProcess(name string, process *pi.ProcessInput[any]) error {
+func (lm *LifeCycle[T]) AddProcess(name string, process *p.ProcessInput[any]) error {
 
 	processes := lm.controllers["processes"].(map[string]interface{})
 	if _, exists := processes[name]; exists {
 		return fmt.Errorf("process '%s' already exists", name)
 	}
 
-	processes[name] = pr.NewManagedProcess(process.Name, process.GetCommand(), process.GetArgs(), process.GetWaitFor(), process.GetFunction())
+	processes[name] = process.NewManagedProcess(process.Name, process.GetCommand(), process.GetArgs(), process.GetWaitFor(), process.GetFunction())
 	gl.LogObjLogger(lm, "info", fmt.Sprintf("Added process '%s'", name))
 	return nil
 }
@@ -511,7 +470,7 @@ func (lm *LifeCycle[T]) RemoveChannel(name string) error {
 	return nil
 }
 
-func (lm *LifeCycle[T]) GetSupervisor() *pi.ProcessInput[any] {
+func (lm *LifeCycle[T]) GetSupervisor() *p.ProcessInput[any] {
 	if lm == nil {
 		gl.LogObjLogger(lm, "error", "Lifecycle manager is nil")
 		return nil
@@ -522,7 +481,7 @@ func (lm *LifeCycle[T]) GetSupervisor() *pi.ProcessInput[any] {
 
 	return lm.supervisor
 }
-func (lm *LifeCycle[T]) GetSupervisorProcess() pr.IManagedProcess[pi.ProcessInput[any]] {
+func (lm *LifeCycle[T]) GetSupervisorProcess() pr.IManagedProcess[p.ProcessInput[any]] {
 	if lm == nil {
 		gl.LogObjLogger(lm, "error", "Lifecycle manager is nil")
 		return nil

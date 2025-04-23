@@ -2,7 +2,6 @@ package golife
 
 import (
 	"fmt"
-	pi "github.com/faelmori/golife/components/process_input"
 	p "github.com/faelmori/golife/components/types"
 	i "github.com/faelmori/golife/internal"
 	iu "github.com/faelmori/golife/internal/utils"
@@ -12,7 +11,7 @@ import (
 )
 
 // GoLife is a generic struct that implements the IGoLife interface.
-type GoLife[T i.ILifeCycle[pi.ProcessInput[any]]] struct {
+type GoLife[T i.ILifeCycle[p.ProcessInput[any]]] struct {
 	// Logger is the Logger instance for this GoLife instance.
 	Logger l.Logger
 	// Reference is the reference ID and name.
@@ -28,16 +27,16 @@ type GoLife[T i.ILifeCycle[pi.ProcessInput[any]]] struct {
 }
 
 // NewGoLife creates a new GoLife instance with the provided Logger.
-func NewGoLife[T i.ILifeCycle[pi.ProcessInput[any]]](input *pi.ProcessInput[any], logger l.Logger, debug bool) *GoLife[T] {
+func NewGoLife[T i.ILifeCycle[p.ProcessInput[any]]](input *p.ProcessInput[any], logger l.Logger, debug bool) *GoLife[T] {
 	if logger == nil {
 		logger = l.GetLogger("GoLife")
 	}
 	gl.SetDebug(debug)
-	var lcm i.ILifeCycle[pi.ProcessInput[any]]
+	var lcm i.ILifeCycle[p.ProcessInput[any]]
 
-	lcm = i.NewLifeCycle[pi.ProcessInput[any]](input)
+	lcm = i.NewLifeCycle[p.ProcessInput[any]](input)
 
-	if _, ok := lcm.(i.ILifeCycle[pi.ProcessInput[any]]); !ok {
+	if _, ok := lcm.(i.ILifeCycle[p.ProcessInput[any]]); !ok {
 		l.FatalC(fmt.Sprintf("Lifecycle manager is not of type ILifeCycle[ProcessInput[any]] for test %s", input.Name), nil)
 		return nil
 	}
@@ -86,9 +85,9 @@ func NewGoLife[T i.ILifeCycle[pi.ProcessInput[any]]](input *pi.ProcessInput[any]
 }
 
 // GetProperty returns the property for the GoLife instance.
-func (g *GoLife[T]) GetProperty(name string) (*p.Property[i.ILifeCycle[pi.ProcessInput[any]]], bool) {
+func (g *GoLife[T]) GetProperty(name string) (*p.Property[i.ILifeCycle[p.ProcessInput[any]]], bool) {
 	if prop, ok := g.properties[name]; ok {
-		if propObj, ok := prop.(*p.Property[i.ILifeCycle[pi.ProcessInput[any]]]); ok {
+		if propObj, ok := prop.(*p.Property[i.ILifeCycle[p.ProcessInput[any]]]); ok {
 			return propObj, true
 		} else {
 			gl.LogObjLogger[GoLife[T]](g, "error", "Property is not of type Property")

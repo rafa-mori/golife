@@ -1,8 +1,9 @@
 package types
 
 import (
-	"fmt"
 	gl "github.com/faelmori/golife/logger"
+
+	"fmt"
 	"github.com/google/uuid"
 	"reflect"
 )
@@ -33,10 +34,7 @@ func newReference(name string) *Reference {
 
 // NewReference is a function that creates a new IReference instance.
 func NewReference(name string) IReference {
-	return &Reference{
-		ID:   uuid.New(),
-		Name: name,
-	}
+	return newReference(name)
 }
 
 // String is a method that returns the string representation of the reference.

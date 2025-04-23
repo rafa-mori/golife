@@ -24,7 +24,7 @@ func main() {
 	gl.SetDebug(false)
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGKILL, syscall.SIGHUP)
-	var glife *g.GoLife[i.ILifeCycle[pi.ProcessInput[any]]]
+	var glife *g.GoLife[i.ILifeCycle[p.ProcessInput[any]]]
 	newArgs := []string{"A"}
 
 	gl.Log("info", "Test A - Start")
@@ -46,7 +46,7 @@ func main() {
 		obj := *glife.Object
 
 		// Routine to startup supervisor process without blocking the main thread
-		go func(obj i.ILifeCycle[pi.ProcessInput[any]]) {
+		go func(obj i.ILifeCycle[p.ProcessInput[any]]) {
 			gl.Log("info", "Starting GoLife process...")
 			if err := obj.StartLifecycle(); err != nil {
 				gl.Log("error", "starting GoLife instance: "+err.Error())
@@ -79,8 +79,8 @@ func main() {
 }
 
 // main initializes the logger and creates a new GoLife instance.
-func mainA(args ...string) *g.GoLife[i.ILifeCycle[pi.ProcessInput[any]]] {
-	pFunc := p.NewValidation[pi.ProcessInput[any]]()
+func mainA(args ...string) *g.GoLife[i.ILifeCycle[p.ProcessInput[any]]] {
+	pFunc := p.NewValidation[p.ProcessInput[any]]()
 
 	commandNameArg := "defaultProcess"
 	commandArg := ""
@@ -130,9 +130,9 @@ func mainA(args ...string) *g.GoLife[i.ILifeCycle[pi.ProcessInput[any]]] {
 		os.Exit(1)
 	}
 
-	fn := p.ValidationFunc[pi.ProcessInput[any]]{
+	fn := p.ValidationFunc[p.ProcessInput[any]]{
 		Priority: 0,
-		Func: func(obj *pi.ProcessInput[any], args ...any) *p.ValidationResult {
+		Func: func(obj *p.ProcessInput[any], args ...any) *p.ValidationResult {
 			objT := reflect.ValueOf(obj).Interface()
 			if len(args) > 0 {
 				for _, arg := range args {
@@ -162,7 +162,7 @@ func mainA(args ...string) *g.GoLife[i.ILifeCycle[pi.ProcessInput[any]]] {
 		debugArg,
 	)
 
-	goLife := g.NewGoLife[i.ILifeCycle[pi.ProcessInput[any]]](input, logger, false)
+	goLife := g.NewGoLife[i.ILifeCycle[p.ProcessInput[any]]](input, logger, false)
 	if goLife == nil {
 		l.Error("ErrorCtx creating GoLife instance", nil)
 		os.Exit(1)

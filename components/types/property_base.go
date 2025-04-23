@@ -1,10 +1,11 @@
 package types
 
 import (
-	"fmt"
 	ci "github.com/faelmori/golife/components/interfaces"
 	gl "github.com/faelmori/golife/logger"
 	l "github.com/faelmori/logz"
+
+	"fmt"
 	"github.com/google/uuid"
 	"reflect"
 	"sync/atomic"
@@ -19,7 +20,7 @@ type PropertyValBase[T any] struct {
 	*atomic.Pointer[T]
 
 	// Reference is the identifiers for the context.
-	IReference
+	// IReference
 	*Reference
 
 	//muCtx is the mutexes for the context.
@@ -49,7 +50,7 @@ func newVal[T any](name string, v *T) *PropertyValBase[T] {
 	mu := NewMutexesType()
 
 	// Create a new validation instance
-	validation := NewValidation[T]()
+	validation := newValidation[T]()
 
 	gl.Log("debug", "Created new PropertyValBase instance for:", name, "ID:", ref.GetID().String())
 
@@ -77,7 +78,7 @@ func NewVal[T any](name string, v *T) ci.IPropertyValBase[T] {
 	mu := NewMutexesType()
 
 	// Create a new validation instance
-	validation := NewValidation[T]()
+	validation := newValidation[T]()
 
 	gl.Log("debug", "Created new PropertyValBase instance for:", name, "ID:", ref.GetID().String())
 
@@ -171,7 +172,7 @@ func (v *PropertyValBase[T]) Set(t *T) bool {
 		return false
 	}
 	if v.Validation != nil {
-		if ok := v.Validation.Validate(t); !ok {
+		if ok := v.Validation.Validate(t); !ok.GetIsValid() {
 			gl.Log("error", fmt.Sprintf("Set: validation error (%s): %v", reflect.TypeFor[T]().String(), v.Validation.GetResults()))
 			return false
 		}

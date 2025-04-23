@@ -6,6 +6,13 @@ import (
 	"reflect"
 )
 
+type IReference interface {
+	GetID() uuid.UUID
+	GetName() string
+	SetName(name string)
+	String() string
+}
+
 // IPropertyValBase is an interface that defines the methods for a property value.
 type IPropertyValBase[T any] interface {
 	GetLogger() l.Logger

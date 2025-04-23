@@ -2,9 +2,9 @@ package cli
 
 import (
 	"fmt"
+	. "github.com/faelmori/golife/components/process"
 	pi "github.com/faelmori/golife/components/process_input"
-	. "github.com/faelmori/golife/internal"
-	. "github.com/faelmori/golife/internal/process"
+	"github.com/faelmori/golife/components/types"
 	. "github.com/faelmori/golife/internal/routines/taskz/events"
 	. "github.com/faelmori/golife/internal/routines/taskz/stage"
 	l "github.com/faelmori/logz"
@@ -14,7 +14,7 @@ import (
 	"syscall"
 )
 
-var manager ILifeCycle[pi.ProcessInput[any]]
+var manager ILifeCycle[types.ProcessInput[any]]
 
 func ServiceCmdList() []*cobra.Command {
 	return []*cobra.Command{
@@ -226,7 +226,7 @@ func serviceCommand() *cobra.Command {
 	return serviceCmd
 }
 
-func createManager(processName, processCmd string, stages []string, processEvents map[string]func(interface{}), triggers []string, processArgs []string, processWait, restart bool) (ILifeCycle[pi.ProcessInput[any]], error) {
+func createManager(processName, processCmd string, stages []string, processEvents map[string]func(interface{}), triggers []string, processArgs []string, processWait, restart bool) (ILifeCycle[types.ProcessInput[any]], error) {
 	if processName == "" {
 		return nil, fmt.Errorf("no process name provided")
 	}
@@ -249,7 +249,7 @@ func createManager(processName, processCmd string, stages []string, processEvent
 	}
 
 	var events []IManagedProcessEvents[any]
-	var processes = make(map[string]IManagedProcess[pi.ProcessInput[any]])
+	var processes = make(map[string]IManagedProcess[types.ProcessInput[any]])
 	var iStages = make(map[string]IStage[any])
 	//var sigChan = make(chan os.Signal, 1)
 	//var doneChan = make(chan struct{}, 1)

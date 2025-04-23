@@ -3,9 +3,8 @@ package internal
 import (
 	"bufio"
 	"fmt"
-	pi "github.com/faelmori/golife/components/process_input"
+	pr "github.com/faelmori/golife/components/process"
 	p "github.com/faelmori/golife/components/types"
-	pr "github.com/faelmori/golife/internal/process"
 	ev "github.com/faelmori/golife/internal/routines/taskz/events"
 	st "github.com/faelmori/golife/internal/routines/taskz/stage"
 	gl "github.com/faelmori/golife/logger"
@@ -20,7 +19,7 @@ var (
 	ref   *p.Reference
 )
 
-func initializeChannels[T pi.ProcessInput[any]](lm *LifeCycle[T]) error {
+func initializeChannels[T p.ProcessInput[any]](lm *LifeCycle[T]) error {
 	if lm.controllers["channels"] == nil {
 		gl.LogObjLogger(lm, "error", "Channels are nil")
 		return fmt.Errorf("channels are nil")
@@ -40,7 +39,7 @@ func initializeChannels[T pi.ProcessInput[any]](lm *LifeCycle[T]) error {
 	lm.controllers["channels"] = channels
 	return nil
 }
-func initializeProcess[T pi.ProcessInput[any]](lm *LifeCycle[T]) error {
+func initializeProcess[T p.ProcessInput[any]](lm *LifeCycle[T]) error {
 	if lm == nil {
 		gl.LogObjLogger(lm, "error", "Lifecycle manager is nil")
 		return fmt.Errorf("lifecycle manager is nil")
@@ -50,7 +49,7 @@ func initializeProcess[T pi.ProcessInput[any]](lm *LifeCycle[T]) error {
 		return fmt.Errorf("processes are nil")
 	}
 
-	if mainProcessInput, ok := reflect.ValueOf(lm.ProcessInput).Interface().(*pi.ProcessInput[any]); !ok {
+	if mainProcessInput, ok := reflect.ValueOf(lm.ProcessInput).Interface().(*p.ProcessInput[any]); !ok {
 		gl.LogObjLogger(lm, "fatal", fmt.Sprintf("Error casting main process input. type: %s", reflect.TypeOf(lm.ProcessInput)))
 		return fmt.Errorf(fmt.Sprintf("Error casting main process input type: %s", reflect.TypeOf(lm.ProcessInput)))
 	} else {
@@ -87,7 +86,7 @@ func initializeProcess[T pi.ProcessInput[any]](lm *LifeCycle[T]) error {
 	}
 	return nil
 }
-func initializeStages[T pi.ProcessInput[any]](lm *LifeCycle[T]) error {
+func initializeStages[T p.ProcessInput[any]](lm *LifeCycle[T]) error {
 	if lm.controllers["stages"] == nil {
 		gl.LogObjLogger(lm, "fatal", "Stages are nil")
 		return fmt.Errorf("stages are nil")
@@ -116,7 +115,7 @@ func initializeStages[T pi.ProcessInput[any]](lm *LifeCycle[T]) error {
 	gl.LogObjLogger(lm, "success", "Lifecycle stages initialized successfully!")
 	return nil
 }
-func initializeEvents[T pi.ProcessInput[any]](lm *LifeCycle[T]) error {
+func initializeEvents[T p.ProcessInput[any]](lm *LifeCycle[T]) error {
 	if lm.controllers["events"] == nil {
 		gl.LogObjLogger(lm, "fatal", "Events are nil")
 		return fmt.Errorf("events are nil")
@@ -132,7 +131,7 @@ func initializeEvents[T pi.ProcessInput[any]](lm *LifeCycle[T]) error {
 func GetDefaultBufferSizes() (sm, md, lg int) {
 	return 2, 5, 10
 }
-func setBaseStages[T pi.ProcessInput[any]](lm *LifeCycle[T]) map[string]st.IStage[any] {
+func setBaseStages[T p.ProcessInput[any]](lm *LifeCycle[T]) map[string]st.IStage[any] {
 	stageMap := map[string]st.IStage[any]{
 		"init":    st.NewStage[any]("init", "Initialization stage", "base", nil),
 		"execute": st.NewStage[any]("execute", "Execution stage", "base", nil),
@@ -165,13 +164,13 @@ func setBaseStages[T pi.ProcessInput[any]](lm *LifeCycle[T]) map[string]st.IStag
 			} else {
 				processName = "currentProcess"
 			}
-			var process pr.IManagedProcess[pi.ProcessInput[any]]
+			var process pr.IManagedProcess[p.ProcessInput[any]]
 			var processT any
 			if processT = lm.controllers[processName]; processT == nil {
 				gl.LogObjLogger(lm, "error", fmt.Sprintf("Process '%s' not found!", processName))
 				return
 			} else {
-				if process, ok = processT.(pr.IManagedProcess[pi.ProcessInput[any]]); ok && process != nil {
+				if process, ok = processT.(process.IManagedProcess[p.ProcessInput[any]]); ok && process != nil {
 					gl.LogObjLogger(lm, "info", fmt.Sprintf("Starting process '%s' in stage '%s'", processName, stageMap["execute"].Name()))
 					if err := process.Start(); err != nil {
 						gl.LogObjLogger(lm, "error", fmt.Sprintf("Error starting process '%s': %v", processName, err))
@@ -224,7 +223,7 @@ func getBaseEvents() map[string]ev.IManagedProcessEvents[any] {
 	}
 }
 
-func listenStdin(ppp ILifeCycle[pi.ProcessInput[any]], chErr chan error, chDone chan bool, chSignal chan os.Signal) {
+func listenStdin(ppp ILifeCycle[p.ProcessInput[any]], chErr chan error, chDone chan bool, chSignal chan os.Signal) {
 	gl.LogObjLogger(&ppp, "success", "Lifecycle started successfully!")
 
 	if ref == nil {
@@ -267,7 +266,7 @@ func listenStdin(ppp ILifeCycle[pi.ProcessInput[any]], chErr chan error, chDone 
 }
 
 // 🔹 Função para tratar sinais do sistema (Ctrl+C, kill, etc.)
-func handleSignal(ppp ILifeCycle[pi.ProcessInput[any]], chDone chan bool, chErr chan error) {
+func handleSignal(ppp ILifeCycle[p.ProcessInput[any]], chDone chan bool, chErr chan error) {
 	if err := ppp.StopLifecycle(); err != nil {
 		gl.LogObjLogger(&ppp, "error", "Error stopping lifecycle:", err.Error())
 		chErr <- err
@@ -276,7 +275,7 @@ func handleSignal(ppp ILifeCycle[pi.ProcessInput[any]], chDone chan bool, chErr 
 }
 
 // 🔹 Função para ler a entrada do usuário via stdin
-func readStdin(ppp ILifeCycle[pi.ProcessInput[any]], chErr chan error, chDone chan bool) <-chan string {
+func readStdin(ppp ILifeCycle[p.ProcessInput[any]], chErr chan error, chDone chan bool) <-chan string {
 	chMessage := handleInput(ppp, chErr, chDone)
 
 	go func() {
@@ -316,7 +315,7 @@ func readStdin(ppp ILifeCycle[pi.ProcessInput[any]], chErr chan error, chDone ch
 }
 
 // 🔹 Função para processar comandos do usuário via stdin
-func handleInput(ppp ILifeCycle[pi.ProcessInput[any]], chErr chan error, chDone chan bool) chan string {
+func handleInput(ppp ILifeCycle[p.ProcessInput[any]], chErr chan error, chDone chan bool) chan string {
 	chMessage := make(chan string, 2)
 	go func() {
 		defer close(chMessage)
@@ -360,7 +359,7 @@ func handleInput(ppp ILifeCycle[pi.ProcessInput[any]], chErr chan error, chDone 
 }
 
 // 🔹 Função para verificar se os canais estão funcionando corretamente
-func processChannels(ppp ILifeCycle[pi.ProcessInput[any]], chErr chan error, chDone chan bool, chSignal chan os.Signal) {
+func processChannels(ppp ILifeCycle[p.ProcessInput[any]], chErr chan error, chDone chan bool, chSignal chan os.Signal) {
 	if chErr == nil || chDone == nil || chSignal == nil {
 		gl.LogObjLogger(&ppp, "error", "Failed to get channels")
 		chErr <- fmt.Errorf("failed to get channels")
@@ -368,7 +367,7 @@ func processChannels(ppp ILifeCycle[pi.ProcessInput[any]], chErr chan error, chD
 }
 
 // 🔹 Função para detectar erros nos canais e evitar bloqueios
-func checkChannelErrors(ppp ILifeCycle[pi.ProcessInput[any]], chErr chan error, chDone chan bool, chSignal chan os.Signal) {
+func checkChannelErrors(ppp ILifeCycle[p.ProcessInput[any]], chErr chan error, chDone chan bool, chSignal chan os.Signal) {
 	if len(chErr) > 0 || len(chDone) > 0 || len(chSignal) > 0 {
 		gl.LogObjLogger(&ppp, "error", "Error detected in channels")
 		chErr <- fmt.Errorf("error in channels")
@@ -376,12 +375,12 @@ func checkChannelErrors(ppp ILifeCycle[pi.ProcessInput[any]], chErr chan error, 
 }
 
 // TestInitialization tests the initialization of the GoLife instance.
-func TestInitialization(glm ILifeCycle[pi.ProcessInput[any]]) {
+func TestInitialization(glm ILifeCycle[p.ProcessInput[any]]) {
 	gl.LogObjLogger(&glm, "info", "Testing GoLife initialization...")
 	if glm == nil {
 		gl.LogObjLogger(&glm, "error", "Failed to get lifecycle manager")
 	} else {
-		go func(prc ILifeCycle[pi.ProcessInput[any]]) {
+		go func(prc ILifeCycle[p.ProcessInput[any]]) {
 			if err := prc.StartLifecycle(); err != nil {
 				gl.LogObjLogger(&glm, "error", "Error starting lifecycle:", err.Error())
 			}

@@ -1,9 +1,10 @@
 package utils
 
 import (
-	"fmt"
 	ci "github.com/faelmori/golife/components/interfaces"
 	gl "github.com/faelmori/golife/logger"
+
+	"fmt"
 	"reflect"
 )
 

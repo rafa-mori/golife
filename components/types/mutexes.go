@@ -3,6 +3,7 @@ package types
 import (
 	ci "github.com/faelmori/golife/components/interfaces"
 	gl "github.com/faelmori/golife/logger"
+
 	"sync"
 	"time"
 )

@@ -1,11 +1,12 @@
 package types
 
 import (
-	"encoding/json"
-	"fmt"
 	ci "github.com/faelmori/golife/components/interfaces"
 	gl "github.com/faelmori/golife/logger"
 	l "github.com/faelmori/logz"
+
+	"encoding/json"
+	"fmt"
 	"os"
 	"sync"
 	"time"

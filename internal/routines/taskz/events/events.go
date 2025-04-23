@@ -1,7 +1,7 @@
 package events
 
 import (
-	"github.com/faelmori/golife/internal/process"
+	"github.com/faelmori/golife/components/process"
 	"github.com/faelmori/golife/internal/property"
 	t "github.com/faelmori/golife/internal/types"
 	c "github.com/faelmori/golife/services"

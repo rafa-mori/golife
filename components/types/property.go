@@ -3,6 +3,7 @@ package types
 import (
 	ci "github.com/faelmori/golife/components/interfaces"
 	l "github.com/faelmori/logz"
+
 	"github.com/google/uuid"
 )
 

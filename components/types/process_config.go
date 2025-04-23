@@ -1,19 +1,19 @@
-package process_input
+package types
 
 import (
-	p "github.com/faelmori/golife/components/types"
+	ci "github.com/faelmori/golife/components/interfaces"
 	gl "github.com/faelmori/golife/logger"
 	l "github.com/faelmori/logz"
 )
 
-// ProcessConfig is a struct that holds the configuration for the process.
-type ProcessConfig[T any] struct {
+// ProcessInputConfig is a struct that holds the configuration for the process.
+type ProcessInputConfig struct {
 	// Logger is the logger for the process
 	Logger l.Logger
 	// Reference is the reference for the process with ID and Name
-	*p.Reference
+	*Reference
 	// Mutexes is the mutex for the process
-	*p.Mutexes
+	*Mutexes
 	// IsRunning is a boolean that indicates if the process is running
 	IsRunning bool `json:"is_running" yaml:"is_running" xml:"is_running" gorm:"is_running"`
 	// WaitFor is a boolean that indicates if the process should wait for the command to finish
@@ -26,18 +26,18 @@ type ProcessConfig[T any] struct {
 	Metadata map[string]any `json:"metadata" yaml:"metadata" xml:"metadata" gorm:"metadata"`
 }
 
-// NewProcessConfig is the constructor for ProcessConfig[T any]
-func NewProcessConfig[T any](name string, wait, restart bool, typ string, metadata map[string]any, logger l.Logger, debug bool) *ProcessConfig[T] {
+// NewProcessConfig is the constructor for ProcessInputConfig[T any]
+func newProcessConfig(name string, wait, restart bool, typ string, metadata map[string]any, logger l.Logger, debug bool) *ProcessInputConfig {
 	if logger == nil {
 		logger = l.GetLogger("GoLife")
 	}
 	if debug {
 		gl.SetDebug(debug)
 	}
-	mu := p.NewMutexes()
-	ref := p.NewReference(name)
-	pc := &ProcessConfig[T]{
-		Reference:   ref,
+	mu := NewMutexesType()
+	ref := NewReference(name)
+	pc := &ProcessInputConfig{
+		Reference:   ref.GetReference(),
 		Mutexes:     mu,
 		WaitFor:     wait,
 		Restart:     restart,
@@ -47,8 +47,13 @@ func NewProcessConfig[T any](name string, wait, restart bool, typ string, metada
 	return pc
 }
 
+// NewProcessConfig is the constructor for ProcessInputConfig[T any]
+func NewProcessConfig(name string, wait, restart bool, typ string, metadata map[string]any, logger l.Logger, debug bool) ci.IProcessInputConfig {
+	return newProcessConfig(name, wait, restart, typ, metadata, logger, debug)
+}
+
 // GetWaitFor returns the boolean that indicates if the process should wait for the command to finish.
-func (pi *ProcessConfig[T]) GetWaitFor() bool {
+func (pi *ProcessInputConfig) GetWaitFor() bool {
 	pi.Mutexes.MuRLock()
 	defer pi.Mutexes.MuRUnlock()
 
@@ -56,7 +61,7 @@ func (pi *ProcessConfig[T]) GetWaitFor() bool {
 }
 
 // GetRestart returns the boolean that indicates if the process should be restarted.
-func (pi *ProcessConfig[T]) GetRestart() bool {
+func (pi *ProcessInputConfig) GetRestart() bool {
 	pi.Mutexes.MuRLock()
 	defer pi.Mutexes.MuRUnlock()
 
@@ -64,7 +69,7 @@ func (pi *ProcessConfig[T]) GetRestart() bool {
 }
 
 // GetProcessType returns the type of the process.
-func (pi *ProcessConfig[T]) GetProcessType() string {
+func (pi *ProcessInputConfig) GetProcessType() string {
 	pi.Mutexes.MuRLock()
 	defer pi.Mutexes.MuRUnlock()
 
@@ -72,7 +77,7 @@ func (pi *ProcessConfig[T]) GetProcessType() string {
 }
 
 // GetMetadata returns the metadata for the process.
-func (pi *ProcessConfig[T]) GetMetadata(key string) (any, bool) {
+func (pi *ProcessInputConfig) GetMetadata(key string) (any, bool) {
 	pi.Mutexes.MuRLock()
 	defer pi.Mutexes.MuRUnlock()
 
@@ -84,7 +89,7 @@ func (pi *ProcessConfig[T]) GetMetadata(key string) (any, bool) {
 }
 
 // SetMetadata sets the metadata for the process.
-func (pi *ProcessConfig[T]) SetMetadata(key string, value any) {
+func (pi *ProcessInputConfig) SetMetadata(key string, value any) {
 	pi.Mutexes.MuLock()
 	defer pi.Mutexes.MuUnlock()
 

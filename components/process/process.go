@@ -2,8 +2,7 @@ package process
 
 import (
 	"fmt"
-	pi "github.com/faelmori/golife/components/process_input"
-	p "github.com/faelmori/golife/components/types"
+	ci "github.com/faelmori/golife/components/interfaces"
 	gl "github.com/faelmori/golife/logger"
 	l "github.com/faelmori/logz"
 	"os"
@@ -12,44 +11,11 @@ import (
 	"sync"
 )
 
-type IManagedProcess[T any] interface {
-	GetArgs() []string
-	GetCommand() string
-	GetFunction() *p.ValidationFunc[T]
-	GetName() string
-	GetWaitFor() bool
-	GetProcPid() int
-	GetProcHandle() uintptr
-	GetCmd() *exec.Cmd
-	WillRestart() bool
-
-	ExecCmd() error
-	Release() error
-	Status() string
-	Start() error
-	Stop() error
-	Restart() error
-	IsRunning() bool
-
-	Pid() int
-	Wait() error
-	String() string
-
-	SetArgs(args []string)
-	SetCommand(command string)
-	SetFunction(*p.ValidationFunc[T])
-	SetName(name string)
-	SetWaitFor(wait bool)
-	SetProcPid(pid int)
-	SetProcHandle(handle uintptr)
-	SetCmd(cmd *exec.Cmd)
-}
-
 type ManagedProcess[T any] struct {
 	Logger     l.Logger
 	Args       []string
 	Command    string
-	Function   *p.ValidationFunc[T]
+	Function   func(T, ...any) (bool, error)
 	Cmd        *exec.Cmd
 	Name       string
 	WaitFor    bool
@@ -58,15 +24,15 @@ type ManagedProcess[T any] struct {
 	mu         sync.Mutex
 }
 
-func (p *ManagedProcess[T]) GetArgs() []string                 { return p.Args }
-func (p *ManagedProcess[T]) GetCommand() string                { return p.Command }
-func (p *ManagedProcess[T]) GetFunction() *p.ValidationFunc[T] { return p.Function }
-func (p *ManagedProcess[T]) GetName() string                   { return p.Name }
-func (p *ManagedProcess[T]) GetWaitFor() bool                  { return p.WaitFor }
-func (p *ManagedProcess[T]) GetProcPid() int                   { return p.ProcPid }
-func (p *ManagedProcess[T]) GetProcHandle() uintptr            { return p.ProcHandle }
-func (p *ManagedProcess[T]) GetCmd() *exec.Cmd                 { return p.Cmd }
-func (p *ManagedProcess[T]) WillRestart() bool                 { return p.Cmd != nil }
+func (p *ManagedProcess[T]) GetArgs() []string                          { return p.Args }
+func (p *ManagedProcess[T]) GetCommand() string                         { return p.Command }
+func (p *ManagedProcess[T]) GetFunction() func(T, ...any) (bool, error) { return p.Function }
+func (p *ManagedProcess[T]) GetName() string                            { return p.Name }
+func (p *ManagedProcess[T]) GetWaitFor() bool                           { return p.WaitFor }
+func (p *ManagedProcess[T]) GetProcPid() int                            { return p.ProcPid }
+func (p *ManagedProcess[T]) GetProcHandle() uintptr                     { return p.ProcHandle }
+func (p *ManagedProcess[T]) GetCmd() *exec.Cmd                          { return p.Cmd }
+func (p *ManagedProcess[T]) WillRestart() bool                          { return p.Cmd != nil }
 func (p *ManagedProcess[T]) Release() error {
 	if p == nil {
 		return nil
@@ -171,7 +137,7 @@ func (p *ManagedProcess[T]) Start() error {
 	} else {
 		gl.LogObjLogger(p, "info", fmt.Sprintf("Starting process %s with custom function", p.Name))
 		go func() {
-			if err := p.Function.Func(nil, nil); err != nil {
+			if _, err := p.Function(nil, nil); err != nil {
 				gl.LogObjLogger(p, "error", fmt.Sprintf("Error executing custom function: %v", err))
 			}
 		}()
@@ -283,14 +249,14 @@ func (p *ManagedProcess[T]) SetCmd(cmd *exec.Cmd) {
 
 	p.Cmd = cmd
 }
-func (p *ManagedProcess[T]) SetFunction(customFunc *p.ValidationFunc[T]) {
+func (p *ManagedProcess[T]) SetFunction(customFunc func(T, ...any) (bool, error)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	p.Function = customFunc
 }
 
-func NewManagedProcess(name string, command string, args []string, wait bool, function *p.ValidationFunc[pi.ProcessInput[any]]) IManagedProcess[pi.ProcessInput[any]] {
+func NewManagedProcess[T any](name string, command string, args []string, wait bool, function func(T, ...any) (bool, error)) ci.IManagedProcess[T] {
 	envs := os.Environ()
 	envPath := os.Getenv("PATH")
 	envs = append(envs, fmt.Sprintf("PATH=%s", envPath))
@@ -307,7 +273,7 @@ func NewManagedProcess(name string, command string, args []string, wait bool, fu
 		}
 	}
 
-	mgrProc := ManagedProcess[pi.ProcessInput[any]]{
+	mgrProc := ManagedProcess[T]{
 		Logger:   l.GetLogger("GoLife"),
 		Args:     args,
 		Cmd:      cmd,
@@ -318,7 +284,7 @@ func NewManagedProcess(name string, command string, args []string, wait bool, fu
 		mu:       sync.Mutex{},
 	}
 
-	gl.LogObjLogger[ManagedProcess[pi.ProcessInput[any]]](&mgrProc, "success", fmt.Sprintf("Managed process %s created with command %s", name, command))
+	gl.LogObjLogger[ManagedProcess[T]](&mgrProc, "success", fmt.Sprintf("Managed process %s created with command %s", name, command))
 
 	return &mgrProc
 }
