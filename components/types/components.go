@@ -1,51 +1,43 @@
 package types
 
 import (
+	"fmt"
+	ci "github.com/faelmori/golife/components/interfaces"
 	gl "github.com/faelmori/golife/logger"
+	l "github.com/faelmori/logz"
 	"github.com/google/uuid"
 	"reflect"
 	"sync/atomic"
 )
 
-// Reference is a struct that holds the Reference ID and name.
-type Reference struct {
-	// refID is the unique identifier for this context.
-	ID uuid.UUID
-	// refName is the name of the context.
-	Name string
-}
+// PropertyValBase is a type for the value.
+type PropertyValBase[T any] struct {
+	// Logger is the logger for this context.
+	Logger l.Logger
 
-// NewReference is a function that creates a new Reference instance.
-func NewReference(name string) *Reference {
-	return &Reference{
-		ID:   uuid.New(),
-		Name: name,
-	}
-}
-
-// val is a type for the value.
-type val[T any] struct {
 	// v is the value.
 	*atomic.Pointer[T]
 
 	// Reference is the identifiers for the context.
+	IReference
 	*Reference
 
 	//muCtx is the mutexes for the context.
-	*muCtx
+	*Mutexes
 
 	// validation is the validation for the value.
 	*Validation[T]
 
 	// Channel is the channel for the value.
-	*ChannelCtl[T]
+	ci.IChannelCtl[T]
+	channelCtl *ChannelCtl[T]
 }
 
-// NewVal is a function that creates a new val instance.
-func newVal[T any](name string, v *T) *val[T] {
+// NewVal is a function that creates a new PropertyValBase instance.
+func newVal[T any](name string, v *T) *PropertyValBase[T] {
 	ref := NewReference(name)
 
-	// Create a new val instance
+	// Create a new PropertyValBase instance
 	vv := atomic.Pointer[T]{}
 	if v != nil {
 		vv.Store(v)
@@ -54,111 +46,182 @@ func newVal[T any](name string, v *T) *val[T] {
 	}
 
 	// Create a new mutexes instance
-	mu := newMuCtx()
+	mu := NewMutexesType()
 
 	// Create a new validation instance
 	validation := NewValidation[T]()
 
-	gl.Log("debug", "Created new val instance for:", name, "ID:", ref.ID.String())
+	gl.Log("debug", "Created new PropertyValBase instance for:", name, "ID:", ref.GetID().String())
 
-	return &val[T]{
+	return &PropertyValBase[T]{
 		Pointer:    &vv,
 		Validation: validation,
-		Reference:  ref,
-		ChannelCtl: NewChannelCtl[T](name, nil, nil),
-		muCtx:      mu,
+		Reference:  ref.GetReference(),
+		channelCtl: NewChannelCtl[T](name, nil).(*ChannelCtl[T]),
+		Mutexes:    mu,
 	}
 }
 
+func NewVal[T any](name string, v *T) ci.IPropertyValBase[T] {
+	ref := NewReference(name)
+
+	// Create a new PropertyValBase instance
+	vv := atomic.Pointer[T]{}
+	if v != nil {
+		vv.Store(v)
+	} else {
+		vv.Store(new(T))
+	}
+
+	// Create a new mutexes instance
+	mu := NewMutexesType()
+
+	// Create a new validation instance
+	validation := NewValidation[T]()
+
+	gl.Log("debug", "Created new PropertyValBase instance for:", name, "ID:", ref.GetID().String())
+
+	return &PropertyValBase[T]{
+		Pointer:    &vv,
+		Validation: validation,
+		Reference:  ref.GetReference(),
+		channelCtl: NewChannelCtl[T](name, nil).(*ChannelCtl[T]),
+		Mutexes:    mu,
+	}
+}
+
+// GetLogger is a method that returns the logger for the value.
+func (v *PropertyValBase[T]) GetLogger() l.Logger {
+	if v == nil {
+		gl.Log("error", "GetLogger: property does not exist (", reflect.TypeFor[T]().String(), ")")
+		return nil
+	}
+	return v.Logger
+}
+
+// GetName is a method that returns the name of the value.
+func (v *PropertyValBase[T]) GetName() string {
+	if v == nil {
+		gl.Log("error", "GetName: property does not exist (", reflect.TypeFor[T]().String(), ")")
+		return ""
+	}
+	return v.Name
+}
+
+// GetID is a method that returns the ID of the value.
+func (v *PropertyValBase[T]) GetID() uuid.UUID {
+	if v == nil {
+		gl.Log("error", "GetID: property does not exist (", reflect.TypeFor[T]().String(), ")")
+		return uuid.Nil
+	}
+	return v.ID
+}
+
+// Value is a method that returns the value.
+func (v *PropertyValBase[T]) Value() *T {
+	if v == nil {
+		gl.Log("error", "Value: property does not exist (", reflect.TypeFor[T]().String(), ")")
+		return nil
+	}
+	return v.Load()
+}
+
 // StartCtl is a method that starts the control channel.
-func (v *val[T]) StartCtl() <-chan string {
-	gl.Log("info", "Starting control channel for:", v.Name, "ID:", v.ID.String())
-	go monitorRoutine[T](v)
-	return v.ctl
+func (v *PropertyValBase[T]) StartCtl() <-chan string {
+	if v == nil {
+		gl.Log("error", "StartCtl: property does not exist (", reflect.TypeFor[T]().String(), ")")
+		return nil
+	}
+	if v.channelCtl == nil {
+		gl.Log("error", "StartCtl: channel control is nil (", reflect.TypeFor[T]().String(), ")")
+		return nil
+	}
+	return v.channelCtl.Channels["ctl"].(<-chan string)
 }
 
 // Type is a method that returns the type of the value.
-func (v *val[T]) Type() reflect.Type { return reflect.TypeFor[T]() }
+func (v *PropertyValBase[T]) Type() reflect.Type { return reflect.TypeFor[T]() }
 
 // Get is a method that returns the value.
-func (v *val[T]) Get(async bool) any {
+func (v *PropertyValBase[T]) Get(async bool) any {
 	if v == nil {
 		gl.Log("error", "Get: property does not exist (", reflect.TypeFor[T]().String(), ")")
 		return nil
 	}
-	vl := v.Load()
 	if async {
-		if v.ch != nil {
-			if vl == nil {
-				if v.Type().Kind() != reflect.Ptr {
-					gl.Log("debug", "Creating async value for:", v.Name, "ID:", v.ID.String())
-					vl = new(T)
-					v.ch <- *vl
-				}
-			} else {
-				gl.Log("debug", "Sending async value for:", v.Name, "ID:", v.ID.String())
-				v.ch <- *vl
-			}
-		} else {
-			gl.Log("warn", "Get: channel is nil, cannot send async value (", reflect.TypeFor[T]().String(), ")")
+		if v.channelCtl != nil {
+			gl.Log("debug", "Getting value from channel for:", v.Name, "ID:", v.ID.String())
+			v.channelCtl.Channels["get"].(chan T) <- *v.Load()
 		}
+	} else {
+		gl.Log("debug", "Getting value for:", v.Name, "ID:", v.ID.String())
+		return v.Load()
 	}
-	return vl
+	return nil
 }
 
 // Set is a method that sets the value.
-func (v *val[T]) Set(t *T) bool {
+func (v *PropertyValBase[T]) Set(t *T) bool {
 	if v == nil {
-		gl.Log("error", "Get: property does not exist (", reflect.TypeFor[T]().String(), ")")
+		gl.Log("error", "Set: property does not exist (", reflect.TypeFor[T]().String(), ")")
 		return false
 	}
 	if t == nil {
-		gl.Log("error", "Set: nil is not a valid value (", reflect.TypeFor[T]().String(), ")")
+		gl.Log("error", "Set: value is nil (", reflect.TypeFor[T]().String(), ")")
 		return false
 	}
-	if v.hasValidation {
-		if !v.Validate(*t) {
-			gl.Log("error", "Set: validation failed (", reflect.TypeFor[T]().String(), ")")
+	if v.Validation != nil {
+		if ok := v.Validation.Validate(t); !ok {
+			gl.Log("error", fmt.Sprintf("Set: validation error (%s): %v", reflect.TypeFor[T]().String(), v.Validation.GetResults()))
 			return false
 		}
 	}
-	if v.CompareAndSwap(v.Load(), t) {
-		gl.Log("debug", "Set: changed value for:", v.Name, "ID:", v.ID.String())
-
-		if !reflect.ValueOf(v.ch).IsNil() && reflect.ValueOf(v.ch).IsValid() {
-			gl.Log("debug", "Sending value for:", v.Name, "ID:", v.ID.String())
-			v.ch <- *t
-		}
-		return true
+	v.Store(t)
+	if v.channelCtl != nil {
+		gl.Log("debug", "Setting value for:", v.Name, "ID:", v.ID.String())
+		v.channelCtl.Channels["set"].(chan T) <- *t
 	}
-	gl.Log("error", "Set: value not changed (", reflect.TypeFor[T]().String(), ")")
-	return false
+	return true
 }
 
 // Clear is a method that clears the value.
-func (v *val[T]) Clear() {
+func (v *PropertyValBase[T]) Clear() bool {
 	if v == nil {
-		gl.Log("error", "Get: property does not exist (", reflect.TypeFor[T]().String(), ")")
-		return
+		gl.Log("error", "Clear: property does not exist (", reflect.TypeFor[T]().String(), ")")
+		return false
 	}
-	if v.Load() != nil {
+	if v.channelCtl != nil {
 		gl.Log("debug", "Clearing value for:", v.Name, "ID:", v.ID.String())
-		vl := *new(T)
-
-		v.Store(&vl)
-
-		if v.ch != nil {
-			gl.Log("debug", "Sending clear value for:", v.Name, "ID:", v.ID.String())
-			v.ch <- vl
-		}
+		v.channelCtl.Channels["clear"].(chan string) <- "clear"
 	}
+	return true
 }
 
 // IsNil is a method that checks if the value is nil.
-func (v *val[T]) IsNil() bool {
+func (v *PropertyValBase[T]) IsNil() bool {
 	if v == nil {
 		gl.Log("error", "Get: property does not exist (", reflect.TypeFor[T]().String(), ")")
 		return true
 	}
 	return v.Load() == nil
+}
+
+// Serialize is a method that serializes the value.
+func (v *PropertyValBase[T]) Serialize(format string) ([]byte, error) {
+	mapper := NewMapper[T]()
+	if value := v.Value(); value == nil {
+		return nil, fmt.Errorf("value is nil")
+	} else {
+		return mapper.Serialize(nil, value, format)
+	}
+}
+
+// Deserialize is a method that deserializes the data into the value.
+func (v *PropertyValBase[T]) Deserialize(data []byte, format string) error {
+	mapper := NewMapper[T]()
+	if value := v.Value(); value == nil {
+		return fmt.Errorf("value is nil")
+	} else {
+		return mapper.Deserialize(data, value, format)
+	}
 }

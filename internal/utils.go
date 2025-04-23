@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bufio"
 	"fmt"
 	pi "github.com/faelmori/golife/components/process_input"
 	p "github.com/faelmori/golife/components/types"
@@ -10,6 +11,13 @@ import (
 	gl "github.com/faelmori/golife/logger"
 	"os"
 	"reflect"
+	"strings"
+	"time"
+)
+
+var (
+	mutex = p.NewMutexes()
+	ref   *p.Reference
 )
 
 func initializeChannels[T pi.ProcessInput[any]](lm *LifeCycle[T]) error {
@@ -213,5 +221,178 @@ func getBaseEvents() map[string]ev.IManagedProcessEvents[any] {
 	return map[string]ev.IManagedProcessEvents[any]{
 		"start": ev.NewManagedProcessEvents[ev.IManagedProcessEvents[any]](),
 		"stop":  ev.NewManagedProcessEvents[ev.IManagedProcessEvents[any]](),
+	}
+}
+
+func listenStdin(ppp ILifeCycle[pi.ProcessInput[any]], chErr chan error, chDone chan bool, chSignal chan os.Signal) {
+	gl.LogObjLogger(&ppp, "success", "Lifecycle started successfully!")
+
+	if ref == nil {
+		ref = p.NewReference("golife")
+	} else {
+		return
+	}
+
+	go func() {
+		gl.LogObjLogger(&ppp, "notice", "Lifecycle started listening for stdin input...")
+		chMessage := readStdin(ppp, chErr, chDone)
+		for {
+			select {
+			case input := <-chMessage:
+				if input == "" {
+					continue
+				}
+				if input == "quit" || input == "q" {
+					gl.LogObjLogger(&ppp, "info", "Stopping stdin listener...")
+					chErr <- fmt.Errorf("stdin listener stopped")
+					break
+				}
+			case sig := <-chSignal:
+				if sig == nil {
+					continue
+				}
+				handleSignal(ppp, chDone, chErr)
+			case <-time.After(600 * time.Millisecond):
+				processChannels(ppp, chErr, chDone, chSignal)
+			case <-time.After(1800 * time.Millisecond):
+				checkChannelErrors(ppp, chErr, chDone, chSignal)
+			default:
+				time.Sleep(200 * time.Millisecond)
+			}
+		}
+	}()
+
+	<-chDone
+	gl.LogObjLogger(&ppp, "notice", "Lifecycle stopped listening for stdin input.")
+}
+
+// 🔹 Função para tratar sinais do sistema (Ctrl+C, kill, etc.)
+func handleSignal(ppp ILifeCycle[pi.ProcessInput[any]], chDone chan bool, chErr chan error) {
+	if err := ppp.StopLifecycle(); err != nil {
+		gl.LogObjLogger(&ppp, "error", "Error stopping lifecycle:", err.Error())
+		chErr <- err
+	}
+	chDone <- true
+}
+
+// 🔹 Função para ler a entrada do usuário via stdin
+func readStdin(ppp ILifeCycle[pi.ProcessInput[any]], chErr chan error, chDone chan bool) <-chan string {
+	chMessage := handleInput(ppp, chErr, chDone)
+
+	go func() {
+		stdin := os.Stdin
+		if stdin == nil {
+			gl.LogObjLogger(&ppp, "error", "Error opening stdin")
+			chErr <- fmt.Errorf("error opening stdin")
+			return
+		}
+		reader := bufio.NewReader(stdin)
+		if reader == nil {
+			gl.LogObjLogger(&ppp, "error", "Error creating buffered reader")
+			chErr <- fmt.Errorf("error creating buffered reader")
+			return
+		}
+		for {
+			select {
+			case <-time.After(600 * time.Millisecond):
+				inputT, err := reader.ReadString('\n')
+				if err != nil {
+					gl.LogObjLogger(&ppp, "error", "Error reading stdin:", err.Error())
+					chErr <- err
+					return
+				}
+				if input := strings.TrimSpace(inputT); input == "" {
+					continue
+				} else {
+					chMessage <- input
+				}
+			default:
+				time.Sleep(100 * time.Millisecond)
+			}
+		}
+	}()
+
+	return chMessage
+}
+
+// 🔹 Função para processar comandos do usuário via stdin
+func handleInput(ppp ILifeCycle[pi.ProcessInput[any]], chErr chan error, chDone chan bool) chan string {
+	chMessage := make(chan string, 2)
+	go func() {
+		defer close(chMessage)
+
+		for {
+			select {
+			case input := <-chMessage:
+				switch input {
+				case "stop", "quit", "exit", "q":
+					gl.LogObjLogger(&ppp, "notice", "Received stop command, stopping lifecycle...")
+					chDone <- true
+					break
+				case "start":
+					gl.LogObjLogger(&ppp, "notice", "Received start command, starting lifecycle...")
+					if err := ppp.StartLifecycle(); err != nil {
+						gl.LogObjLogger(&ppp, "error", "Error starting lifecycle:", err.Error())
+						chErr <- err
+					}
+					break
+				case "status":
+					status := ppp.StatusLifecycle()
+					gl.LogObjLogger(&ppp, "info", fmt.Sprintf("Lifecycle status: %s", status))
+					break
+				case "restart":
+					gl.LogObjLogger(&ppp, "info", "Received restart command, restarting lifecycle...")
+					if err := ppp.RestartLifecycle(); err != nil {
+						gl.LogObjLogger(&ppp, "error", "Error restarting lifecycle:", err.Error())
+						chErr <- err
+					}
+					break
+				default:
+					continue
+				}
+			default:
+				time.Sleep(200 * time.Millisecond)
+			}
+		}
+	}()
+
+	return chMessage
+}
+
+// 🔹 Função para verificar se os canais estão funcionando corretamente
+func processChannels(ppp ILifeCycle[pi.ProcessInput[any]], chErr chan error, chDone chan bool, chSignal chan os.Signal) {
+	if chErr == nil || chDone == nil || chSignal == nil {
+		gl.LogObjLogger(&ppp, "error", "Failed to get channels")
+		chErr <- fmt.Errorf("failed to get channels")
+	}
+}
+
+// 🔹 Função para detectar erros nos canais e evitar bloqueios
+func checkChannelErrors(ppp ILifeCycle[pi.ProcessInput[any]], chErr chan error, chDone chan bool, chSignal chan os.Signal) {
+	if len(chErr) > 0 || len(chDone) > 0 || len(chSignal) > 0 {
+		gl.LogObjLogger(&ppp, "error", "Error detected in channels")
+		chErr <- fmt.Errorf("error in channels")
+	}
+}
+
+// TestInitialization tests the initialization of the GoLife instance.
+func TestInitialization(glm ILifeCycle[pi.ProcessInput[any]]) {
+	gl.LogObjLogger(&glm, "info", "Testing GoLife initialization...")
+	if glm == nil {
+		gl.LogObjLogger(&glm, "error", "Failed to get lifecycle manager")
+	} else {
+		go func(prc ILifeCycle[pi.ProcessInput[any]]) {
+			if err := prc.StartLifecycle(); err != nil {
+				gl.LogObjLogger(&glm, "error", "Error starting lifecycle:", err.Error())
+			}
+		}(glm)
+		time.Sleep(500 * time.Millisecond)
+		gl.LogObjLogger(&glm, "info", "Lifecycle manager started successfully!")
+		gl.LogObjLogger(&glm, "notice", "Lifecycle manager listening for stdin input...")
+		if err := glm.ListenForTerminalInput(); err != nil {
+			gl.LogObjLogger(&glm, "error", "Error listening for stdin input:", err.Error())
+		}
+		gl.LogObjLogger(&glm, "success", "Lifecycle manager work like a charm!")
+		gl.LogObjLogger(&glm, "info", "Quitting main process...")
 	}
 }

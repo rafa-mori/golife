@@ -48,8 +48,8 @@ func (a *Layer[T]) LayerType() reflect.Type { return reflect.TypeFor[T]() }
 
 // LayerObject returns the object of the Layer.
 func (a *Layer[T]) LayerObject() *T {
-	a.Mu.RLock()
-	defer a.Mu.RUnlock()
+	a.Mu.MuRLock()
+	defer a.Mu.MuRUnlock()
 
 	// Return the object of the Layer
 	return a.Object
@@ -61,8 +61,8 @@ func (a *Layer[T]) AddLayerEvent(name string, event *p.ValidationFunc[any]) {
 		return
 	}
 
-	a.Mu.Lock()
-	defer a.Mu.Unlock()
+	a.Mu.MuLock()
+	defer a.Mu.MuUnlock()
 
 	// Check if the event already exists
 	if _, exists := a.Events[name]; !exists {
@@ -72,7 +72,7 @@ func (a *Layer[T]) AddLayerEvent(name string, event *p.ValidationFunc[any]) {
 	if _, exists := a.Events[name][event.Priority]; exists {
 		return
 	}
-	// Add the event to the map
+	// MuAdd the event to the map
 	a.Events[name][event.Priority] = *event
 
 	fmt.Printf("Access event %s added with priority %d\n", name, event.Priority)
@@ -80,8 +80,8 @@ func (a *Layer[T]) AddLayerEvent(name string, event *p.ValidationFunc[any]) {
 
 // GetLayerEvents returns the events for the given name.
 func (a *Layer[T]) GetLayerEvents(name string) map[int]p.ValidationFunc[any] {
-	a.Mu.RLock()
-	defer a.Mu.RUnlock()
+	a.Mu.MuRLock()
+	defer a.Mu.MuRUnlock()
 
 	// Check if the event exists
 	if _, exists := a.Events[name]; !exists {
@@ -94,8 +94,8 @@ func (a *Layer[T]) GetLayerEvents(name string) map[int]p.ValidationFunc[any] {
 
 // RemoveLayerEvent removes the event with the given name and priority.
 func (a *Layer[T]) RemoveLayerEvent(name string, priority int) {
-	a.Mu.Lock()
-	defer a.Mu.Unlock()
+	a.Mu.MuLock()
+	defer a.Mu.MuUnlock()
 
 	// Check if the event exists
 	if _, exists := a.Events[name]; !exists {
@@ -132,8 +132,8 @@ func (a *Layer[T]) ExecuteLayerEvent(name string, args ...any) (bool, *p.Validat
 		}
 	}
 
-	a.Mu.Lock()
-	defer a.Mu.Unlock()
+	a.Mu.MuLock()
+	defer a.Mu.MuUnlock()
 
 	// Execute the events in order of priority
 	for _, event := range accessEvents {
@@ -155,8 +155,8 @@ func (a *Layer[T]) AddLayerListener(listener *p.ValidationFunc[any]) {
 	if listener == nil {
 		return
 	}
-	a.Mu.Lock()
-	defer a.Mu.Unlock()
+	a.Mu.MuLock()
+	defer a.Mu.MuUnlock()
 	// Check if the listener already exists
 	if _, exists := a.Listeners[listener.Priority]; exists {
 		return
@@ -166,15 +166,15 @@ func (a *Layer[T]) AddLayerListener(listener *p.ValidationFunc[any]) {
 
 // GetLayerListeners returns the listeners for the Layer.
 func (a *Layer[T]) GetLayerListeners() map[int]p.ValidationFunc[any] {
-	a.Mu.RLock()
-	defer a.Mu.RUnlock()
+	a.Mu.MuRLock()
+	defer a.Mu.MuRUnlock()
 	return a.Listeners
 }
 
 // RemoveLayerListener removes the listener with the given priority.
 func (a *Layer[T]) RemoveLayerListener(priority int) {
-	a.Mu.Lock()
-	defer a.Mu.Unlock()
+	a.Mu.MuLock()
+	defer a.Mu.MuUnlock()
 
 	// Check if the listener exists
 	if _, exists := a.Listeners[priority]; !exists {
@@ -187,8 +187,8 @@ func (a *Layer[T]) RemoveLayerListener(priority int) {
 
 // ExecuteLayerListener executes the listener with the given priority and arguments.
 func (a *Layer[T]) ExecuteLayerListener(priority int, args ...any) (bool, *p.ValidationResult) {
-	a.Mu.Lock()
-	defer a.Mu.Unlock()
+	a.Mu.MuLock()
+	defer a.Mu.MuUnlock()
 
 	// Check if the listener exists
 	if _, exists := a.Listeners[priority]; !exists {
@@ -236,8 +236,8 @@ func (a *Layer[T]) NotifyLayerListeners(args ...any) {
 
 // GetLayerState returns the state of the Layer.
 func (a *Layer[T]) GetLayerState() *p.ValidationResult {
-	a.Mu.RLock()
-	defer a.Mu.RUnlock()
+	a.Mu.MuRLock()
+	defer a.Mu.MuRUnlock()
 
 	// Return the state of the Layer
 	return a.State
@@ -245,8 +245,8 @@ func (a *Layer[T]) GetLayerState() *p.ValidationResult {
 
 // Snapshot returns a string representation of the Layer.
 func (a *Layer[T]) Snapshot() string {
-	a.Mu.RLock()
-	defer a.Mu.RUnlock()
+	a.Mu.MuRLock()
+	defer a.Mu.MuRUnlock()
 
 	valid := "valid"
 	if !a.State.IsValid {

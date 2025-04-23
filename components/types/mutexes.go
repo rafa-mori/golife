@@ -1,6 +1,11 @@
 package types
 
-import "sync"
+import (
+	ci "github.com/faelmori/golife/components/interfaces"
+	gl "github.com/faelmori/golife/logger"
+	"sync"
+	"time"
+)
 
 // muCtx is the mutex context map
 type muCtx struct {
@@ -15,16 +20,12 @@ type muCtx struct {
 }
 
 // newMuCtx creates a new mutex context map
-func newMuCtx() *muCtx {
+func newMuCtx(mSharedCtxM *sync.RWMutex) *muCtx {
 	mu := &muCtx{
 		MuCtxM:    &sync.RWMutex{},
-		MuCtxCond: &sync.Cond{},
+		MuCtxCond: sync.NewCond(mSharedCtxM),
 		MuCtxWg:   &sync.WaitGroup{},
 	}
-	mu.MuCtxCond = sync.NewCond(func(gll *muCtx) *sync.RWMutex {
-		gll.MuCtxL = &sync.RWMutex{}
-		return gll.MuCtxL
-	}(mu))
 	return mu
 }
 
@@ -32,39 +33,139 @@ func newMuCtx() *muCtx {
 type Mutexes struct {
 	// muCtx is the mutex context map
 	*muCtx
+
+	// muSharedM is a mutex for the shared context.
+	muSharedM *sync.RWMutex
+	// muSharedCtx is the shared context for Cond. This is used to synchronize states across multiple goroutines.
+	muSharedCtx any
+	// muSharedCtxValidate is the shared context validation function. This is used to validate the shared context defining if it needs to wait or not.
+	muSharedCtxValidate func(any) (bool, error)
 }
 
-// NewMutexes creates a new mutex context map
-func NewMutexes() *Mutexes {
-	return &Mutexes{newMuCtx()}
+// NewMutexesType creates a new mutex context map struct pointer.
+func NewMutexesType() *Mutexes {
+	mu := &Mutexes{
+		muSharedM:           &sync.RWMutex{},
+		muSharedCtx:         nil,
+		muSharedCtxValidate: nil,
+	}
+	mu.muCtx = newMuCtx(mu.muSharedM)
+	return mu
 }
 
-// Lock locks the mutex
-func (m *Mutexes) Lock() { m.MuCtxM.Lock() }
+// NewMutexes creates a new mutex context map interface.
+func NewMutexes() ci.IMutexes { return NewMutexesType() }
 
-// Unlock unlocks the mutex
-func (m *Mutexes) Unlock() { m.MuCtxM.Unlock() }
+// MuLock locks the mutex
+func (m *Mutexes) MuLock() { m.MuCtxM.Lock() }
 
-// RLock locks the mutex for reading
-func (m *Mutexes) RLock() { m.MuCtxL.RLock() }
+// MuUnlock unlocks the mutex
+func (m *Mutexes) MuUnlock() { m.MuCtxM.Unlock() }
 
-// RUnlock unlocks the mutex for reading
-func (m *Mutexes) RUnlock() { m.MuCtxL.RUnlock() }
+// MuRLock locks the mutex for reading
+func (m *Mutexes) MuRLock() { m.MuCtxL.RLock() }
 
-// WaitCond waits for the condition variable to be signaled
-func (m *Mutexes) WaitCond() { m.MuCtxCond.Wait() }
+// MuRUnlock unlocks the mutex for reading
+func (m *Mutexes) MuRUnlock() { m.MuCtxL.RUnlock() }
 
-// SignalCond signals the condition variable
-func (m *Mutexes) SignalCond() { m.MuCtxCond.Signal() }
+// GetMuSharedCtx returns the shared context
+func (m *Mutexes) GetMuSharedCtx() any {
+	m.muSharedM.RLock()
+	defer m.muSharedM.RUnlock()
 
-// BroadcastCond broadcasts the condition variable
-func (m *Mutexes) BroadcastCond() { m.MuCtxCond.Broadcast() }
+	return m.muSharedCtx
+}
 
-// Add adds a delta to the wait group counter
-func (m *Mutexes) Add(delta int) { m.MuCtxWg.Add(delta) }
+// SetMuSharedCtx sets the shared context
+func (m *Mutexes) SetMuSharedCtx(ctx any) {
+	m.muSharedM.Lock()
+	defer m.muSharedM.Unlock()
 
-// Done signals that the wait group is done
-func (m *Mutexes) Done() { m.MuCtxWg.Done() }
+	m.muSharedCtx = ctx
+}
 
-// Wait waits for the wait group counter to reach zero
-func (m *Mutexes) Wait() { m.MuCtxWg.Wait() }
+// GetMuSharedCtxValidate returns the shared context validation function
+func (m *Mutexes) GetMuSharedCtxValidate() func(any) (bool, error) {
+	m.muSharedM.RLock()
+	defer m.muSharedM.RUnlock()
+
+	return m.muSharedCtxValidate
+}
+
+// SetMuSharedCtxValidate sets the shared context validation function
+func (m *Mutexes) SetMuSharedCtxValidate(validate func(any) (bool, error)) {
+	m.muSharedM.Lock()
+	defer m.muSharedM.Unlock()
+
+	m.muSharedCtxValidate = validate
+}
+
+// MuWaitCondWithTimeout waits for the condition variable to be signaled with a timeout
+func (m *Mutexes) MuWaitCondWithTimeout(timeout time.Duration) bool {
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	ch := make(chan struct{})
+	go func() {
+		m.MuCtxCond.Wait()
+		close(ch)
+	}()
+
+	select {
+	case <-ch:
+		return true
+	case <-timer.C:
+		return false
+	}
+}
+
+// MuWaitCond waits for the condition variable to be signaled
+func (m *Mutexes) MuWaitCond() {
+
+	m.MuCtxCond.Wait()
+}
+
+// MuSignalCond signals the condition variable
+func (m *Mutexes) MuSignalCond() {
+	m.muSharedM.Lock()
+	defer m.muSharedM.Unlock()
+
+	if m.muSharedCtxValidate != nil {
+		isValid, err := m.muSharedCtxValidate(m.muSharedCtx)
+		if err != nil || !isValid {
+			gl.LogObjLogger(m, "warn", "Condition signal aborted due to validation failure")
+			return
+		}
+	}
+
+	gl.LogObjLogger(m, "info", "Signaling condition variable")
+	m.MuCtxCond.Signal()
+}
+
+// MuBroadcastCond broadcasts the condition variable
+func (m *Mutexes) MuBroadcastCond() {
+	m.MuCtxCond.Broadcast()
+}
+
+// MuAdd adds a delta to the wait group counter
+func (m *Mutexes) MuAdd(delta int) { m.MuCtxWg.Add(delta) }
+
+// MuDone signals that the wait group is done
+func (m *Mutexes) MuDone() { m.MuCtxWg.Done() }
+
+// MuWait waits for the wait group counter to reach zero
+func (m *Mutexes) MuWait() { m.MuCtxWg.Wait() }
+
+func (m *Mutexes) MuTryLock() bool {
+	if m.MuCtxM.TryLock() {
+		return true
+	}
+	return false
+}
+
+func (m *Mutexes) MuTryRLock() bool {
+	if m.MuCtxL.TryRLock() {
+		return true
+	}
+	return false
+}

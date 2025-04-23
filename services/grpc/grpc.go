@@ -19,7 +19,7 @@ type server struct {
 }
 
 //func (s *server) StartProcess(ctx context.Context, req *pb.StartProcessRequest) (*pb.StartProcessResponse, error) {
-//	process := internal.NewManagedProcess(req.Name, req.Command, req.Args, req.Wait, nil)
+//	process := internal.NewManagedProcess(req.Name, req.Command, req.Args, req.MuWait, nil)
 //	err := s.lifecycleManager.StartProcess(process)
 //	if err != nil {
 //		return nil, err

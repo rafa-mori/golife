@@ -63,51 +63,59 @@ func LogObjLogger[T any](obj *T, logType string, messages ...string) {
 		})
 		return
 	}
-	// Check if the object has a logger field with reflection
-	objValueLogger := reflect.ValueOf(obj).Elem().FieldByName("Logger")
-	if !objValueLogger.IsValid() {
-		g.Error(fmt.Sprintf("log object (%s) does not have a logger field", reflect.TypeFor[T]()), map[string]any{
-			"context":  "Log",
-			"logType":  logType,
-			"object":   obj,
-			"msg":      messages,
-			"showData": true,
-		})
-		return
-	} else {
-		var lgr l.Logger
-		objValueLogger = objValueLogger.Convert(reflect.TypeFor[l.Logger]())
-		if objValueLogger.IsNil() {
-			objValueLogger = reflect.ValueOf(g.Logger)
-		}
-		if lgr = objValueLogger.Interface().(l.Logger); lgr == nil {
-			lgr = g.Logger
-		}
-		pc, file, line, ok := runtime.Caller(1)
-		if !ok {
-			lgr.Error("Log: unable to get caller information", nil)
+	var lgr l.Logger
+	if objValueLogger := reflect.ValueOf(obj).Elem().MethodByName("GetLogger"); !objValueLogger.IsValid() {
+		if objValueLogger = reflect.ValueOf(obj).Elem().FieldByName("Logger"); !objValueLogger.IsValid() {
+			g.Error(fmt.Sprintf("log object (%s) does not have a logger field", reflect.TypeFor[T]()), map[string]any{
+				"context":  "Log",
+				"logType":  logType,
+				"object":   obj,
+				"msg":      messages,
+				"showData": true,
+			})
 			return
-		}
-		funcName := runtime.FuncForPC(pc).Name()
-		ctxMessageMap := map[string]any{
-			"context":  funcName,
-			"file":     file,
-			"line":     line,
-			"showData": debug,
-		}
-		fullMessage := strings.Join(messages, " ")
-		logType = strings.ToLower(logType)
-		if logType != "" {
-			if reflect.TypeOf(logType).ConvertibleTo(reflect.TypeFor[LogType]()) {
-				lType := LogType(logType)
-				ctxMessageMap["logType"] = logType
-				logging(lgr, lType, fullMessage, ctxMessageMap)
-			} else {
-				lgr.Error(fmt.Sprintf("logType (%s) is not valid", logType), ctxMessageMap)
-			}
 		} else {
-			lgr.Info(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
+			lgrC := objValueLogger.Convert(reflect.TypeFor[l.Logger]())
+			if lgrC.IsNil() {
+				lgrC = reflect.ValueOf(g.Logger)
+			}
+			if lgr = lgrC.Interface().(l.Logger); lgr == nil {
+				lgr = g.Logger
+			}
 		}
+	} else {
+		//lgrC := objValueLogger.Call(nil)[0].Convert(reflect.TypeFor[l.Logger]())
+		//if lgrC.IsNil() {
+		//	lgrC = reflect.ValueOf(g.Logger)
+		//}
+		//if lgr = lgrC.Interface().(l.Logger); lgr == nil {
+		lgr = g.Logger
+		//}
+	}
+	pc, file, line, ok := runtime.Caller(1)
+	if !ok {
+		lgr.Error("Log: unable to get caller information", nil)
+		return
+	}
+	funcName := runtime.FuncForPC(pc).Name()
+	ctxMessageMap := map[string]any{
+		"context":  funcName,
+		"file":     file,
+		"line":     line,
+		"showData": debug,
+	}
+	fullMessage := strings.Join(messages, " ")
+	logType = strings.ToLower(logType)
+	if logType != "" {
+		if reflect.TypeOf(logType).ConvertibleTo(reflect.TypeFor[LogType]()) {
+			lType := LogType(logType)
+			ctxMessageMap["logType"] = logType
+			logging(lgr, lType, fullMessage, ctxMessageMap)
+		} else {
+			lgr.Error(fmt.Sprintf("logType (%s) is not valid", logType), ctxMessageMap)
+		}
+	} else {
+		lgr.Info(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
 	}
 }
 

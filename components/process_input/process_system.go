@@ -13,39 +13,32 @@ import (
 type ProcessSystemBase[T any, P any] struct {
 	// Logger is the logger for the process
 	Logger l.Logger
-	// Reference is the reference for the process with ID and Name
-	*t.Reference
 	// Mutexes is the mutex for the process
 	*t.Mutexes
+	// Cmd is the command to run
+	cmd *exec.Cmd
 
-	// Object is the object to pass to the command
-	Object *P `json:"object" yaml:"object" xml:"object" gorm:"object"`
-
+	// Reference is the reference for the process with ID and Name
+	*t.Reference `json:"reference" yaml:"reference" xml:"reference" gorm:"reference"`
+	// ProcessConfig is the configuration for the process
+	*ProcessConfig[P] `json:"process_config" yaml:"process_config" xml:"process_config" gorm:"process_config"`
 	// Command is the command to run
 	Command string `json:"command" yaml:"command" xml:"command" gorm:"command"`
 	// Args is the arguments to pass to the command
 	Args []string `json:"args" yaml:"args" xml:"args" gorm:"args"`
-	// Path is the env path to pass to the command
-	Path string
-	// Function is a custom function to wrap the command
-	Function *t.ValidationFunc[ProcessInput[P]] `json:"function" yaml:"function" xml:"function" gorm:"function"`
-	// Cmd is the command to run
-	cmd *exec.Cmd
+	// Path is the path to the command
+	Path string `json:"path" yaml:"path" xml:"path" gorm:"path"`
+	// ProcPid is the process ID
+	ProcPid int `json:"pid" yaml:"pid" xml:"pid" gorm:"pid"`
+
 	// ProcPointer is the process handle
-	ProcPointer uintptr `json:"proc_pointer" yaml:"proc_pointer" xml:"proc_pointer" gorm:"proc_pointer"`
-
-	PropertiesSystemProc map[string]interface{}
-
-	//// ProcPid is the process ID
-	//ProcPid int `json:"pid" yaml:"pid" xml:"pid" gorm:"pid"`
-	//// ProcPidFile is the process ID file
-	//ProcPidFile string `json:"pid_file" yaml:"pid_file" xml:"pid_file" gorm:"pid_file"`
-	//// ProcHandle is the process handle
-	//ProcPointer uintptr `json:"proc_pointer" yaml:"proc_pointer" xml:"proc_pointer" gorm:"proc_pointer"`
-	//// Path is the path to the command
-	//Path string `json:"path" yaml:"path" xml:"path" gorm:"path"`
-
-	*ProcessConfig[P]
+	ProcPointer uintptr `json:"proc_pointer,omitempty" yaml:"proc_pointer,omitempty" xml:"proc_pointer,omitempty" gorm:"proc_pointer,omitempty"`
+	// PropertiesSystemProc is the properties map for the process
+	PropertiesSystemProc map[string]interface{} `json:"properties_system_proc,omitempty" yaml:"properties_system_proc,omitempty" xml:"properties_system_proc,omitempty" gorm:"properties_system_proc,omitempty"`
+	// Object is the object to pass to the command
+	Object *P `json:"object,omitempty" yaml:"object,omitempty" xml:"object,omitempty" gorm:"object,omitempty"`
+	// Function is a custom function to wrap the command
+	Function *t.ValidationFunc[ProcessInput[P]] `json:"function,omitempty" yaml:"function,omitempty" xml:"function,omitempty" gorm:"function,omitempty"`
 }
 
 // newSystemProcessInput creates a new ProcessInput instance with the provided Logger.
@@ -74,8 +67,8 @@ func (pi *ProcessSystemBase[T, P]) GetCommand() string {
 	if pi == nil {
 		return ""
 	}
-	pi.Mutexes.RLock()
-	defer pi.Mutexes.RUnlock()
+	pi.Mutexes.MuRLock()
+	defer pi.Mutexes.MuRUnlock()
 
 	return pi.Command
 }
@@ -85,8 +78,8 @@ func (pi *ProcessSystemBase[T, P]) GetArgs() []string {
 	if pi == nil {
 		return nil
 	}
-	pi.Mutexes.RLock()
-	defer pi.Mutexes.RUnlock()
+	pi.Mutexes.MuRLock()
+	defer pi.Mutexes.MuRUnlock()
 
 	return pi.Args
 }
@@ -96,8 +89,8 @@ func (pi *ProcessSystemBase[T, P]) GetPath() string {
 	if pi == nil {
 		return ""
 	}
-	pi.Mutexes.RLock()
-	defer pi.Mutexes.RUnlock()
+	pi.Mutexes.MuRLock()
+	defer pi.Mutexes.MuRUnlock()
 
 	return pi.Path
 }
@@ -107,8 +100,8 @@ func (pi *ProcessSystemBase[T, P]) GetCmd() *exec.Cmd {
 	if pi == nil {
 		return nil
 	}
-	pi.Mutexes.RLock()
-	defer pi.Mutexes.RUnlock()
+	pi.Mutexes.MuRLock()
+	defer pi.Mutexes.MuRUnlock()
 
 	if pi.cmd == nil {
 		return pi.BuildCmd()
@@ -122,8 +115,8 @@ func (pi *ProcessSystemBase[T, P]) BuildCmd() *exec.Cmd {
 	if pi == nil {
 		return nil
 	}
-	pi.Mutexes.RLock()
-	defer pi.Mutexes.RUnlock()
+	pi.Mutexes.MuRLock()
+	defer pi.Mutexes.MuRUnlock()
 
 	cmd := exec.Command(pi.Command, pi.Args...)
 	cmd.Dir = pi.GetPath()
@@ -217,8 +210,8 @@ func (pi *ProcessSystemBase[T, P]) GetProperties() map[string]interface{} {
 
 // Cmd returns the command to run.
 func (pi *ProcessSystemBase[T, P]) Cmd() *exec.Cmd {
-	pi.Mutexes.RLock()
-	defer pi.Mutexes.RUnlock()
+	pi.Mutexes.MuRLock()
+	defer pi.Mutexes.MuRUnlock()
 
 	if pi.cmd == nil {
 		return pi.BuildCmd()

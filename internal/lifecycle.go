@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	ci "github.com/faelmori/golife/components/interfaces"
 	pi "github.com/faelmori/golife/components/process_input"
 	p "github.com/faelmori/golife/components/types"
 	pr "github.com/faelmori/golife/internal/process"
@@ -12,32 +13,48 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
-	"strings"
 	"syscall"
 )
 
 type ILifeCycle[T pi.ProcessInput[any]] interface {
+	ci.IMutexes
+
+	GetLogger() l.Logger
+
 	Initialize() error
-	Snapshot() string
 
 	GetProcess(string) (pr.IManagedProcess[any], error)
 	AddProcess(string, *pi.ProcessInput[any]) error
 	CurrentProcess() pr.IManagedProcess[any]
 	RemoveProcess(string) error
+
 	GetStage(string) (st.IStage[any], error)
 	AddStage(string, st.IStage[any]) error
 	CurrentStage() st.IStage[any]
 	SetCurrentStage(string) (st.IStage[any], error)
 	RemoveStage(string) error
+
 	GetEvent(string) (ev.IManagedProcessEvents[any], error)
 	AddEvent(string, ev.IManagedProcessEvents[any]) error
 	TriggerEvent(string, interface{}) error
 	RemoveEvent(string) error
+
 	StartLifecycle() error
 	StopLifecycle() error
-	Restart() error
-	Status() string
+	RestartLifecycle() error
+	StatusLifecycle() string
+
+	GetChannel(name string) (*p.ChannelCtl[any], error)
+	GetChannels() map[string]p.ChannelCtl[any]
+	AddChannel(name string, channel *p.ChannelCtl[any]) error
+	RemoveChannel(name string) error
+
+	GetSupervisor() *pi.ProcessInput[any]
+	GetSupervisorProcess() pr.IManagedProcess[pi.ProcessInput[any]]
+
 	ListenForSignals() error
+
+	//ListenForTerminalInput() error
 }
 type LifeCycle[T pi.ProcessInput[any]] struct {
 	// supervisor is the supervisor instance for the lifecycle manager
@@ -64,7 +81,7 @@ type LifeCycle[T pi.ProcessInput[any]] struct {
 	controllers map[string]any
 }
 
-func NewLifeCycle[T pi.ProcessInput[any]](processInput *T, initialize bool) ILifeCycle[T] {
+func NewLifeCycle[T pi.ProcessInput[any]](processInput *T) ILifeCycle[T] {
 	if processInput == nil {
 		gl.Log("fatal", "Process input arg is nil")
 		return nil
@@ -78,55 +95,31 @@ func NewLifeCycle[T pi.ProcessInput[any]](processInput *T, initialize bool) ILif
 		}
 
 		lcm := &LifeCycle[T]{
-			Logger:       logger,
-			Mutexes:      p.NewMutexes(),
-			Reference:    p.NewReference("LifeCycle"),
-			initialized:  false,
-			ProcessInput: processInput,
+			Logger:      logger,
+			Mutexes:     p.NewMutexesType(),
+			Reference:   p.NewReference("LifeCycle").GetReference(),
+			initialized: false,
 		}
 
-		if initialize {
-			execPath, execPathErr := os.Executable()
-			if execPathErr != nil {
-				gl.Log("error", fmt.Sprintf("Error getting executable path: %v", execPathErr))
-				return nil
-			}
-			waitFlag := ""
-			if input.GetWaitFor() {
-				waitFlag = "-w"
-			}
-			restartFlag := ""
-			if input.GetRestart() {
-				restartFlag = "-r"
-			}
-			supervisor := pi.NewSystemProcessInput[any](
-				"GoLife_Supervisor",
-				execPath,
-				[]string{
-					"_supervisor",
-					"-n GoLife_Supervisor",
-					"-c '" + input.GetCommand() + "'",
-					"-a '" + strings.Join(input.GetArgs(), ",") + "'",
-					waitFlag,
-					restartFlag,
-				},
-				false,
-				false,
-				nil,
-				logger,
-				false,
-			)
-			lcm.supervisor = supervisor
-			lcm.supervisorProcess = pr.NewManagedProcess(supervisor.Name, supervisor.GetCommand(), supervisor.GetArgs(), supervisor.GetWaitFor(), supervisor.GetFunction())
-			if err := lcm.supervisorProcess.ExecCmd(); err != nil {
-				gl.Log("error", fmt.Sprintf("Error starting supervisor process: %v", err))
-			}
+		lcm.ProcessInput = processInput
+		gl.Log("info", "Lifecycle manager initialized successfully")
+
+		if err := lcm.Initialize(); err != nil {
+			gl.Log("error", fmt.Sprintf("Error initializing lifecycle manager: %v", err))
+			return nil
 		}
 
 		return lcm
 	}
 }
 
+func (lm *LifeCycle[T]) GetLogger() l.Logger {
+	if lm == nil {
+		gl.LogObjLogger(lm, "error", "Lifecycle manager is nil")
+		return nil
+	}
+	return lm.Logger
+}
 func (lm *LifeCycle[T]) Initialize() error {
 	if lm == nil {
 		gl.LogObjLogger(lm, "fatal", "Lifecycle manager is nil")
@@ -200,8 +193,8 @@ func (lm *LifeCycle[T]) Initialize() error {
 	return nil
 }
 func (lm *LifeCycle[T]) Snapshot() string {
-	lm.Mutexes.RLock()
-	defer lm.Mutexes.RUnlock()
+	lm.Mutexes.MuRLock()
+	defer lm.Mutexes.MuRUnlock()
 
 	return fmt.Sprintf(
 		"Lifecycle [%s]: Processes: %d, Stages: %d, Events: %d, Channels: %d",
@@ -273,8 +266,8 @@ func (lm *LifeCycle[T]) GetStage(name string) (st.IStage[any], error) {
 		return nil, fmt.Errorf("lifecycle manager is nil")
 	}
 
-	lm.Mutexes.RLock()
-	defer lm.Mutexes.RUnlock()
+	lm.Mutexes.MuRLock()
+	defer lm.Mutexes.MuRUnlock()
 
 	if stage, exists := lm.controllers["stages"].(map[string]any)[name]; exists {
 		if stageObj, ok := stage.(st.IStage[any]); ok {
@@ -300,8 +293,8 @@ func (lm *LifeCycle[T]) AddStage(name string, stage st.IStage[any]) error {
 	}
 
 	if stageRegistered, err := lm.GetStage(name); err != nil {
-		lm.Mutexes.Lock()
-		defer lm.Mutexes.Unlock()
+		lm.Mutexes.MuLock()
+		defer lm.Mutexes.MuUnlock()
 
 		lm.controllers["stages"].(map[string]any)[name] = stage
 		gl.LogObjLogger(lm, "info", fmt.Sprintf("Added stage '%s'", name))
@@ -316,8 +309,8 @@ func (lm *LifeCycle[T]) CurrentStage() st.IStage[any] {
 		return nil
 	}
 
-	lm.Mutexes.RLock()
-	defer lm.Mutexes.RUnlock()
+	lm.Mutexes.MuRLock()
+	defer lm.Mutexes.MuRUnlock()
 
 	if currentStage, exists := lm.controllers["currentStage"]; exists {
 		if stage, ok := currentStage.(st.IStage[any]); ok {
@@ -337,8 +330,8 @@ func (lm *LifeCycle[T]) SetCurrentStage(stageName string) (st.IStage[any], error
 		return nil, fmt.Errorf("lifecycle manager is nil")
 	}
 
-	lm.Mutexes.Lock()
-	defer lm.Mutexes.Unlock()
+	lm.Mutexes.MuLock()
+	defer lm.Mutexes.MuUnlock()
 
 	if currentStage := lm.CurrentStage(); currentStage != nil {
 		if currentStage.Name() == stageName {
@@ -397,8 +390,8 @@ func (lm *LifeCycle[T]) RemoveStage(name string) error {
 }
 
 func (lm *LifeCycle[T]) GetEvent(name string) (ev.IManagedProcessEvents[any], error) {
-	lm.Mutexes.RLock()
-	defer lm.Mutexes.RUnlock()
+	lm.Mutexes.MuRLock()
+	defer lm.Mutexes.MuRUnlock()
 
 	events := lm.controllers["events"].(map[string]interface{})
 	if event, exists := events[name]; exists {
@@ -442,7 +435,107 @@ func (lm *LifeCycle[T]) TriggerEvent(name string, data interface{}) error {
 	return fmt.Errorf("event '%s' does not exist", name)
 }
 
+func (lm *LifeCycle[T]) GetChannel(name string) (*p.ChannelCtl[any], error) {
+	if lm == nil {
+		gl.LogObjLogger(lm, "error", "Lifecycle manager is nil")
+		return nil, fmt.Errorf("lifecycle manager is nil")
+	}
+
+	lm.Mutexes.MuRLock()
+	defer lm.Mutexes.MuRUnlock()
+
+	if channel, exists := lm.controllers["channels"].(map[string]any)[name]; exists {
+		if channelObj, ok := channel.(p.ChannelCtl[any]); ok {
+			return &channelObj, nil
+		}
+		gl.LogObjLogger(lm, "error", fmt.Sprintf("Failed to cast channel '%s'", name))
+		return nil, fmt.Errorf("failed to cast channel '%s'", name)
+	}
+	return nil, fmt.Errorf("channel '%s' does not exist", name)
+}
+func (lm *LifeCycle[T]) GetChannels() map[string]p.ChannelCtl[any] {
+	if lm == nil {
+		gl.LogObjLogger(lm, "error", "Lifecycle manager is nil")
+		return nil
+	}
+
+	lm.Mutexes.MuRLock()
+	defer lm.Mutexes.MuRUnlock()
+
+	channels := make(map[string]p.ChannelCtl[any])
+	for name, channel := range lm.controllers["channels"].(map[string]any) {
+		if channelObj, ok := channel.(p.ChannelCtl[any]); ok {
+			channels[name] = channelObj
+		}
+	}
+	return channels
+}
+func (lm *LifeCycle[T]) AddChannel(name string, channel *p.ChannelCtl[any]) error {
+	if lm == nil {
+		gl.LogObjLogger(lm, "error", "Lifecycle manager is nil")
+		return fmt.Errorf("lifecycle manager is nil")
+	}
+	if channel == nil {
+		gl.LogObjLogger(lm, "error", "Channel is nil")
+		return fmt.Errorf("channel is nil")
+	}
+	if name == "" {
+		gl.LogObjLogger(lm, "error", "Channel name is empty")
+		return fmt.Errorf("channel name is empty")
+	}
+
+	if channelRegistered, err := lm.GetChannel(name); err != nil {
+		lm.Mutexes.MuLock()
+		defer lm.Mutexes.MuUnlock()
+
+		lm.controllers["channels"].(map[string]any)[name] = channel
+		gl.LogObjLogger(lm, "info", fmt.Sprintf("Added channel '%s'", name))
+	} else {
+		gl.LogObjLogger(lm, "warn", fmt.Sprintf("Channel '%s' already registered: %v", name, channelRegistered))
+	}
+	return nil
+}
+func (lm *LifeCycle[T]) RemoveChannel(name string) error {
+	if lm == nil {
+		gl.LogObjLogger(lm, "error", "Lifecycle manager is nil")
+		return fmt.Errorf("lifecycle manager is nil")
+	}
+	if _, err := lm.GetChannel(name); err != nil {
+		return fmt.Errorf("channel '%s' does not exist", name)
+	}
+
+	delete(lm.controllers["channels"].(map[string]any), name)
+
+	gl.LogObjLogger(lm, "info", fmt.Sprintf("Removed channel '%s'", name))
+
+	return nil
+}
+
+func (lm *LifeCycle[T]) GetSupervisor() *pi.ProcessInput[any] {
+	if lm == nil {
+		gl.LogObjLogger(lm, "error", "Lifecycle manager is nil")
+		return nil
+	}
+
+	lm.Mutexes.MuRLock()
+	defer lm.Mutexes.MuRUnlock()
+
+	return lm.supervisor
+}
+func (lm *LifeCycle[T]) GetSupervisorProcess() pr.IManagedProcess[pi.ProcessInput[any]] {
+	if lm == nil {
+		gl.LogObjLogger(lm, "error", "Lifecycle manager is nil")
+		return nil
+	}
+
+	lm.Mutexes.MuRLock()
+	defer lm.Mutexes.MuRUnlock()
+
+	return lm.supervisorProcess
+}
+
 func (lm *LifeCycle[T]) StartLifecycle() error {
+
 	if lm == nil {
 		gl.LogObjLogger(lm, "error", "Lifecycle manager is nil")
 		return fmt.Errorf("lifecycle manager is nil")
@@ -493,7 +586,7 @@ func (lm *LifeCycle[T]) StopLifecycle() error {
 	if channels, ok := lm.controllers["channels"].(map[string]interface{}); ok {
 		for name, ch := range channels {
 			if ctl, ok := ch.(p.ChannelCtl[any]); ok {
-				ctl.Close() // Presume que o método Close() existe.
+				_ = ctl.Close() // Presumes that the method Close() exists.
 				gl.LogObjLogger(lm, "info", fmt.Sprintf("Closed channel '%s'", name))
 			}
 		}
@@ -502,7 +595,11 @@ func (lm *LifeCycle[T]) StopLifecycle() error {
 	return nil
 }
 
-func (lm *LifeCycle[T]) Restart() error {
+func (lm *LifeCycle[T]) RestartLifecycle() error {
+	if lm == nil {
+		gl.LogObjLogger(lm, "error", "Lifecycle manager is nil")
+		return fmt.Errorf("lifecycle manager is nil")
+	}
 
 	processes := lm.controllers["processes"].(map[string]interface{})
 	for name, proc := range processes {
@@ -516,9 +613,9 @@ func (lm *LifeCycle[T]) Restart() error {
 	}
 	return nil
 }
-func (lm *LifeCycle[T]) Status() string {
-	//lm.Mutexes.RLock()
-	//defer lm.Mutexes.RUnlock()
+func (lm *LifeCycle[T]) StatusLifecycle() string {
+	//lm.Mutexes.MuRLock()
+	//defer lm.Mutexes.MuRUnlock()
 
 	processes := lm.controllers["processes"].(map[string]interface{})
 	status := "Processes Status:\n"
@@ -535,23 +632,73 @@ func (lm *LifeCycle[T]) ListenForSignals() error {
 		gl.LogObjLogger(lm, "error", "Channels are nil")
 		return fmt.Errorf("channels are nil")
 	}
-
 	channels := lm.controllers["channels"].(map[string]interface{})
-	if sigChan, ok := channels["chanSignal"].(p.ChannelCtl[os.Signal]); ok {
-		chanSignal := sigChan.Channel()
+	if sigChan, ok := channels["chanSignal"].(ci.IChannelCtl[os.Signal]); ok {
+		cSignal, cSignalType, cSignalExists := sigChan.GetSubChannelByName("signal")
+		if !cSignalExists {
+			gl.LogObjLogger(lm, "error", "Signal channel is nil")
+			return fmt.Errorf("signal channel is nil")
+		}
+		if cSignalType != reflect.TypeFor[os.Signal]() {
+			gl.LogObjLogger(lm, "error", "Signal channel type is not os.Signal")
+			return fmt.Errorf("signal channel type is not os.Signal")
+		}
+		chanSignal := reflect.ValueOf(cSignal.GetChannel()).Interface().(chan os.Signal)
 		signal.Notify(chanSignal, os.Interrupt, os.Kill, os.Kill, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGKILL)
 
 		go func(chanSignal chan os.Signal) {
 			for sig := range chanSignal {
 				gl.LogObjLogger(lm, "info", fmt.Sprintf("Received signal: %s", sig))
-				sigChan.Channel() <- sig
+				chanSignal <- sig
 			}
 		}(chanSignal)
 
-		gl.LogObjLogger(lm, "info", fmt.Sprintf("Listening for signals on channel '%s'", sigChan.Name))
+		gl.LogObjLogger(lm, "info", fmt.Sprintf("Listening for signals on channel '%s'", sigChan.GetName()))
 	} else {
 		gl.LogObjLogger(lm, "error", fmt.Sprintf("Failed to cast signal channel"))
 		return fmt.Errorf("failed to cast signal channel")
 	}
 	return nil
 }
+
+//func (lm *LifeCycle[T]) ListenForTerminalInput() error {
+//	if lm == nil {
+//		gl.LogObjLogger(lm, "error", "Lifecycle manager is nil")
+//		return fmt.Errorf("lifecycle manager is nil")
+//	}
+//
+//	objChErr := p.NewChannelCtl[error]("chanError", func(b int) *int { return &b }(1), lm.Logger)
+//	objChDone := p.NewChannelCtl[bool]("chanDone", func(b int) *int { return &b }(1), lm.Logger)
+//	objChSignal := p.NewChannelCtl[os.Signal]("chanSignal", func(b int) *int { return &b }(1), lm.Logger)
+//
+//	chErr := objChErr.Channel()
+//	chDone := objChDone.Channel()
+//	chSignal := objChSignal.Channel()
+//
+//	go listenStdin(lm, chErr, chDone, chSignal)
+//
+//	gl.LogObjLogger(lm, "info", fmt.Sprintf("Listening for terminal input on channel '%s'", objChErr.Name))
+//
+//	for {
+//		select {
+//		case errorMsg := <-chErr:
+//			if errorMsg != nil {
+//				gl.LogObjLogger(lm, "error", fmt.Sprintf("Error from channel 'chanError': %v", errorMsg))
+//			} else {
+//				continue
+//			}
+//		case <-time.After(2 * time.Second):
+//			if cst := lm.CurrentStage(); cst != nil {
+//				if cst.Name() == "end" {
+//					gl.LogObjLogger(lm, "info", fmt.Sprintf("%s: End stage reached, stopping listening for terminal input", "Process monitor"))
+//					chDone <- true
+//					return nil
+//				} else {
+//					gl.LogObjLogger(lm, "info", fmt.Sprintf("%s: Current stage: %s", "Process monitor", cst.Name()))
+//				}
+//			}
+//		default:
+//			continue
+//		}
+//	}
+//}

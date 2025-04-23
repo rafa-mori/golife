@@ -33,47 +33,47 @@ type IWorkerPool interface {
 /*func (wp *WorkerPool) worker(ctx context.Context) {
 	for {
 		select {
-		case <-ctx.Done():
+		case <-ctx.MuDone():
 			return
 		case task := <-wp.Tasks:
 			task()
-			wp.Wg.Done()
+			wp.Wg.MuDone()
 		}
 	}
 }
 func (wp *WorkerPool) Submit(task func()) error {
 	select {
 	case wp.Tasks <- task:
-		wp.Wg.Add(1)
+		wp.Wg.MuAdd(1)
 		l.InfoCtx("Task submitted", nil)
 		return nil
 	default:
 		return fmt.Errorf("buffer de tarefas cheio")
 	}
 }
-func (wp *WorkerPool) Wait() {
-	wp.Wg.Wait()
+func (wp *WorkerPool) MuWait() {
+	wp.Wg.MuWait()
 	l.InfoCtx("All tasks completed", nil)
 }
 func (wp *WorkerPool) Scale(size int) {
 	for i := 0; i < size; i++ {
 		// Create a new context for each worker based on the parent context from the pool
 		ctxWorker, cancelWorker := context.WithCancel(wp.ctx)
-		// Add a task to the wait group
-		wp.Wg.Add(1)
+		// MuAdd a task to the wait group
+		wp.Wg.MuAdd(1)
 		// Define the task for the worker
 		wp.Tasks <- func() {
-			defer wp.Wg.Done()
+			defer wp.Wg.MuDone()
 			defer cancelWorker()
 			// Preciso fazer algo logo.. hgahahahahaha
 		}
-		// Add a task to the wait group
+		// MuAdd a task to the wait group
 		go wp.worker(ctxWorker)
 	}
 }
 func (wp *WorkerPool) workerWithError(errChan chan error) {
 	for task := range wp.Tasks {
-		defer wp.Wg.Done()
+		defer wp.Wg.MuDone()
 		if err := wp.safeExecute(task); err != nil {
 			errChan <- err
 		}
@@ -97,12 +97,12 @@ func NewWorkerPool(size int) IWorkerPool {
 		// Create a new context for each worker based on the parent context from the pool
 		ctxWorker, cancelWorker := context.WithCancel(ctx)
 
-		// Add a task to the wait group
-		pool.Wg.Add(1)
+		// MuAdd a task to the wait group
+		pool.Wg.MuAdd(1)
 
 		// Define the task for the worker
 		pool.Tasks <- func() {
-			defer pool.Wg.Done()
+			defer pool.Wg.MuDone()
 			defer cancelWorker()
 			// Preciso fazer algo logo Pode ser aquiiiii...
 

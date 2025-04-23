@@ -8,8 +8,8 @@ import (
 	l "github.com/faelmori/logz"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
-	"syscall"
 )
 
 type IManagedProcess[T any] interface {
@@ -123,12 +123,12 @@ func (p *ManagedProcess[T]) ExecCmd() error {
 				_ = stderr.Close()
 			}()
 		} else {
-			p.Cmd.SysProcAttr = &syscall.SysProcAttr{
-				Setsid: true,
-				//Setpgid: true,
-				Pgid: 0,
-				//Foreground: false,
-			}
+			//p.Cmd.SysProcAttr = &syscall.SysProcAttr{
+			//	Setsid: true,
+			//	//Setpgid: true,
+			//	//Pgid: 0,
+			//	//Foreground: false,
+			//}
 		}
 
 		if err := p.Cmd.Start(); err != nil {
@@ -222,16 +222,19 @@ func (p *ManagedProcess[T]) Wait() error {
 		gl.LogObjLogger(p, "error", "Process is nil or command is empty")
 		return nil
 	}
+	if strings.Contains(p.Command, "_supervisor") {
+		defer func(cmd *exec.Cmd) {
+			if releaseErr := cmd.Process.Release(); releaseErr != nil {
+				gl.LogObjLogger(p, "error", fmt.Sprintf("Error releasing command: %v", releaseErr))
+				return
+			}
+			gl.LogObjLogger(p, "success", fmt.Sprintf("Process %s released with PID %d", p.Name, p.Pid()))
+		}(p.Cmd)
+		return nil
+	}
 	if p.WaitFor {
 		return p.Cmd.Wait()
 	} else {
-		//defer func() {
-		if releaseErr := p.Release(); releaseErr != nil {
-			gl.LogObjLogger(p, "error", fmt.Sprintf("Error releasing command: %v", releaseErr))
-			return releaseErr
-		}
-		gl.LogObjLogger(p, "success", fmt.Sprintf("Process %s released with PID %d", p.Name, p.Pid()))
-		//}()
 		return nil
 	}
 }

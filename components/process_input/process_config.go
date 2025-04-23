@@ -49,32 +49,32 @@ func NewProcessConfig[T any](name string, wait, restart bool, typ string, metada
 
 // GetWaitFor returns the boolean that indicates if the process should wait for the command to finish.
 func (pi *ProcessConfig[T]) GetWaitFor() bool {
-	pi.Mutexes.RLock()
-	defer pi.Mutexes.RUnlock()
+	pi.Mutexes.MuRLock()
+	defer pi.Mutexes.MuRUnlock()
 
 	return pi.WaitFor
 }
 
 // GetRestart returns the boolean that indicates if the process should be restarted.
 func (pi *ProcessConfig[T]) GetRestart() bool {
-	pi.Mutexes.RLock()
-	defer pi.Mutexes.RUnlock()
+	pi.Mutexes.MuRLock()
+	defer pi.Mutexes.MuRUnlock()
 
 	return pi.Restart
 }
 
 // GetProcessType returns the type of the process.
 func (pi *ProcessConfig[T]) GetProcessType() string {
-	pi.Mutexes.RLock()
-	defer pi.Mutexes.RUnlock()
+	pi.Mutexes.MuRLock()
+	defer pi.Mutexes.MuRUnlock()
 
 	return pi.ProcessType
 }
 
 // GetMetadata returns the metadata for the process.
 func (pi *ProcessConfig[T]) GetMetadata(key string) (any, bool) {
-	pi.Mutexes.RLock()
-	defer pi.Mutexes.RUnlock()
+	pi.Mutexes.MuRLock()
+	defer pi.Mutexes.MuRUnlock()
 
 	if pi.Metadata == nil {
 		return nil, false
@@ -85,8 +85,8 @@ func (pi *ProcessConfig[T]) GetMetadata(key string) (any, bool) {
 
 // SetMetadata sets the metadata for the process.
 func (pi *ProcessConfig[T]) SetMetadata(key string, value any) {
-	pi.Mutexes.Lock()
-	defer pi.Mutexes.Unlock()
+	pi.Mutexes.MuLock()
+	defer pi.Mutexes.MuUnlock()
 
 	if pi.Metadata == nil {
 		pi.Metadata = make(map[string]any)

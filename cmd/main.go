@@ -4,108 +4,168 @@ import (
 	"fmt"
 	g "github.com/faelmori/golife"
 	pi "github.com/faelmori/golife/components/process_input"
+	p "github.com/faelmori/golife/components/types"
 	i "github.com/faelmori/golife/internal"
 	gl "github.com/faelmori/golife/logger"
 	l "github.com/faelmori/logz"
 	"os"
 	"os/signal"
-	"runtime"
+	"reflect"
+	"strings"
 	"syscall"
+	"time"
 )
 
 var logger l.Logger
 
 // main initializes the logger and creates a new GoLife instance.
 func main() {
-	//mainProd()
-	logger = l.GetLogger("TestLogger")
+	logger = l.GetLogger("GoLife")
 	gl.SetDebug(false)
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGKILL, syscall.SIGHUP)
+	var glife *g.GoLife[i.ILifeCycle[pi.ProcessInput[any]]]
+	newArgs := []string{"A"}
+
+	gl.Log("info", "Test A - Start")
+
 	if len(os.Args) > 1 {
 		if os.Args[1] == "_supervisor" {
-			gl.Log("info", "Launching GoLife process in parallel...")
-			newArgs := os.Args[2:]
-			willWait := "-w"
-			for _, arg := range os.Args {
-				if arg == "--wait" || arg == "-w" {
-					willWait = ""
-					break
-				}
+			newArgs = os.Args[2:]
+			glife = mainA(newArgs...)
+		}
+	}
+
+	if glife == nil {
+		glife = mainA("A")
+	}
+	if glife.Object == nil {
+		gl.Log("error", "Error creating Lifecycle instance")
+		os.Exit(1)
+	} else {
+		obj := *glife.Object
+
+		// Routine to startup supervisor process without blocking the main thread
+		go func(obj i.ILifeCycle[pi.ProcessInput[any]]) {
+			gl.Log("info", "Starting GoLife process...")
+			if err := obj.StartLifecycle(); err != nil {
+				gl.Log("error", "starting GoLife instance: "+err.Error())
+				os.Exit(1)
 			}
-			os.Args = append(os.Args, willWait)
-			newArgs = append(newArgs, willWait)
-			go func() {
-				ch := make(chan os.Signal, 1)
-				signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-				go mainA(newArgs...)
-				defer func() {
-					if r := recover(); r != nil {
-						gl.Log("error", fmt.Sprintf("Recovered from panic: %v", r))
-					} else {
-						// release the routine process
-						gl.Log("info", "Releasing GoLife process...")
-						mainRoutineRuntime := runtime.NumGoroutine()
-						gl.Log("info", fmt.Sprintf("GoLife process released, goroutines: %d", mainRoutineRuntime))
-						if mainRoutineRuntime > 1 {
-							gl.Log("info", "Waiting for GoLife process to finish...")
-							for i := 0; i < mainRoutineRuntime; i++ {
-								select {
-								case <-ch:
-									gl.Log("info", "Received interrupt signal, stopping GoLife process...")
-									gl.Log("info", "Stopping GoLife process...")
-									return
-								default:
-									gl.Log("info", fmt.Sprintf("GoLife process %d is still running...", i))
-									continue
-								}
-							}
-						} else {
-							gl.Log("info", "GoLife process finished.")
-						}
-					}
-				}()
-				select {
-				case <-ch:
-					gl.Log("info", "Received interrupt signal, stopping GoLife process...")
-					gl.Log("info", "Stopping GoLife process...")
-					return
+		}(obj)
+
+		// Routine to monitor the GoLife process
+		for {
+			select {
+			case <-ch:
+				gl.Log("info", "Received interrupt signal, stopping GoLife process...")
+				gl.Log("info", "Stopping GoLife process...")
+				if err := obj.StopLifecycle(); err != nil {
+					gl.Log("error", "stopping GoLife instance: "+err.Error())
 				}
-			}()
-		} else {
-			gl.Log("info", "Test A - Start")
-			mainA("A")
-			gl.Log("info", "Test A - End")
+				gl.Log("notice", "GoLife process stopped successfully")
+				gl.Log("info", "Exiting GoLife process...")
+				os.Exit(0)
+				return
+			case <-time.After(10 * time.Second):
+				gl.Log("notice", "Current process: "+obj.StatusLifecycle())
+				gl.Log("info", "GoLife process is still running...")
+			default:
+				time.Sleep(500 * time.Millisecond)
+			}
+		}
+		return
+	}
+}
+
+// main initializes the logger and creates a new GoLife instance.
+func mainA(args ...string) *g.GoLife[i.ILifeCycle[pi.ProcessInput[any]]] {
+	pFunc := p.NewValidation[pi.ProcessInput[any]]()
+
+	commandNameArg := "defaultProcess"
+	commandArg := ""
+	argsArg := make([]string, 0)
+	waitForArg := false
+	restartArg := false
+	debugArg := false
+	if len(os.Args[1:]) > 0 {
+		gl.Log("info", "Arguments provided:")
+		for index, arg := range os.Args[1:] {
+			switch arg {
+			case "--name", "-n":
+				if index+1 < len(args) {
+					commandNameArg = args[index+1]
+				}
+			case "--command", "-c":
+				if index+1 < len(args) {
+					commandArg = args[index+1]
+				}
+			case "--args", "-a":
+				if index+1 < len(args) {
+					argArg := args[index+1]
+					if strings.Contains(argArg, ",") {
+						aargsArg := strings.Split(argArg, ",")
+						for indexArg := 0; indexArg < len(aargsArg); indexArg++ {
+							aArg := aargsArg[indexArg]
+							if strings.Contains(aArg, "=") {
+								argsArg[indexArg] = strings.Split(aArg, "=")[1]
+							} else {
+								argsArg = append(argsArg, aArg)
+							}
+						}
+					} else {
+						argsArg = append(argsArg, argArg)
+					}
+				}
+			case "--wait", "-w":
+				waitForArg = true
+			case "--restart", "-r":
+				restartArg = true
+			case "--debug", "-d":
+				debugArg = true
+			}
 		}
 	} else {
-		gl.Log("info", "Test A - Start")
-		mainA("A")
-		gl.Log("info", "Test A - End")
+		gl.Log("error", "No arguments provided, using default values")
+		os.Exit(1)
 	}
-}
 
-// main initializes the logger and creates a new GoLife instance.
-func mainA(args ...string) {
-	goLife := g.NewGoLifeTest[i.ILifeCycle[pi.ProcessInput[any]]](args[0], logger, false)
+	fn := p.ValidationFunc[pi.ProcessInput[any]]{
+		Priority: 0,
+		Func: func(obj *pi.ProcessInput[any], args ...any) *p.ValidationResult {
+			objT := reflect.ValueOf(obj).Interface()
+			if len(args) > 0 {
+				for _, arg := range args {
+					if reflect.TypeOf(arg) == reflect.TypeFor[func(*any, ...any) *p.ValidationResult]() {
+						return arg.(func(*any, ...any) *p.ValidationResult)(&objT, args...)
+					}
+				}
+				return nil
+			}
+			return nil
+		},
+		Result: nil,
+	}
+	if addPfnErr := pFunc.AddValidator(fn); addPfnErr != nil {
+		l.FatalC(fmt.Sprintf("Error adding validation function: %s", addPfnErr.Error()), nil)
+		return nil
+	}
+
+	input := pi.NewSystemProcessInput[any](
+		commandNameArg,
+		commandArg,
+		argsArg,
+		waitForArg,
+		restartArg,
+		&fn,
+		logger,
+		debugArg,
+	)
+
+	goLife := g.NewGoLife[i.ILifeCycle[pi.ProcessInput[any]]](input, logger, false)
 	if goLife == nil {
 		l.Error("ErrorCtx creating GoLife instance", nil)
-		return
+		os.Exit(1)
 	}
-	if err := goLife.Object.Initialize(); err != nil {
-		l.Error("ErrorCtx initializing GoLife instance: "+err.Error(), nil)
-		return
-	}
-	g.TestInitialization[i.ILifeCycle[pi.ProcessInput[any]]](goLife)
-}
-
-// main initializes the logger and creates a new GoLife instance.
-func mainB() {
-	goLife := g.NewGoLifeTest[i.ILifeCycle[pi.ProcessInput[any]]]("B", logger, false)
-	if goLife == nil {
-		l.Error("ErrorCtx creating GoLife instance", nil)
-		return
-	}
-	if err := goLife.Object.Initialize(); err != nil {
-		l.Error("ErrorCtx initializing GoLife instance: "+err.Error(), nil)
-		return
-	}
-	g.TestInitialization[i.ILifeCycle[pi.ProcessInput[any]]](goLife)
+	return goLife
 }

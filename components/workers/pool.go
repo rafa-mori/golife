@@ -2,13 +2,9 @@ package workers
 
 import (
 	"fmt"
-	p "github.com/faelmori/golife/components/types"
-
-	//p "github.com/faelmori/golife/components/types"
+	ci "github.com/faelmori/golife/components/interfaces"
+	t "github.com/faelmori/golife/components/types"
 	"github.com/faelmori/golife/internal/property"
-	"github.com/faelmori/golife/internal/routines/agents"
-	t "github.com/faelmori/golife/internal/types"
-	//p "github.com/faelmori/golife/life/types"
 	"github.com/faelmori/golife/services"
 	l "github.com/faelmori/logz"
 	"github.com/google/uuid"
@@ -17,93 +13,93 @@ import (
 )
 
 type WorkerPool struct {
-	t.IWorkerPool
+	ci.IWorkerPool
 	mu         sync.RWMutex
 	wg         sync.WaitGroup
 	logger     l.Logger
 	ID         string
 	Properties map[string]any // Propriedades do WorkerPool
-	workers    []t.IWorker    // Referência aos workers gerenciados pelo pool
+	workers    []ci.IWorker   // Referência aos workers gerenciados pelo pool
 
 	// Channels
 
-	jobChannel  services.IChannel[t.IJob[any], int]    // Canal de trabalho do pool
-	jobQueue    services.IChannel[t.IAction[any], int] // Canal de trabalho do pool
-	resultQueue services.IChannel[t.IResult, int]      // Canal de resultados do pool
-	doneChannel chan struct{}                          // Canal de resultados do pool
+	//jobChannel  services.IChannel[ci.IJob[any], int]    // Canal de trabalho do pool
+	//jobQueue    services.IChannel[ci.IAction[any], int] // Canal de trabalho do pool
+	//resultQueue services.IChannel[ci.IResult, int]      // Canal de resultados do pool
+	doneChannel chan struct{} // Canal de resultados do pool
 }
 
 // NewWorkerPool cria um novo WorkerPool com propriedades genéricas
-func NewWorkerPool(workerLimit int, logger l.Logger) t.IWorkerPool {
+func NewWorkerPool(workerLimit int, logger l.Logger) ci.IWorkerPool {
 	if logger == nil {
 		logger = l.GetLogger("Kubex")
 	}
-	var iJob t.IJob[any]
-	var iResult t.IResult
-	var iAction t.IAction[any]
+	//var iJob ci.IJob[any]
+	//var iResult ci.IResult
+	//var iAction ci.IAction[any]
 	wp := &WorkerPool{
-		mu:          sync.RWMutex{},
-		wg:          sync.WaitGroup{},
-		logger:      logger,
-		ID:          uuid.NewString(),
-		Properties:  make(map[string]any),
-		workers:     make([]t.IWorker, workerLimit),
-		jobQueue:    agents.NewChannel[t.IAction[any], int]("jobQueue", &iAction, 100),
-		jobChannel:  agents.NewChannel[t.IJob[any], int]("jobChannel", &iJob, 100),
-		resultQueue: agents.NewChannel[t.IResult, int]("resultQueue", &iResult, 100),
+		mu:         sync.RWMutex{},
+		wg:         sync.WaitGroup{},
+		logger:     logger,
+		ID:         uuid.NewString(),
+		Properties: make(map[string]any),
+		workers:    make([]ci.IWorker, workerLimit),
+		//jobQueue:    agents.NewChannel[ci.IAction[any], int]("jobQueue", &iAction, 100),
+		//jobChannel:  agents.NewChannel[ci.IJob[any], int]("jobChannel", &iJob, 100),
+		//resultQueue: agents.NewChannel[ci.IResult, int]("resultQueue", &iResult, 100),
 		doneChannel: make(chan struct{}, 5),
 	}
 
 	// Control
-	wkrLimit := p.NewProperty[int]("workerLimit", nil, false, nil)
+	wkrLimit := t.NewProperty[int]("workerLimit", nil, false, nil)
 	// Validator
-	if addValidatorErr := wkrLimit.Prop.AddValidator(p.ValidationFunc[int]{
-		Priority: 0,
-		Func: func(value *int, args ...any) *p.ValidationResult {
-			if *value < 0 {
-				return &p.ValidationResult{
-					IsValid: false,
-					Message: "workerLimit cannot be negative",
-					Error:   fmt.Errorf("workerLimit cannot be negative"),
-				}
-			}
-			if *value > 50 {
-				return &p.ValidationResult{
-					IsValid: false,
-					Message: "workerLimit cannot be greater than 50",
-					Error:   fmt.Errorf("workerLimit cannot be greater than 50"),
-				}
-			}
-			return &p.ValidationResult{
-				IsValid: true,
-				Message: "workerLimit is valid",
-				Error:   nil,
-			}
-
-		},
-		Result: nil,
-	}); addValidatorErr != nil {
-		wp.logger.Error("Erro ao adicionar validador para workerLimit", map[string]any{
-			"context":  "WorkerPool",
-			"action":   "AddValidator",
-			"error":    addValidatorErr,
-			"showData": true,
-		})
-		workerLimit = 0
-		wkrLimit.Prop.Set(&workerLimit)
-		return nil
-	}
-	wkrLimit.Prop.Set(&workerLimit)
+	//if addValidatorErr := wkrLimit.Prop().AddValidator(p.ValidationFunc[int]{
+	//	Priority: 0,
+	//	Func: func(value *int, args ...any) *p.ValidationResult {
+	//		if *value < 0 {
+	//			return &p.ValidationResult{
+	//				IsValid: false,
+	//				Message: "workerLimit cannot be negative",
+	//				Error:   fmt.Errorf("workerLimit cannot be negative"),
+	//			}
+	//		}
+	//		if *value > 50 {
+	//			return &p.ValidationResult{
+	//				IsValid: false,
+	//				Message: "workerLimit cannot be greater than 50",
+	//				Error:   fmt.Errorf("workerLimit cannot be greater than 50"),
+	//			}
+	//		}
+	//		return &p.ValidationResult{
+	//			IsValid: true,
+	//			Message: "workerLimit is valid",
+	//			Error:   nil,
+	//		}
+	//
+	//	},
+	//	Result: nil,
+	//}); addValidatorErr != nil {
+	//	wp.logger.Error("Erro ao adicionar validador para workerLimit", map[string]any{
+	//		"context":  "WorkerPool",
+	//		"action":   "AddValidator",
+	//		"error":    addValidatorErr,
+	//		"showData": true,
+	//	})
+	//	workerLimit = 0
+	//	wkrLimit.Prop.Set(&workerLimit)
+	//	return nil
+	//}
+	wkrLimit.SetValue(&workerLimit)
 	wp.Properties["workerLimit"] = wkrLimit
 
 	zero := 0
-	wkrCount := p.NewProperty[int]("workerCount", nil, false, nil)
-	wkrCount.Prop.Set(&zero)
+	wkrCount := t.NewProperty[int]("workerCount", nil, false, nil)
+	wkrCount.SetValue(&zero)
 	wp.Properties["workerCount"] = wkrCount
 
 	bufferSize := 10
-	wkrBuffer := p.NewProperty[int]("workerBuffer", nil, false, nil)
-	wkrBuffer.Prop.Set(&bufferSize)
+	wkrBuffer := t.NewProperty[int]("workerBuffer", nil, false, nil)
+	wkrBuffer.SetValue(&bufferSize)
 	wp.Properties["buffers"] = wkrBuffer
 
 	return wp
@@ -134,27 +130,27 @@ func (wp *WorkerPool) GetWorkerCount() int {
 }
 
 // GetPoolJobChannel retorna o canal de trabalho do pool
-func (wp *WorkerPool) GetPoolJobChannel() (services.IChannel[t.IJob[any], int], error) {
+func (wp *WorkerPool) GetPoolJobChannel() (services.IChannel[any, int], error) {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
-	if wp.jobChannel != nil {
-		return wp.jobChannel, nil
-	}
+	//if wp.jobChannel != nil {
+	//	return wp.jobChannel, nil
+	//}
 	return nil, fmt.Errorf("failed to get job channel")
 }
 
 // GetPoolResultChannel retorna o canal de resultados do pool
-func (wp *WorkerPool) GetPoolResultChannel() (services.IChannel[t.IResult, int], error) {
+func (wp *WorkerPool) GetPoolResultChannel() (services.IChannel[ci.IResult, int], error) {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
-	if wp.resultQueue != nil {
-		return wp.resultQueue, nil
-	}
+	//if wp.resultQueue != nil {
+	//	return wp.resultQueue, nil
+	//}
 	return nil, fmt.Errorf("failed to get result channel")
 }
 
 // GetJobQueue retorna o canal de trabalho do pool
-func (wp *WorkerPool) GetJobQueue(workerID int) (services.IChannel[t.IAction[any], int], error) {
+func (wp *WorkerPool) GetJobQueue(workerID int) (services.IChannel[any /*ci.IAction[any]*/, int], error) {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
 	if workerID < 0 || workerID >= len(wp.workers) {
@@ -163,9 +159,9 @@ func (wp *WorkerPool) GetJobQueue(workerID int) (services.IChannel[t.IAction[any
 	if wp.workers[workerID] == nil {
 		return nil, fmt.Errorf("worker not found")
 	}
-	if wp.workers[workerID].GetJobQueue() != nil {
-		return wp.workers[workerID].GetJobQueue(), nil
-	}
+	//if wp.workers[workerID].GetJobQueue() != nil {
+	//	return wp.workers[workerID].GetJobQueue(), nil
+	//}
 	return nil, fmt.Errorf("failed to get job queue")
 }
 
@@ -185,15 +181,15 @@ func (wp *WorkerPool) GetWorkerLimit() int {
 	defer wp.mu.RUnlock()
 	valInt := 0
 	if wkrLimit, ok := wp.Properties["workerLimit"]; !ok {
-		if wkrLimitValT, ok := reflect.ValueOf(wkrLimit).Interface().(p.Property[int]); ok {
-			valInt = *wkrLimitValT.Prop.Get(false).(*int)
+		if wkrLimitValT, ok := reflect.ValueOf(wkrLimit).Interface().(t.Property[int]); ok {
+			valInt = wkrLimitValT.GetValue()
 		}
 	}
 	return valInt
 }
 
 // GetWorker retorna um worker específico do pool
-func (wp *WorkerPool) GetWorker(workerID int) (t.IWorker, error) {
+func (wp *WorkerPool) GetWorker(workerID int) (ci.IWorker, error) {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
 	if workerID < 0 || workerID >= len(wp.workers) {
@@ -203,27 +199,28 @@ func (wp *WorkerPool) GetWorker(workerID int) (t.IWorker, error) {
 }
 
 // GetWorkerChannel retorna o canal de trabalho de um worker específico
-func (wp *WorkerPool) GetWorkerChannel(workerID int) (services.IChannel[t.IJob[any], int], error) {
+func (wp *WorkerPool) GetWorkerChannel(workerID int) (services.IChannel[any /*ci.IJob[any]*/, int], error) {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
 	if workerID < 0 || workerID >= len(wp.workers) {
 		return nil, fmt.Errorf("worker ID out of range")
 	}
-	return wp.workers[workerID].GetJobChannel(), nil
+	//return wp.workers[workerID].GetJobChannel(), nil
+	return nil, nil
 }
 
 // GetResultChannel retorna o canal de resultados de um worker específico
-func (wp *WorkerPool) GetResultChannel(workerID int) (services.IChannel[t.IResult, int], error) {
+func (wp *WorkerPool) GetResultChannel(workerID int) (services.IChannel[ci.IResult, int], error) {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
 	if workerID < 0 || workerID >= len(wp.workers) {
 		return nil, fmt.Errorf("worker ID out of range")
 	}
-	return wp.workers[workerID].GetResultChannel(), nil
+	return nil, nil
 }
 
 // GetWorkerPool retorna o pool de workers
-func (wp *WorkerPool) GetWorkerPool() []t.IWorker {
+func (wp *WorkerPool) GetWorkerPool() []ci.IWorker {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
 	return wp.workers
@@ -235,8 +232,8 @@ func (wp *WorkerPool) Debug() {
 	defer wp.mu.RUnlock()
 	valInt := 0
 	if wkrLimit, ok := wp.Properties["workerLimit"]; !ok {
-		if wkrLimitValT, ok := reflect.ValueOf(wkrLimit).Interface().(p.Property[int]); ok {
-			valInt = *wkrLimitValT.Prop.Get(false).(*int)
+		if wkrLimitValT, ok := reflect.ValueOf(wkrLimit).Interface().(t.Property[int]); ok {
+			valInt = wkrLimitValT.GetValue()
 		}
 	}
 
@@ -256,9 +253,10 @@ func (wp *WorkerPool) SendToWorker(workerID int, job any) error {
 		return fmt.Errorf("worker ID out of range")
 	}
 
-	jobCh := wp.workers[workerID].GetJobChannel()
+	//jobCh := wp.workers[workerID].GetJobChannel()
 
-	return jobCh.Send(job)
+	//return jobCh.Send(job)
+	return nil
 }
 
 // Report gera um relatório do estado do Wo-rkerPool
@@ -268,8 +266,8 @@ func (wp *WorkerPool) Report() string {
 
 	valInt := 0
 	if wkrLimit, ok := wp.Properties["workerLimit"]; !ok {
-		if wkrLimitValT, ok := reflect.ValueOf(wkrLimit).Interface().(p.Property[int]); ok {
-			valInt = *wkrLimitValT.Prop.Get(false).(*int)
+		if wkrLimitValT, ok := reflect.ValueOf(wkrLimit).Interface().(t.Property[int]); ok {
+			valInt = wkrLimitValT.GetValue()
 		}
 	}
 
@@ -318,7 +316,7 @@ func (wp *WorkerPool) RemoveListener(event string) error {
 }
 
 // AddWorker adiciona um novo worker ao pool
-func (wp *WorkerPool) AddWorker(workerID int, worker t.IWorker) error {
+func (wp *WorkerPool) AddWorker(workerID int, worker ci.IWorker) error {
 	wp.mu.Lock()
 	defer wp.mu.Unlock()
 	if workerID < 0 || workerID >= len(wp.workers) {
@@ -336,8 +334,8 @@ func (wp *WorkerPool) SetWorkerLimit(limit int) error {
 		return fmt.Errorf("worker limit cannot be negative")
 	}
 	if wkrLimit, ok := wp.Properties["workerLimit"]; !ok {
-		if wkrLimitValT, ok := reflect.ValueOf(wkrLimit).Interface().(p.Property[int]); ok {
-			wkrLimitValT.Prop.Set(&limit)
+		if wkrLimitValT, ok := reflect.ValueOf(wkrLimit).Interface().(t.Property[int]); ok {
+			wkrLimitValT.SetValue(&limit)
 			wp.Properties["workerLimit"] = wkrLimitValT
 		}
 	}
@@ -345,7 +343,7 @@ func (wp *WorkerPool) SetWorkerLimit(limit int) error {
 }
 
 // SetWorkerPool define o pool de workers
-func (wp *WorkerPool) SetWorkerPool(workerPool []t.IWorker) error {
+func (wp *WorkerPool) SetWorkerPool(workerPool []ci.IWorker) error {
 	wp.mu.Lock()
 	defer wp.mu.Unlock()
 	if workerPool == nil {
@@ -354,8 +352,8 @@ func (wp *WorkerPool) SetWorkerPool(workerPool []t.IWorker) error {
 	}
 	valInt := 0
 	if wkrLimit, ok := wp.Properties["workerLimit"]; !ok {
-		if wkrLimitValT, ok := reflect.ValueOf(wkrLimit).Interface().(p.Property[int]); ok {
-			valInt = *wkrLimitValT.Prop.Get(false).(*int)
+		if wkrLimitValT, ok := reflect.ValueOf(wkrLimit).Interface().(t.Property[int]); ok {
+			valInt = wkrLimitValT.GetValue()
 		}
 	}
 	if len(workerPool) > valInt {
@@ -373,10 +371,12 @@ func (wp *WorkerPool) getChannel(key string) (any, error) {
 		return nil, fmt.Errorf("channel %s not found", key)
 	}
 	if wkrProp, ok := wp.Properties[key]; !ok {
-		if wkrPropT, ok := reflect.ValueOf(wkrProp).Interface().(p.Property[any]); ok {
-			return wkrPropT.Prop.Channel(), nil
+		//if wkrPropT, ok := reflect.ValueOf(wkrProp).Interface().(t.Property[any]); ok {
+		if _, ok := reflect.ValueOf(wkrProp).Interface().(t.Property[any]); ok {
+			//return wkrPropT.Channel(), nil
+			return nil, nil
 		} else {
-			return reflect.ValueOf(wkrProp).Interface().(*p.Property[any]).Prop.Channel(), nil
+			//return reflect.ValueOf(wkrProp).Interface().(*t.Property[any]).Prop.Channel(), nil
 		}
 	}
 	return nil, fmt.Errorf("failed to get channel %s", key)
@@ -391,7 +391,7 @@ func (wp *WorkerPool) validateWorkerID(workerID int) error {
 }
 
 // getWorkerChannel retorna o canal de um worker específico
-func (wp *WorkerPool) getWorkerChannel(workerID int, channelFunc func(t.IWorker) services.IChannel[t.IJob[any], int]) (services.IChannel[t.IJob[any], int], error) {
+func (wp *WorkerPool) getWorkerChannel(workerID int, channelFunc func(ci.IWorker) services.IChannel[any /*ci.IJob[any]*/, int]) (services.IChannel[any /*ci.IJob[any]*/, int], error) {
 	if err := wp.validateWorkerID(workerID); err != nil {
 		return nil, err
 	}

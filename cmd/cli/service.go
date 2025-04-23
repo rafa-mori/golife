@@ -55,7 +55,7 @@ func lifeCycleManagerCmd() *cobra.Command {
 	lCMCmd.Flags().StringVarP(&processName, "name", "n", "", "Name of the process")
 	lCMCmd.Flags().StringVarP(&processCmd, "cmd", "c", "", "Command to execute")
 	lCMCmd.Flags().StringSliceVarP(&processArgs, "args", "a", []string{}, "Arguments to pass to the command")
-	lCMCmd.Flags().BoolVarP(&processWait, "wait", "w", false, "Wait for the process to finish before returning")
+	lCMCmd.Flags().BoolVarP(&processWait, "wait", "w", false, "MuWait for the process to finish before returning")
 	lCMCmd.Flags().BoolVarP(&restart, "restart", "r", false, "Restart the process if it is already running")
 	lCMCmd.Flags().StringSliceVarP(&stages, "stages", "s", []string{}, "Stages to listen for and trigger")
 	lCMCmd.Flags().StringSliceVarP(&triggers, "triggers", "t", []string{}, "Triggers to listen for and trigger")
@@ -117,7 +117,7 @@ func startCommand() *cobra.Command {
 	startCmd.Flags().StringVarP(&processName, "name", "n", "", "Name of the process")
 	startCmd.Flags().StringVarP(&processCmd, "cmd", "c", "", "Command to execute")
 	startCmd.Flags().StringSliceVarP(&processArgs, "args", "a", []string{}, "Arguments to pass to the command")
-	startCmd.Flags().BoolVarP(&processWait, "wait", "w", false, "Wait for the process to finish before returning")
+	startCmd.Flags().BoolVarP(&processWait, "wait", "w", false, "MuWait for the process to finish before returning")
 	startCmd.Flags().BoolVarP(&restart, "restart", "r", false, "Restart the process if it is already running")
 	startCmd.Flags().StringSliceVarP(&stages, "stages", "s", []string{}, "Stages to listen for and trigger")
 	startCmd.Flags().StringSliceVarP(&triggers, "triggers", "t", []string{}, "Triggers to listen for and trigger")
@@ -159,7 +159,7 @@ func statusCommand() *cobra.Command {
 			if manager == nil {
 				l.Error("no manager found", map[string]interface{}{})
 			} else {
-				l.Info(manager.Status(), map[string]interface{}{})
+				l.Info(manager.StatusLifecycle(), map[string]interface{}{})
 			}
 		},
 	}
@@ -177,7 +177,7 @@ func restartCommand() *cobra.Command {
 			if manager == nil {
 				l.Error("no manager found", map[string]interface{}{})
 			} else {
-				if err := manager.Restart(); err != nil {
+				if err := manager.RestartLifecycle(); err != nil {
 					l.Error(fmt.Sprintf("Fail to restart process: %s", err), map[string]interface{}{})
 				} else {
 					l.Info("Process restarted successfully", map[string]interface{}{})
@@ -220,7 +220,7 @@ func serviceCommand() *cobra.Command {
 	serviceCmd.Flags().StringVarP(&processName, "name", "n", "", "Name of the process")
 	serviceCmd.Flags().StringVarP(&processCmd, "cmd", "c", "", "Command to execute")
 	serviceCmd.Flags().StringSliceVarP(&processArgs, "args", "a", []string{}, "Arguments to pass to the command")
-	serviceCmd.Flags().BoolVarP(&processWait, "wait", "w", false, "Wait for the process to finish before returning")
+	serviceCmd.Flags().BoolVarP(&processWait, "wait", "w", false, "MuWait for the process to finish before returning")
 	serviceCmd.Flags().StringToStringVarP(&processEvents, "events", "e", map[string]string{}, "Events to listen for and trigger")
 
 	return serviceCmd

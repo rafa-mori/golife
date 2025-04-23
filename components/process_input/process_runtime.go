@@ -10,18 +10,16 @@ import (
 type ProcessRuntimeBase[T any, P any] struct {
 	// Logger is the logger for the process
 	Logger l.Logger
-	// Reference is the reference for the process with ID and Name
-	*t.Reference `json:"reference" yaml:"reference" xml:"reference" gorm:"reference"`
 	// Mutexes is the mutex for the process
 	*t.Mutexes
-	// ObjectType is the type of the object
-	ObjectType reflect.Type `json:"object_type" yaml:"object_type" xml:"object_type" gorm:"object_type"`
-	// Object is the object to pass to the command
-	Object *P `json:"object" yaml:"object" xml:"object" gorm:"object"`
-	// Function is a custom function to wrap the command
-	Function *t.ValidationFunc[ProcessInput[P]] `json:"function" yaml:"function" xml:"function" gorm:"function"`
-
+	// Reference is the reference for the process with ID and Name
+	*t.Reference `json:"reference" yaml:"reference" xml:"reference" gorm:"reference"`
+	// ProcessConfig is the configuration for the process
 	*ProcessConfig[P] `json:"process_config" yaml:"process_config" xml:"process_config" gorm:"process_config"`
+	// Object is the object to pass to the command
+	Object *P `json:"object,omitempty" yaml:"object,omitempty" xml:"object,omitempty" gorm:"object,omitempty"`
+	// Function is a custom function to wrap the command
+	Function *t.ValidationFunc[ProcessInput[P]] `json:"function,omitempty" yaml:"function,omitempty" xml:"function,omitempty" gorm:"function,omitempty"`
 }
 
 // newProcessRuntimeBase creates a new ProcessRuntimeBase instance.
@@ -43,8 +41,8 @@ func (pi *ProcessRuntimeBase[T, P]) GetObjectType() reflect.Type { return reflec
 
 // GetObject returns the object to pass to the command.
 func (pi *ProcessRuntimeBase[T, P]) GetObject() *P {
-	pi.Mutexes.RLock()
-	defer pi.Mutexes.RUnlock()
+	pi.Mutexes.MuRLock()
+	defer pi.Mutexes.MuRUnlock()
 
 	return pi.Object
 }
@@ -54,8 +52,8 @@ func (pi *ProcessRuntimeBase[T, P]) GetFunction() *t.ValidationFunc[ProcessInput
 	if pi == nil {
 		return nil
 	}
-	pi.Mutexes.RLock()
-	defer pi.Mutexes.RUnlock()
+	pi.Mutexes.MuRLock()
+	defer pi.Mutexes.MuRUnlock()
 
 	return pi.Function
 }
