@@ -18,7 +18,7 @@ var (
 	debug bool
 	// g is the global logger instance.
 	g *gLog = &gLog{
-		Logger:    l.GetLogger("GoLife - Test"),
+		Logger:    l.GetLogger("GoBeMin - Test"),
 		gLogLevel: LogTypeInfo,
 	}
 )
@@ -29,7 +29,7 @@ func init() {
 	// Initialize the global logger instance with a default logger.
 	if g.Logger == nil {
 		g = &gLog{
-			Logger:    l.GetLogger("GoLife - Test"),
+			Logger:    l.GetLogger("GoBeMin - Test"),
 			gLogLevel: LogTypeInfo,
 		}
 	}
@@ -54,7 +54,7 @@ func SetDebug(d bool) { debug = d }
 // LogObjLogger is a function that logs messages with the specified log type.
 func LogObjLogger[T any](obj *T, logType string, messages ...string) {
 	if obj == nil {
-		g.Error(fmt.Sprintf("log object (%s) is nil", reflect.TypeFor[T]()), map[string]any{
+		g.ErrorCtx(fmt.Sprintf("log object (%s) is nil", reflect.TypeFor[T]()), map[string]any{
 			"context":  "Log",
 			"logType":  logType,
 			"object":   obj,
@@ -66,7 +66,7 @@ func LogObjLogger[T any](obj *T, logType string, messages ...string) {
 	var lgr l.Logger
 	if objValueLogger := reflect.ValueOf(obj).Elem().MethodByName("GetLogger"); !objValueLogger.IsValid() {
 		if objValueLogger = reflect.ValueOf(obj).Elem().FieldByName("Logger"); !objValueLogger.IsValid() {
-			g.Error(fmt.Sprintf("log object (%s) does not have a logger field", reflect.TypeFor[T]()), map[string]any{
+			g.ErrorCtx(fmt.Sprintf("log object (%s) does not have a logger field", reflect.TypeFor[T]()), map[string]any{
 				"context":  "Log",
 				"logType":  logType,
 				"object":   obj,
@@ -94,7 +94,7 @@ func LogObjLogger[T any](obj *T, logType string, messages ...string) {
 	}
 	pc, file, line, ok := runtime.Caller(1)
 	if !ok {
-		lgr.Error("Log: unable to get caller information", nil)
+		lgr.ErrorCtx("Log: unable to get caller information", nil)
 		return
 	}
 	funcName := runtime.FuncForPC(pc).Name()
@@ -112,10 +112,10 @@ func LogObjLogger[T any](obj *T, logType string, messages ...string) {
 			ctxMessageMap["logType"] = logType
 			logging(lgr, lType, fullMessage, ctxMessageMap)
 		} else {
-			lgr.Error(fmt.Sprintf("logType (%s) is not valid", logType), ctxMessageMap)
+			lgr.ErrorCtx(fmt.Sprintf("logType (%s) is not valid", logType), ctxMessageMap)
 		}
 	} else {
-		lgr.Info(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
+		lgr.InfoCtx(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
 	}
 }
 
@@ -123,7 +123,7 @@ func LogObjLogger[T any](obj *T, logType string, messages ...string) {
 func Log(logType string, messages ...string) {
 	pc, file, line, ok := runtime.Caller(1)
 	if !ok {
-		g.Error("Log: unable to get caller information", nil)
+		g.ErrorCtx("Log: unable to get caller information", nil)
 		return
 	}
 	funcName := runtime.FuncForPC(pc).Name()
@@ -141,10 +141,10 @@ func Log(logType string, messages ...string) {
 			ctxMessageMap["logType"] = logType
 			logging(g.Logger, lType, fullMessage, ctxMessageMap)
 		} else {
-			g.Error(fmt.Sprintf("logType (%s) is not valid", logType), ctxMessageMap)
+			g.ErrorCtx(fmt.Sprintf("logType (%s) is not valid", logType), ctxMessageMap)
 		}
 	} else {
-		g.Info(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
+		g.InfoCtx(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
 	}
 }
 
@@ -162,23 +162,23 @@ func logging(lgr l.Logger, lType LogType, fullMessage string, ctxMessageMap map[
 	ctxMessageMap["showData"] = debugCtx
 	switch lType {
 	case LogTypeInfo:
-		lgr.Info(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
+		lgr.InfoCtx(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
 	case LogTypeDebug:
-		lgr.Debug(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
+		lgr.DebugCtx(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
 	case LogTypeError:
-		lgr.Error(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
+		lgr.ErrorCtx(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
 	case LogTypeWarn:
-		lgr.Warn(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
+		lgr.WarnCtx(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
 	case LogTypeNotice:
-		lgr.Notice(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
+		lgr.NoticeCtx(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
 	case LogTypeSuccess:
-		lgr.Success(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
+		lgr.SuccessCtx(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
 	case LogTypeFatal:
-		lgr.FatalC(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
+		lgr.FatalCtx(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
 	case LogTypePanic:
-		lgr.Panic(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
+		lgr.FatalCtx(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
 	default:
-		lgr.Info(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
+		lgr.InfoCtx(fmt.Sprintf("%s", fullMessage), ctxMessageMap)
 	}
 	debugCtx = debug
 }
