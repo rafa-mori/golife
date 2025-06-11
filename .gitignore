@@ -26,3 +26,4 @@ go.work.sum
 .env
 
 /.idea
+*_linux_amd64*
