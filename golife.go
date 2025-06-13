@@ -2,10 +2,10 @@ package golife
 
 import (
 	"fmt"
-	ci "github.com/faelmori/golife/internal/components/interfaces"
-	p "github.com/faelmori/golife/internal/components/types"
-	gl "github.com/faelmori/golife/logger"
-	l "github.com/faelmori/logz"
+	ci "github.com/rafa-mori/golife/internal/components/interfaces"
+	p "github.com/rafa-mori/golife/internal/components/types"
+	gl "github.com/rafa-mori/golife/logger"
+	l "github.com/rafa-mori/logz"
 	"reflect"
 )
 

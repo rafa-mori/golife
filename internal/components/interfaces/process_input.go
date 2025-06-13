@@ -2,7 +2,7 @@ package interfaces
 
 import (
 	"context"
-	l "github.com/faelmori/logz"
+	l "github.com/rafa-mori/logz"
 )
 
 type IProcessInput[T any] interface {

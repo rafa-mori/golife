@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/emersion/go-imap"
 	"github.com/emersion/go-message/mail"
-	"github.com/faelmori/logz"
+	"github.com/rafa-mori/logz"
 	"io"
 	"strings"
 )

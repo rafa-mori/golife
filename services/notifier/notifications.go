@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/faelmori/golife/internal/routines/taskz/events"
-	"github.com/faelmori/logz"
+	"github.com/rafa-mori/golife/internal/routines/taskz/events"
+	"github.com/rafa-mori/logz"
 	"net/http"
 	"net/smtp"
 )

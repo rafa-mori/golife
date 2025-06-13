@@ -1,8 +1,8 @@
 package types
 
 import (
-	ci "github.com/faelmori/golife/internal/components/interfaces"
-	l "github.com/faelmori/logz"
+	ci "github.com/rafa-mori/golife/internal/components/interfaces"
+	l "github.com/rafa-mori/logz"
 )
 
 type Components[T ci.IProperty[ci.IProcessInput[ci.IManagedProcess[any]]]] struct {

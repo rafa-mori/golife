@@ -2,7 +2,7 @@ package types
 
 import (
 	"fmt"
-	ci "github.com/faelmori/golife/internal/components/interfaces"
+	ci "github.com/rafa-mori/golife/internal/components/interfaces"
 )
 
 type StageManager struct {

@@ -2,10 +2,10 @@ package types
 
 import (
 	"fmt"
-	ci "github.com/faelmori/golife/internal/components/interfaces"
-	tu "github.com/faelmori/golife/internal/components/utils"
-	gl "github.com/faelmori/golife/logger"
-	l "github.com/faelmori/logz"
+	ci "github.com/rafa-mori/golife/internal/components/interfaces"
+	tu "github.com/rafa-mori/golife/internal/components/utils"
+	gl "github.com/rafa-mori/golife/logger"
+	l "github.com/rafa-mori/logz"
 
 	"github.com/google/uuid"
 	"reflect"

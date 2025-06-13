@@ -2,11 +2,11 @@ package cli
 
 import (
 	"fmt"
-	//ci "github.com/faelmori/golife/internal/components/interfaces"
-	//. "github.com/faelmori/golife/internal/components/process"
-	//"github.com/faelmori/golife/internal/components/types"
-	//pi "github.com/faelmori/golife/internal/components/types"
-	l "github.com/faelmori/logz"
+	//ci "github.com/rafa-mori/golife/internal/components/interfaces"
+	//. "github.com/rafa-mori/golife/internal/components/process"
+	//"github.com/rafa-mori/golife/internal/components/types"
+	//pi "github.com/rafa-mori/golife/internal/components/types"
+	l "github.com/rafa-mori/logz"
 	"github.com/spf13/cobra"
 	"os"
 	"os/exec"

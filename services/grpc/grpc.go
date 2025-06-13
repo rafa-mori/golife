@@ -9,8 +9,8 @@ import (
 	//"google.golang.org/grpc"
 	//"google.golang.org/grpc/reflection"
 
-	"github.com/faelmori/golife/internal"
-	//pb "github.com/faelmori/golife/services/proto"
+	"github.com/rafa-mori/golife/internal"
+	//pb "github.com/rafa-mori/golife/services/proto"
 )
 
 type server struct {

@@ -1,9 +1,9 @@
 package main
 
 import (
-	cc "github.com/faelmori/golife/cmd/cli"
-	vs "github.com/faelmori/golife/version"
-	l "github.com/faelmori/logz"
+	cc "github.com/rafa-mori/golife/cmd/cli"
+	vs "github.com/rafa-mori/golife/version"
+	l "github.com/rafa-mori/logz"
 
 	"github.com/spf13/cobra"
 

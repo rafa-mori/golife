@@ -1,7 +1,7 @@
 package types
 
 import (
-	ci "github.com/faelmori/golife/internal/components/interfaces"
+	ci "github.com/rafa-mori/golife/internal/components/interfaces"
 	"github.com/google/uuid"
 	"sync"
 )

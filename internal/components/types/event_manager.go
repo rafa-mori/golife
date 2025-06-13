@@ -2,8 +2,8 @@ package types
 
 import (
 	"fmt"
-	ci "github.com/faelmori/golife/internal/components/interfaces"
-	gl "github.com/faelmori/golife/logger"
+	ci "github.com/rafa-mori/golife/internal/components/interfaces"
+	gl "github.com/rafa-mori/golife/logger"
 )
 
 type EventManager struct {

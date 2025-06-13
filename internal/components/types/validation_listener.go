@@ -1,7 +1,7 @@
 package types
 
 import (
-	gl "github.com/faelmori/golife/logger"
+	gl "github.com/rafa-mori/golife/logger"
 	"reflect"
 )
 

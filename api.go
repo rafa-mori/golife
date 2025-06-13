@@ -1,7 +1,7 @@
 package golife
 
 //import (
-//	_ "github.com/faelmori/golife/internal/routines/taskz"
+//	_ "github.com/rafa-mori/golife/internal/routines/taskz"
 //)
 
 //// Action is a generic type that represents an action of type T.

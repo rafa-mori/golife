@@ -1,12 +1,12 @@
 # **Contributing to GoLife**
 
-Thank you for your interest in contributing to **[GoLife](https://github.com/faelmori/golife)**! We are excited to have you as part of our community. This guide will help you get started and contribute effectively to the project.
+Thank you for your interest in contributing to **[GoLife](https://github.com/rafa-mori/golife)**! We are excited to have you as part of our community. This guide will help you get started and contribute effectively to the project.
 
 ---
 
 ## **How to Contribute**
 
-There are several ways to contribute to [GoLife](https://github.com/faelmori/golife):
+There are several ways to contribute to [GoLife](https://github.com/rafa-mori/golife):
 
 1. **Report Issues**
    - Found bugs or issues in the code? Open an issue detailing the problem.
@@ -28,7 +28,7 @@ There are several ways to contribute to [GoLife](https://github.com/faelmori/gol
 
 ### 1. **Clone the Repository**
 ```bash
-git clone https://github.com/faelmori/golife.git
+git clone https://github.com/rafa-mori/golife.git
 cd golife
 ```
 

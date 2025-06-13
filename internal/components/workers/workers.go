@@ -1,9 +1,9 @@
 package workers
 
 import (
-	ci "github.com/faelmori/golife/internal/components/interfaces"
-	t "github.com/faelmori/golife/internal/components/types"
-	l "github.com/faelmori/logz"
+	ci "github.com/rafa-mori/golife/internal/components/interfaces"
+	t "github.com/rafa-mori/golife/internal/components/types"
+	l "github.com/rafa-mori/logz"
 
 	"reflect"
 	"sync"

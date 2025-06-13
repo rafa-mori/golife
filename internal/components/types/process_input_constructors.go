@@ -1,9 +1,9 @@
 package types
 
 import (
-	ci "github.com/faelmori/golife/internal/components/interfaces"
-	gl "github.com/faelmori/golife/logger"
-	l "github.com/faelmori/logz"
+	ci "github.com/rafa-mori/golife/internal/components/interfaces"
+	gl "github.com/rafa-mori/golife/logger"
+	l "github.com/rafa-mori/logz"
 )
 
 // newProcessInputFromConfig creates a new ProcessInput instance from the provided config data.

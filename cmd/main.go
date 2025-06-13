@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
-	g "github.com/faelmori/golife"
-	i "github.com/faelmori/golife/internal"
-	pi "github.com/faelmori/golife/internal/components/process_input"
-	p "github.com/faelmori/golife/internal/components/types"
-	gl "github.com/faelmori/golife/logger"
-	l "github.com/faelmori/logz"
+	g "github.com/rafa-mori/golife"
+	p "github.com/rafa-mori/golife/internal/components/types"
+	pi "github.com/rafa-mori/golife/internal/components/types"
+	i "github.com/rafa-mori/golife/internal/interfaces"
+	gl "github.com/rafa-mori/golife/logger"
+	l "github.com/rafa-mori/logz"
 	"os"
 	"os/signal"
 	"reflect"

@@ -1,7 +1,7 @@
 package types
 
 import (
-	l "github.com/faelmori/logz"
+	l "github.com/rafa-mori/logz"
 	"sync"
 	"time"
 )

@@ -2,7 +2,7 @@ package types
 
 import (
 	"fmt"
-	gl "github.com/faelmori/golife/logger"
+	gl "github.com/rafa-mori/golife/logger"
 	"github.com/google/uuid"
 	"reflect"
 	"runtime"

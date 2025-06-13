@@ -1,6 +1,6 @@
 package interfaces
 
-import l "github.com/faelmori/logz"
+import l "github.com/rafa-mori/logz"
 
 type IWorker interface {
 	Logger() l.Logger

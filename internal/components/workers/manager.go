@@ -2,9 +2,9 @@ package workers
 
 import (
 	"fmt"
-	ci "github.com/faelmori/golife/internal/components/interfaces"
-	f "github.com/faelmori/golife/internal/components/types"
-	l "github.com/faelmori/logz"
+	ci "github.com/rafa-mori/golife/internal/components/interfaces"
+	f "github.com/rafa-mori/golife/internal/components/types"
+	l "github.com/rafa-mori/logz"
 	"github.com/google/uuid"
 	"sync"
 )
