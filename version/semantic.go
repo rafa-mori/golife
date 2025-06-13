@@ -1,26 +1,66 @@
 package version
 
 import (
+	"os"
+	"path/filepath"
+
+	gl "github.com/rafa-mori/goforge/logger"
+	l "github.com/rafa-mori/logz"
+
+	"github.com/spf13/cobra"
+
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
-type VersionService interface {
+func init() {
+	if owner := os.Getenv("GITHUB_OWNER"); owner != "" {
+		projectOwner = owner
+	}
+	moduleName = os.Getenv("GITHUB_REPOSITORY")
+	if moduleName == "" {
+		moduleName, err := os.Executable()
+		if err == nil {
+			moduleName = filepath.Base(moduleName)
+		}
+	}
+	if moduleAliasEnv := os.Getenv("MODULE_ALIAS"); moduleAliasEnv != "" {
+		moduleAlias = moduleAliasEnv
+	}
+}
+
+var moduleAlias = "GoForge" // Default module alias, can be overridden by environment variable
+var moduleName = "goforge"  // Default module name, can be overridden by environment variable
+
+const currentVersionFallback = "v0.0.1"
+
+//go:embed CLI_VERSION
+var cliVersion string
+var projectOwner = "faelmori" // Default project owner, can be overridden by environment variable
+var gitModelUrl = "https://github.com/" + projectOwner + "/" + moduleName + ".git"
+
+type Service interface {
 	GetLatestVersion() (string, error)
 	GetCurrentVersion() string
 	IsLatestVersion() (bool, error)
 }
-type VersionServiceImpl struct {
+type ServiceImpl struct {
 	gitModelUrl    string
 	latestVersion  string
 	currentVersion string
 }
 type Tag struct {
 	Name string `json:"name"`
+}
+
+func init() {
+	l.GetLogger(moduleAlias)
 }
 
 func getLatestTag(repoURL string) (string, error) {
@@ -49,8 +89,8 @@ func getLatestTag(repoURL string) (string, error) {
 	return tags[0].Name, nil
 }
 
-func (v *VersionServiceImpl) updateLatestVersion() error {
-	repoURL := "https://api.github.com/repos/faelmori/spidergo"
+func (v *ServiceImpl) updateLatestVersion() error {
+	repoURL := strings.TrimSuffix(v.gitModelUrl, ".git")
 	tag, err := getLatestTag(repoURL)
 	if err != nil {
 		return err
@@ -58,7 +98,7 @@ func (v *VersionServiceImpl) updateLatestVersion() error {
 	v.latestVersion = tag
 	return nil
 }
-func (v *VersionServiceImpl) vrsCompare(v1, v2 []int) (int, error) {
+func (v *ServiceImpl) vrsCompare(v1, v2 []int) (int, error) {
 	if len(v1) != len(v2) {
 		return 0, fmt.Errorf("version length mismatch")
 	}
@@ -75,7 +115,7 @@ func (v *VersionServiceImpl) vrsCompare(v1, v2 []int) (int, error) {
 	}
 	return 0, nil
 }
-func (v *VersionServiceImpl) versionAtMost(versionAtMostArg, max []int) (bool, error) {
+func (v *ServiceImpl) versionAtMost(versionAtMostArg, max []int) (bool, error) {
 	if comp, err := v.vrsCompare(versionAtMostArg, max); err != nil {
 		return false, err
 	} else if comp == 1 {
@@ -83,7 +123,7 @@ func (v *VersionServiceImpl) versionAtMost(versionAtMostArg, max []int) (bool, e
 	}
 	return true, nil
 }
-func (v *VersionServiceImpl) parseVersion(versionToParse string) []int {
+func (v *ServiceImpl) parseVersion(versionToParse string) []int {
 	version := make([]int, 3)
 	for idx, vStr := range strings.Split(versionToParse, ".") {
 		vS, err := strconv.Atoi(vStr)
@@ -95,7 +135,7 @@ func (v *VersionServiceImpl) parseVersion(versionToParse string) []int {
 	return version
 }
 
-func (v *VersionServiceImpl) IsLatestVersion() (bool, error) {
+func (v *ServiceImpl) IsLatestVersion() (bool, error) {
 	if v.latestVersion == "" {
 		if err := v.updateLatestVersion(); err != nil {
 			return false, err
@@ -116,7 +156,7 @@ func (v *VersionServiceImpl) IsLatestVersion() (bool, error) {
 	}
 	return false, nil
 }
-func (v *VersionServiceImpl) GetLatestVersion() (string, error) {
+func (v *ServiceImpl) GetLatestVersion() (string, error) {
 	if v.latestVersion == "" {
 		if err := v.updateLatestVersion(); err != nil {
 			return "", err
@@ -125,33 +165,106 @@ func (v *VersionServiceImpl) GetLatestVersion() (string, error) {
 
 	return v.latestVersion, nil
 }
-func (v *VersionServiceImpl) GetCurrentVersion() string { return v.currentVersion }
+func (v *ServiceImpl) GetCurrentVersion() string { return v.currentVersion }
 
-func NewVersionService() VersionService {
-	return &VersionServiceImpl{
+func NewVersionService() Service {
+	return &ServiceImpl{
 		gitModelUrl:    gitModelUrl,
 		currentVersion: currentVersion,
 		latestVersion:  "",
 	}
 }
 
-func CheckVersion() {
-	v := NewVersionService()
-	if isLatest, err := v.IsLatestVersion(); err != nil {
-		fmt.Printf("❌ Erro ao verificar versão: %v\n", err)
-	} else if isLatest {
-		fmt.Println("✅ Você está na última versão!")
+var (
+	versionCmd = &cobra.Command{
+		Use:   "version",
+		Short: "Print the version number of " + moduleAlias,
+		Long:  "Print the version number of " + moduleAlias,
+		Run: func(cmd *cobra.Command, args []string) {
+			GetVersionInfo()
+		},
+	}
+	subLatestCmd = &cobra.Command{
+		Use:   "latest",
+		Short: "Print the latest version number of " + moduleAlias,
+		Long:  "Print the latest version number of " + moduleAlias,
+		Run: func(cmd *cobra.Command, args []string) {
+			GetLatestVersionInfo()
+		},
+	}
+	subCmdCheck = &cobra.Command{
+		Use:   "check",
+		Short: "Check if the current version is the latest version of " + moduleAlias,
+		Long:  "Check if the current version is the latest version of " + moduleAlias,
+		Run: func(cmd *cobra.Command, args []string) {
+			GetVersionInfoWithLatestAndCheck()
+		},
+	}
+)
+
+//go:embed CLI_VERSION
+var currentVersion string
+
+func GetVersion() string {
+	if currentVersion == "" {
+		return currentVersionFallback
+	}
+	return currentVersion
+}
+
+func GetGitModelUrl() string {
+	return gitModelUrl
+}
+
+func GetVersionInfo() string {
+	gl.Log("info", "Version: "+GetVersion())
+	gl.Log("info", "Git repository: "+GetGitModelUrl())
+	return fmt.Sprintf("Version: %s\nGit repository: %s", GetVersion(), GetGitModelUrl())
+}
+
+func GetLatestVersionFromGit() string {
+	netClient := &http.Client{
+		Timeout: time.Second * 10,
+	}
+
+	gitUrlWithoutGit := strings.TrimSuffix(gitModelUrl, ".git")
+
+	response, err := netClient.Get(gitUrlWithoutGit + "/releases/latest")
+	if err != nil {
+		gl.Log("error", "Error fetching latest version: "+err.Error())
+		gl.Log("error", gitUrlWithoutGit+"/releases/latest")
+		return err.Error()
+	}
+
+	if response.StatusCode != 200 {
+		gl.Log("error", "Error fetching latest version: "+response.Status)
+		gl.Log("error", "Url: "+gitUrlWithoutGit+"/releases/latest")
+		body, _ := io.ReadAll(response.Body)
+		return fmt.Sprintf("Error: %s\nResponse: %s", response.Status, string(body))
+	}
+
+	tag := strings.Split(response.Request.URL.Path, "/")
+
+	return tag[len(tag)-1]
+}
+
+func GetLatestVersionInfo() string {
+	gl.Log("info", "Latest version: "+GetLatestVersionFromGit())
+	return "Latest version: " + GetLatestVersionFromGit()
+}
+
+func GetVersionInfoWithLatestAndCheck() string {
+	if GetVersion() == GetLatestVersionFromGit() {
+		gl.Log("info", "You are using the latest version.")
+		return fmt.Sprintf("You are using the latest version.\n%s\n%s", GetVersionInfo(), GetLatestVersionInfo())
 	} else {
-		latestV, latestVErr := v.GetLatestVersion()
-		if latestVErr != nil {
-			fmt.Printf("❌ Erro ao obter última versão: %v\n", latestVErr)
-			return
-		}
-		fmt.Printf("🔴 Nova versão disponível: %s\n", latestV)
+		gl.Log("warn", "You are using an outdated version.")
+		return fmt.Sprintf("You are using an outdated version.\n%s\n%s", GetVersionInfo(), GetLatestVersionInfo())
 	}
 }
-func Version() string { return NewVersionService().GetCurrentVersion() }
 
-func main() {
-
+func CliCommand() *cobra.Command {
+	versionCmd.AddCommand(subLatestCmd)
+	versionCmd.AddCommand(subCmdCheck)
+	return versionCmd
 }
