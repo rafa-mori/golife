@@ -2,7 +2,7 @@ package internal
 
 import (
 	"fmt"
-	"github.com/faelmori/logz"
+	"github.com/rafa-mori/logz"
 	"github.com/google/uuid"
 )
 

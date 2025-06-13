@@ -29,7 +29,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/faelmori/golife"
+	"github.com/rafa-mori/golife"
 )
 
 func main() {
@@ -58,7 +58,7 @@ import (
 	"fmt"
 	"time"
 	
-	"github.com/faelmori/golife"
+	"github.com/rafa-mori/golife"
 )
 
 func main() {
@@ -85,7 +85,7 @@ package main
 import (
 	"fmt"
 	
-	"github.com/faelmori/golife"
+	"github.com/rafa-mori/golife"
 )
 
 func main() {
@@ -129,7 +129,7 @@ package main
 import (
 	"fmt"
 	
-	"github.com/faelmori/golife"
+	"github.com/rafa-mori/golife"
 )
 
 func main() {
@@ -157,7 +157,7 @@ package main
 import (
 	"fmt"
 	
-	"github.com/faelmori/golife"
+	"github.com/rafa-mori/golife"
 )
 
 func main() {

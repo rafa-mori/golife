@@ -1,7 +1,7 @@
 package logger
 
 import (
-	"github.com/faelmori/logz"
+	"github.com/rafa-mori/logz"
 )
 
 type Logger interface {

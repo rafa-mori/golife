@@ -3,7 +3,7 @@ package version
 import (
 	_ "embed"
 	"fmt"
-	"github.com/faelmori/logz/logger"
+	"github.com/rafa-mori/logz/logger"
 	"github.com/spf13/cobra"
 	"io"
 	"net/http"
@@ -13,7 +13,7 @@ import (
 
 const moduleAlias = "GoLife"
 const moduleName = "golife"
-const gitModelUrl = "https://github.com/faelmori/" + moduleName + ".git"
+const gitModelUrl = "https://github.com/rafa-mori/" + moduleName + ".git"
 const currentVersionFallback = "v1.0.8" // First version with the version file
 
 var (

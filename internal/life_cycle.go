@@ -2,7 +2,7 @@ package internal
 
 import (
 	"fmt"
-	l "github.com/faelmori/logz"
+	l "github.com/rafa-mori/logz"
 	"os"
 	"os/signal"
 	"sync"

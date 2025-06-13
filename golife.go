@@ -1,7 +1,7 @@
 package golife
 
 import (
-	i "github.com/faelmori/golife/internal"
+	i "github.com/rafa-mori/golife/internal"
 	"os"
 )
 

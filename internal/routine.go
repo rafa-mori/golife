@@ -2,8 +2,8 @@ package internal
 
 import (
 	"context"
-	s "github.com/faelmori/gkbxsrv/services"
-	"github.com/faelmori/logz"
+	s "github.com/rafa-mori/gkbxsrv/services"
+	"github.com/rafa-mori/logz"
 	"os"
 	"path/filepath"
 	"sync"

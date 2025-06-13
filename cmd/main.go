@@ -1,7 +1,7 @@
 package main
 
 import (
-	l "github.com/faelmori/logz"
+	l "github.com/rafa-mori/logz"
 	"net/http"
 	"os"
 )

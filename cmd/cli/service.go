@@ -2,8 +2,8 @@ package cli
 
 import (
 	"fmt"
-	. "github.com/faelmori/golife/internal"
-	l "github.com/faelmori/logz"
+	. "github.com/rafa-mori/golife/internal"
+	l "github.com/rafa-mori/logz"
 	"github.com/spf13/cobra"
 	"os"
 	"os/exec"

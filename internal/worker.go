@@ -1,7 +1,7 @@
 package internal
 
 import (
-	"github.com/faelmori/logz"
+	"github.com/rafa-mori/logz"
 	"sync"
 )
 

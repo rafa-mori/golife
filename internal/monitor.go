@@ -2,7 +2,7 @@ package internal
 
 import (
 	"time"
-	"github.com/faelmori/logz"
+	"github.com/rafa-mori/logz"
 )
 
 type IManagedMonit interface {

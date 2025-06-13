@@ -2,8 +2,8 @@ package server
 
 import (
 	"fmt"
-	"github.com/faelmori/golife/internal"
-	"github.com/faelmori/logz"
+	"github.com/rafa-mori/golife/internal"
+	"github.com/rafa-mori/logz"
 	"net/http"
 )
 
