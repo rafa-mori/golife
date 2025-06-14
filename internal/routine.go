@@ -2,10 +2,10 @@ package internal
 
 import (
 	"context"
-	s "github.com/rafa-mori/gkbxsrv/services"
-	"github.com/rafa-mori/logz"
-	"os"
-	"path/filepath"
+	// s "github.com/rafa-mori/gdbase/services"
+	// "github.com/rafa-mori/logz"
+	// "os"
+	// "path/filepath"
 	"sync"
 	"time"
 )
@@ -575,25 +575,25 @@ func NewManagedGoroutine(fn func()) *ManagedGoroutine {
 }
 
 func logActivity(activity string) {
-	f := s.NewFileSystemService("")
-	if f == nil {
-		return
-	}
-	fs := *f
-	cfgDir := filepath.Dir(fs.GetConfigFilePath())
-	logFilePath := filepath.Join(cfgDir, "goroutine.log")
+	// f := s.NewFileSystemService("")
+	// if f == nil {
+	// 	return
+	// }
+	// fs := *f
+	// cfgDir := filepath.Dir(fs.GetConfigFilePath())
+	// logFilePath := filepath.Join(cfgDir, "goroutine.log")
 
-	logFile, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		logz.Error("Erro ao abrir arquivo de log", map[string]interface{}{"error": err})
-		return
-	}
-	defer func(logFile *os.File) {
-		_ = logFile.Close()
-	}(logFile)
+	// logFile, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	// if err != nil {
+	// 	logz.Error("Erro ao abrir arquivo de log", map[string]interface{}{"error": err})
+	// 	return
+	// }
+	// defer func(logFile *os.File) {
+	// 	_ = logFile.Close()
+	// }(logFile)
 
-	logEntry := time.Now().Format(time.RFC3339) + ": " + activity + "\n"
-	if _, err := logFile.WriteString(logEntry); err != nil {
-		logz.Error("Erro ao escrever no arquivo de log", map[string]interface{}{"error": err})
-	}
+	// logEntry := time.Now().Format(time.RFC3339) + ": " + activity + "\n"
+	// if _, err := logFile.WriteString(logEntry); err != nil {
+	// 	logz.Error("Erro ao escrever no arquivo de log", map[string]interface{}{"error": err})
+	// }
 }
