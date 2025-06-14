@@ -1,9 +1,9 @@
-![GoLife Banner](./assets/top_banner.png)
-
+# ![GoLife Banner](assets/top_banner.png)
 
 ![Go Version](https://img.shields.io/badge/Go-1.20%2B-blue) ![License](https://img.shields.io/badge/License-MIT-green) ![Status](https://img.shields.io/badge/Status-Active-brightgreen)
 
 ## Table of Contents
+
 - [Introduction](#introduction)
 - [Key Features](#key-features)
 - [Usage Example](#usage-example)
@@ -11,9 +11,11 @@
 - [Conclusion](#conclusion)
 
 ## Introduction
+
 **GoLife** is an innovative system for lifecycle, concurrency, and worker pool management in Go. It enables autonomous process pool handling and can be used via **CLI** or integrated as a module with an **intuitive declarative API**. Designed for scalability and execution state control, GoLife simplifies concurrent process management, ensuring efficiency and security.
 
 ## Key Features
+
 - **Lifecycle Management**: Define custom execution stages.
 - **Smart Concurrency**: Automatically scalable workers.
 - **Declarative API**: Intuitive process management.
@@ -28,25 +30,26 @@
 package main
 
 import (
-	"fmt"
-	"github.com/rafa-mori/golife"
+ "fmt"
+ "github.com/rafa-mori/golife"
 )
 
 func main() {
-	manager := golife.NewLifecycleManager()
+ manager := golife.NewLifecycleManager()
 
-	manager.DefineStage("start").
-		OnEnter(func() { fmt.Println("Server started") }).
-		OnExit(func() { fmt.Println("Server stopped") })
+ manager.DefineStage("start").
+  OnEnter(func() { fmt.Println("Server started") }).
+  OnExit(func() { fmt.Println("Server stopped") })
 
-	manager.DefineStage("processing").
-		OnEvent("request", func(data interface{}) {
-			fmt.Println("Processing:", data)
-		})
+ manager.DefineStage("processing").
+  OnEvent("request", func(data interface{}) {
+   fmt.Println("Processing:", data)
+  })
 
-	manager.Trigger("processing", "request", "Request 1")
-	manager.Trigger("processing", "request", "Request 2")
+ manager.Trigger("processing", "request", "Request 1")
+ manager.Trigger("processing", "request", "Request 2")
 }
+
 ```
 
 ### Smart Concurrency
@@ -55,25 +58,25 @@ func main() {
 package main
 
 import (
-	"fmt"
-	"time"
-	
-	"github.com/rafa-mori/golife"
+ "fmt"
+ "time"
+ 
+ "github.com/rafa-mori/golife"
 )
 
 func main() {
-	manager := golife.NewLifecycleManager()
+ manager := golife.NewLifecycleManager()
 
-	manager.DefineStage("processing").
-		AutoScale(5).
-		OnEvent("task", func(data interface{}) {
-			fmt.Println("Processing task:", data)
-		})
+ manager.DefineStage("processing").
+  AutoScale(5).
+  OnEvent("task", func(data interface{}) {
+   fmt.Println("Processing task:", data)
+  })
 
-	manager.Trigger("processing", "task", "Task 1")
-	manager.Trigger("processing", "task", "Task 2")
+ manager.Trigger("processing", "task", "Task 1")
+ manager.Trigger("processing", "task", "Task 2")
 
-	time.Sleep(1 * time.Second) // Wait for workers to process
+ time.Sleep(1 * time.Second) // Wait for workers to process
 }
 ```
 
@@ -83,26 +86,26 @@ func main() {
 package main
 
 import (
-	"fmt"
-	
-	"github.com/rafa-mori/golife"
+ "fmt"
+ 
+ "github.com/rafa-mori/golife"
 )
 
 func main() {
-	manager := golife.NewLifecycleManager()
+ manager := golife.NewLifecycleManager()
 
-	manager.DefineStage("start").
-		OnEnter(func() { fmt.Println("Server started") }).
-		OnExit(func() { fmt.Println("Server stopped") })
+ manager.DefineStage("start").
+  OnEnter(func() { fmt.Println("Server started") }).
+  OnExit(func() { fmt.Println("Server stopped") })
 
-	manager.DefineStage("processing").
-		AutoScale(3).
-		OnEvent("request", func(data interface{}) {
-			fmt.Println("Processing:", data)
-		})
+ manager.DefineStage("processing").
+  AutoScale(3).
+  OnEvent("request", func(data interface{}) {
+   fmt.Println("Processing:", data)
+  })
 
-	manager.Trigger("processing", "request", "Request 1")
-	manager.Trigger("processing", "request", "Request 2")
+ manager.Trigger("processing", "request", "Request 1")
+ manager.Trigger("processing", "request", "Request 2")
 }
 ```
 
@@ -127,25 +130,25 @@ golife status
 package main
 
 import (
-	"fmt"
-	
-	"github.com/rafa-mori/golife"
+ "fmt"
+ 
+ "github.com/rafa-mori/golife"
 )
 
 func main() {
-	manager := golife.NewLifecycleManager()
+ manager := golife.NewLifecycleManager()
 
-	manager.DefineStage("start").
-		OnEnter(func() { fmt.Println("Server started") }).
-		OnExit(func() { fmt.Println("Server stopped") })
+ manager.DefineStage("start").
+  OnEnter(func() { fmt.Println("Server started") }).
+  OnExit(func() { fmt.Println("Server stopped") })
 
-	manager.DefineStage("processing").
-		OnEvent("request", func(data interface{}) {
-			fmt.Println("Processing:", data)
-		})
+ manager.DefineStage("processing").
+  OnEvent("request", func(data interface{}) {
+   fmt.Println("Processing:", data)
+  })
 
-	manager.Trigger("processing", "request", "Request 1")
-	manager.Trigger("processing", "request", "Request 2")
+ manager.Trigger("processing", "request", "Request 1")
+ manager.Trigger("processing", "request", "Request 2")
 }
 ```
 
@@ -155,31 +158,33 @@ func main() {
 package main
 
 import (
-	"fmt"
-	
-	"github.com/rafa-mori/golife"
+ "fmt"
+ 
+ "github.com/rafa-mori/golife"
 )
 
 func main() {
-	manager := golife.NewLifecycleManager()
+ manager := golife.NewLifecycleManager()
 
-	manager.RegisterEvent("dataReceived", "processing")
+ manager.RegisterEvent("dataReceived", "processing")
 
-	manager.DefineStage("processing").
-		OnEvent("dataReceived", func(data interface{}) {
-			fmt.Println("Data received:", data)
-		})
+ manager.DefineStage("processing").
+  OnEvent("dataReceived", func(data interface{}) {
+   fmt.Println("Data received:", data)
+  })
 
-	manager.Trigger("processing", "dataReceived", "Sample Data")
+ manager.Trigger("processing", "dataReceived", "Sample Data")
 }
 ```
 
 ## Benefits
+
 - **Optimized Resource Usage**: Ensures efficient CPU and memory consumption.
 - **Flexible**: Can be integrated into various systems.
 - **Increased Productivity**: Reduces complexity in concurrent process management.
 
 ## Conclusion
+
 **GoLife** is designed for developers seeking a robust solution for lifecycle and concurrency management. Whether for distributed systems, application servers, or workflow automation, GoLife brings simplicity and scalability to your infrastructure.
 
 Try it today and streamline concurrent process management in your projects! 🚀
