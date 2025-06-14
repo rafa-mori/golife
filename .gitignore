@@ -2,12 +2,15 @@
 # https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
 #
 # Binaries for programs and plugins
-./golife
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
+*.env_*
+*.env
+*BAK
+*BAK*
 
 # Test binary, built with `go test -c`
 *.test
@@ -26,3 +29,19 @@ go.work.sum
 .env
 
 /.idea
+*.backup
+*.backup*
+bkp
+env
+/tests/log/
+/tests/cert/
+/.vscode
+/gobemin_*
+/gobe^[a-zA-Z0-9]
+*.*.sql
+*_debug_*
+*.log
+*.log.*
+gobe
+tests/**/*
+*_linux_amd64*
