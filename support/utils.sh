@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# lib/utils.sh – Funções utilitárias
+# lib/utils.sh – Utility functions
 
 set -euo pipefail
 set -o errtrace
@@ -7,7 +7,7 @@ set -o functrace
 set -o posix
 IFS=$'\n\t'
 
-# Códigos de cor para logs
+# Color codes for logs
 _SUCCESS="\033[0;32m"
 _WARN="\033[0;33m"
 _ERROR="\033[0;31m"
@@ -63,12 +63,12 @@ get_current_shell() {
   esac
 }
 
-# Cria um diretório temporário para cache
+# Creates a temporary directory for cache
 _TEMP_DIR="${_TEMP_DIR:-$(mktemp -d)}"
 if [[ -d "${_TEMP_DIR}" ]]; then
-    log info "Diretório temporário criado: ${_TEMP_DIR}"
+    log info "Temporary directory created: ${_TEMP_DIR}"
 else
-    log error "Falha ao criar o diretório temporário."
+    log error "Failed to create temporary directory."
 fi
 
 clear_script_cache() {
@@ -80,9 +80,9 @@ clear_script_cache() {
   if [[ -d "${_TEMP_DIR}" ]] && sudo -v 2>/dev/null; then
     sudo rm -rf "${_TEMP_DIR}"
     if [[ -d "${_TEMP_DIR}" ]]; then
-      printf '%b[_ERROR]%b ❌  %s\n' "$_ERROR" "$_NC" "Falha ao remover o diretório temporário: ${_TEMP_DIR}"
+      printf '%b[_ERROR]%b ❌  %s\n' "$_ERROR" "$_NC" "Failed to remove temporary directory: ${_TEMP_DIR}"
     else
-      printf '%b[_SUCCESS]%b ✅  %s\n' "$_SUCCESS" "$_NC" "Diretório temporário removido: ${_TEMP_DIR}"
+      printf '%b[_SUCCESS]%b ✅  %s\n' "$_SUCCESS" "$_NC" "Temporary directory removed: ${_TEMP_DIR}"
     fi
   fi
   exit 0

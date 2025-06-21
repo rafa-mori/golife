@@ -1,11 +1,12 @@
 package main
 
 import (
+	"os"
+	"strings"
+
 	"github.com/rafa-mori/golife/cmd/cli"
 	"github.com/rafa-mori/golife/version"
 	"github.com/spf13/cobra"
-	"os"
-	"strings"
 )
 
 type GoLife struct {
@@ -14,6 +15,7 @@ type GoLife struct {
 }
 
 func (m *GoLife) Alias() string { return "" }
+
 func (m *GoLife) ShortDescription() string {
 	return "GoLife is a tool to manage the life cycle of an application, service or module."
 }

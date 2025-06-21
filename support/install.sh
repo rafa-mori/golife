@@ -72,7 +72,7 @@ _HIDE_ABOUT=${HIDE_ABOUT:-false}
 
 __first "$@" >/dev/tty || exit 1
 
-# Carrega os arquivos de biblioteca
+# Load library files
 _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 #shellcheck source=/dev/null
 test -z "${_BANNER:-}" && source "${_SCRIPT_DIR}/config.sh" || true
@@ -89,14 +89,14 @@ test -z "$(declare -f build_binary)" >/dev/null && source "${_SCRIPT_DIR}/build.
 #shellcheck source=/dev/null
 test -z "$(declare -f show_banner)" >/dev/null && source "${_SCRIPT_DIR}/info.sh" || true
 
-# Inicializa os traps
+# Initialize traps
 set_trap "$@"
 
 clear_screen
 
 __main() {
   if ! what_platform; then
-    log error "Plataforma não suportada: ${_PLATFORM}"
+    log error "Unsupported platform: ${_PLATFORM}"
     exit 1
   fi
 
@@ -106,7 +106,7 @@ __main() {
       show_about
     fi
   else
-    log info "Modo debug ativado; banner será ignorado..."
+    log info "Debug mode enabled; banner will be ignored..."
     if [[ -z "${_HIDE_ABOUT}" ]]; then
       show_about
     fi
@@ -120,26 +120,26 @@ __main() {
   local ARCH_ARG
   ARCH_ARG=$(_get_arch_arr_from_args "${arrArgs[2]:-${_ARCH}}")
 
-  log info "Comando: ${arrArgs[0]:-}" true
-  log info "Plataforma: ${PLATFORM_ARG:-$default_label}" true
-  log info "Arquitetura: ${ARCH_ARG:-$default_label}" true
+  log info "Command: ${arrArgs[0]:-}" true
+  log info "Platform: ${PLATFORM_ARG:-$default_label}" true
+  log info "Architecture: ${ARCH_ARG:-$default_label}" true
   log info "Args: ${_ARGS[*]:-}" true
 
   case "${arrArgs[0]:-}" in
     build|BUILD|-b|-B)
       # validate_versions
-      log info "Executando comando de build..."
+      log info "Executing build command..."
       build_binary "${PLATFORM_ARG}" "${ARCH_ARG}" || exit 1
       ;;
     install|INSTALL|-i|-I)
-      log info "Executando comando de instalação..."
-      read -r -p "Deseja baixar o binário pré-compilado? [y/N] (Caso contrário, fará build local): " choice </dev/tty
-      log info "Escolha do usuário: ${choice}"
+      log info "Executing installation command..."
+      read -r -p "Do you want to download the pre-compiled binary? [y/N] (Otherwise, it will build locally): " choice </dev/tty
+      log info "User choice: ${choice}"
       if [[ "$choice" == "y" || "$choice" == "Y" ]]; then
-          log info "Baixando binário pré-compilado..."
+          log info "Downloading pre-compiled binary..."
           install_from_release
       else
-          log info "Realizando build local..."
+          log info "Performing local build..."
           validate_versions
           build_binary "${PLATFORM_ARG}" "${ARCH_ARG}" || exit 1
           install_binary
@@ -147,20 +147,20 @@ __main() {
       summary
       ;;
     clear|clean|CLEAN|-c|-C)
-      log info "Executando comando de limpeza..."
+      log info "Executing clean command..."
       clean_artifacts
-      log success "Clean executado com sucesso."
+      log success "Clean executed successfully."
       ;;
     *)
-      log error "Comando inválido: ${arrArgs[0]:-}"
-      echo "Uso: $0 {build|install|clean}"
+      log error "Invalid command: ${arrArgs[0]:-}"
+      echo "Usage: $0 {build|install|clean}"
       ;;
   esac
 }
 
-# Função para limpar artefatos de build
+# Function to clean build artifacts
 clean_artifacts() {
-    log info "Limpando artefatos de build..."
+    log info "Cleaning build artifacts..."
     local platforms=("windows" "darwin" "linux")
     local archs=("amd64" "386" "arm64")
     for platform in "${platforms[@]}"; do
@@ -177,7 +177,7 @@ clean_artifacts() {
             rm -f "${compress_name}" || true
         done
     done
-    log success "Artefatos de build removidos."
+    log success "Build artifacts removed."
 }
 
 __secure_logic_main() {

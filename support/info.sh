@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# lib/info.sh – Funções para exibir banners e resumo de instalação
+# lib/info.sh – Functions to display banners and installation summary
 
 show_about() {
     printf '%s\n\n' "${_ABOUT:-}"
@@ -16,9 +16,9 @@ show_headers() {
 
 summary() {
     local install_dir="$_BINARY"
-    log success "Build e instalação concluídos!"
-    log success "Binário: $_BINARY"
-    log success "Instalado em: ${install_dir}"
+    log success "Build and installation completed!"
+    log success "Binary: $_BINARY"
+    log success "Installed in: ${install_dir}"
     check_path "$install_dir"
 }
 
